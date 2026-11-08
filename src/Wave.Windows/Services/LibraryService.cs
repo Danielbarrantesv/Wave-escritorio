@@ -275,7 +275,7 @@ public sealed class LibraryService : ILibraryService
 
             System.Diagnostics.Debug.WriteLine($"[LibraryService] Fixing metadata for {toFix.Count} songs...");
 
-            int fixed = 0;
+            int updatedCount = 0;
             foreach (var song in toFix)
             {
                 // Verificar que el archivo aún existe
@@ -291,11 +291,9 @@ public sealed class LibraryService : ILibraryService
                     var updated = Wave.Windows.Audio.TagReader.Read(song.FilePath);
                     if (updated != null && updated.DurationMs > 0)
                     {
-                        // Actualizar la canción en la DB
-                        // Como no tenemos método Update en SongRepository, usamos DeleteAll + Insert
-                        // Pero eso es destructivo. Mejor: actualizar directamente con SQL.
+                        // Actualizar la canción en la DB directamente con SQL
                         UpdateSongMetadata(song.Id, updated.DurationMs, updated.ArtUri);
-                        fixed++;
+                        updatedCount++;
                     }
                 }
                 catch (Exception ex)
@@ -304,8 +302,8 @@ public sealed class LibraryService : ILibraryService
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine($"[LibraryService] Fixed {fixed} of {toFix.Count} songs");
-            return fixed;
+            System.Diagnostics.Debug.WriteLine($"[LibraryService] Fixed {updatedCount} of {toFix.Count} songs");
+            return updatedCount;
         });
     }
 
