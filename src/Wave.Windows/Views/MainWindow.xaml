@@ -225,8 +225,8 @@
                                         Click="Favorite_Click"
                                         Background="Transparent"
                                         Foreground="{DynamicResource AccentBrush}"
-                                        Content="&#x2665;"
-                                        FontSize="18"
+                                        Content="&#x2661;"
+                                        FontSize="20"
                                         ToolTip="Marcar/desmarcar como favorito"
                                         Tag="{Binding}"/>
 

@@ -54,7 +54,11 @@ public static class TagReader
             if (durationMs <= 0)
             {
                 durationMs = GetDurationWithNaudio(filePath);
-                if (durationMs <= 0) return null; // archivo corrupto o sin audio
+                if (durationMs <= 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TagReader] No duration for {fileName}");
+                    return null; // archivo corrupto o sin audio
+                }
             }
 
             var title = !string.IsNullOrWhiteSpace(tag.Title)
@@ -76,6 +80,12 @@ public static class TagReader
             // Extraer portada embebida (si existe)
             var artUri = ExtractEmbeddedPicture(tag, filePath);
 
+            // Fallback: buscar cover.jpg / folder.jpg en la misma carpeta
+            if (string.IsNullOrEmpty(artUri))
+            {
+                artUri = FindCoverArtInFolder(filePath);
+            }
+
             return new Models.Song
             {
                 FilePath = filePath,
@@ -96,19 +106,47 @@ public static class TagReader
         }
         catch (CorruptFileException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Wave] TagLib# corrupt file: {filePath}: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[TagReader] Corrupt file: {filePath}: {ex.Message}");
             return null;
         }
         catch (UnsupportedFormatException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Wave] TagLib# unsupported format: {filePath}: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[TagReader] Unsupported format: {filePath}: {ex.Message}");
             return null;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Wave] TagReader failed for {filePath}: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[TagReader] Failed for {filePath}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Fallback: busca archivos de portada comunes (cover.jpg, folder.jpg, album.jpg, etc.)
+    /// en la misma carpeta del archivo de audio.
+    /// </summary>
+    private static string? FindCoverArtInFolder(string audioFilePath)
+    {
+        try
+        {
+            var folder = Path.GetDirectoryName(audioFilePath);
+            if (string.IsNullOrEmpty(folder)) return null;
+
+            var coverNames = new[] { "cover.jpg", "cover.png", "folder.jpg", "folder.png",
+                                     "album.jpg", "album.png", "front.jpg", "front.png" };
+
+            foreach (var name in coverNames)
+            {
+                var path = Path.Combine(folder, name);
+                if (File.Exists(path))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TagReader] Found cover art: {name}");
+                    return path;
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 
     /// <summary>

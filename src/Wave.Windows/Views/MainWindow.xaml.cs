@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private LyricsWindow? _lyricsWindow;
     private EqualizerWindow? _equalizerWindow;
     private MiniPlayerWindow? _miniPlayerWindow;
+    private bool _isExiting = false;
 
     public MainWindow()
     {
@@ -357,20 +358,53 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Al cerrar la ventana, ocultar al tray en lugar de salir
-    /// (si la app está corriendo con tray icon).
-    /// El cierre real se hace desde "Salir" del menú tray.
+    /// Al cerrar la ventana con la X, preguntar si minimizar al tray o salir.
+    /// Si el usuario elige salir, cerrar de verdad (no quedarse pegado en memoria).
     /// </summary>
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        // Si el tray está activo, ocultar al tray en lugar de cerrar
-        if (App.Services.GetService<TrayService>() is not null)
+        // Si ya estamos saliendo (via tray "Salir" o Shutdown), permitir el cierre
+        if (_isExiting)
         {
-            e.Cancel = true;
-            Hide();
+            base.OnClosing(e);
             return;
         }
+
+        // Si hay tray, preguntar si minimizar o salir
+        if (App.Services.GetService<TrayService>() is not null)
+        {
+            var result = MessageBox.Show(
+                "¿Quieres minimizar Wave a la bandeja (Sí) o cerrar la aplicación (No)?",
+                "Wave — Cerrar",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Minimizar al tray
+                e.Cancel = true;
+                Hide();
+                return;
+            }
+            else if (result == MessageBoxResult.No)
+            {
+                // Salir de verdad
+                _isExiting = true;
+                // Asegurar que el proceso termine
+                base.OnClosing(e);
+                Environment.Exit(0);
+                return;
+            }
+            else
+            {
+                // Cancel: no hacer nada
+                e.Cancel = true;
+                return;
+            }
+        }
+
         base.OnClosing(e);
+        Environment.Exit(0);
     }
 
     // === Sort chip ===

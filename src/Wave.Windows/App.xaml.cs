@@ -85,7 +85,11 @@ public partial class App : Application
             {
                 var tray = Services.GetRequiredService<TrayService>();
                 tray.ShowMainWindowRequested += (s, args) => mainWindow.ShowFromTray();
-                tray.ExitRequested += (s, args) => Shutdown();
+                tray.ExitRequested += (s, args) =>
+                {
+                    LogInfo("Exit requested from tray");
+                    Environment.Exit(0);
+                };
                 LogInfo("TrayService initialized");
             }
             catch (Exception ex)

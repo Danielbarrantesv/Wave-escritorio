@@ -77,13 +77,23 @@ public sealed class AudioEngine : IDisposable
     /// <exception cref="InvalidOperationException">Si NAudio no puede leer el formato.</exception>
     public void Load(string filePath)
     {
+        System.Diagnostics.Debug.WriteLine($"[AudioEngine] Loading: {filePath}");
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"Archivo de audio no encontrado: {filePath}", filePath);
 
         // Descartar pipeline anterior
         DisposeInternal();
 
-        _reader = new MediaFoundationReader(filePath);
+        try
+        {
+            _reader = new MediaFoundationReader(filePath);
+            System.Diagnostics.Debug.WriteLine($"[AudioEngine] Reader created: {_reader.WaveFormat} duration={_reader.TotalTime}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AudioEngine] MediaFoundationReader failed: {ex.Message}");
+            throw;
+        }
 
         // Convertir a ISampleProvider (float 32-bit, 44.1kHz, stereo)
         _sampleProvider = ConvertToSampleProvider(_reader);
@@ -100,6 +110,7 @@ public sealed class AudioEngine : IDisposable
         };
         _waveOut.Init(_volume);
         _waveOut.PlaybackStopped += (s, e) => PlaybackStopped?.Invoke(s, e);
+        System.Diagnostics.Debug.WriteLine("[AudioEngine] Pipeline initialized OK");
     }
 
     /// <summary>

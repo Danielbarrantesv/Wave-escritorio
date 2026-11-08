@@ -203,11 +203,13 @@ public sealed class LibraryService : ILibraryService
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[LibraryService] CreateGenrePlaylists: {added} new songs, calling CreateGenrePlaylists...");
                 _playlistService.CreateGenrePlaylists();
+                System.Diagnostics.Debug.WriteLine("[LibraryService] CreateGenrePlaylists completed");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Wave] CreateGenrePlaylists falló: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[LibraryService] CreateGenrePlaylists falló: {ex.Message}");
                 // No fallar la importación si CreateGenrePlaylists falla
             }
         }
