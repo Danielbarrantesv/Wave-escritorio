@@ -53,6 +53,8 @@ public sealed class SqliteDatabase : IDisposable
     /// <summary>
     /// Ejecuta las migraciones pendientes. Si los archivos .sql no están disponibles
     /// (p.ej. en single-file publish), ejecuta el schema completo inline como fallback.
+    ///
+    /// Es idempotente: puede llamarse varias veces sin fallar.
     /// </summary>
     private void RunMigrations()
     {
@@ -65,22 +67,40 @@ public sealed class SqliteDatabase : IDisposable
             );
             """);
 
-        var appliedMigrations = _connection
-            .Query<int>("SELECT id FROM migrations").ToHashSet();
+        // Verificar si las tablas principales YA existen (pueden haberse creado
+        // en una ejecución anterior). Si ya existen, no re-aplicar schema.
+        var existingTables = _connection
+            .Query<string>("SELECT name FROM sqlite_master WHERE type='table'")
+            .ToHashSet();
 
-        // Intentar cargar migraciones desde archivos .sql
-        var migrationsDir = Path.Combine(AppContext.BaseDirectory, "Data", "Migrations");
-        var migrationFiles = Directory.Exists(migrationsDir)
-            ? Directory.GetFiles(migrationsDir, "*.sql").OrderBy(f => f).ToList()
-            : new List<string>();
+        bool songsTableExists = existingTables.Contains("songs");
+        bool playlistsTableExists = existingTables.Contains("playlists");
 
-        if (migrationFiles.Count > 0)
+        // Si las tablas principales no existen, ejecutar schema completo inline
+        // (no requiere archivos .sql — útil en single-file publish)
+        if (!songsTableExists || !playlistsTableExists)
         {
-            // Modo normal: aplicar archivos .sql uno por uno
-            foreach (var file in migrationFiles)
+            _connection.Execute(InlineSchema);
+        }
+
+        // Registrar migración 1 (INSERT OR IGNORE = idempotente, no falla si ya existe)
+        _connection.Execute("""
+            INSERT OR IGNORE INTO migrations (id, name, applied_at)
+            VALUES (1, '001_initial_inline', @ts)
+            """, new { ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+
+        // Intentar cargar migraciones adicionales desde archivos .sql (si existen)
+        // para soportar futuras migraciones adicionales
+        var migrationsDir = Path.Combine(AppContext.BaseDirectory, "Data", "Migrations");
+        if (Directory.Exists(migrationsDir))
+        {
+            var appliedMigrations = _connection
+                .Query<int>("SELECT id FROM migrations").ToHashSet();
+
+            foreach (var file in Directory.GetFiles(migrationsDir, "*.sql").OrderBy(f => f))
             {
                 var id = int.Parse(Path.GetFileName(file).Split('_')[0]);
-                if (appliedMigrations.Contains(id)) continue;
+                if (appliedMigrations.Contains(id) || id == 1) continue;
 
                 var sql = File.ReadAllText(file);
                 using var tx = _connection.BeginTransaction();
@@ -88,7 +108,7 @@ public sealed class SqliteDatabase : IDisposable
                 {
                     _connection.Execute(sql, transaction: tx);
                     _connection.Execute(
-                        "INSERT INTO migrations (id, name, applied_at) VALUES (@id, @name, @ts)",
+                        "INSERT OR IGNORE INTO migrations (id, name, applied_at) VALUES (@id, @name, @ts)",
                         new { id, name = Path.GetFileName(file), ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds() },
                         tx);
                     tx.Commit();
@@ -98,18 +118,6 @@ public sealed class SqliteDatabase : IDisposable
                     tx.Rollback();
                     throw;
                 }
-            }
-        }
-        else
-        {
-            // Fallback: ejecutar schema completo inline (single-file publish sin .sql)
-            // Verificamos si ya se aplicó migration 1 para no re-ejecutar
-            if (!appliedMigrations.Contains(1))
-            {
-                _connection.Execute(InlineSchema);
-                _connection.Execute(
-                    "INSERT INTO migrations (id, name, applied_at) VALUES (1, '001_initial_inline', @ts)",
-                    new { ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             }
         }
     }
