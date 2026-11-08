@@ -1,3 +1,4 @@
+using System.IO;
 using FluentAssertions;
 using Moq;
 using Wave.Windows.Models;
@@ -19,11 +20,14 @@ public class PlaybackControllerTests : IDisposable
     private readonly AudioEngine _engine;
     private readonly Mock<ISongRepository> _songRepoMock;
     private readonly PlaybackController _controller;
+    private readonly string _tempSettingsPath;
 
     public PlaybackControllerTests()
     {
-        // SettingsService efímero (no persiste a disco real porque usa un path distinto en CI)
-        _settings = new SettingsService();
+        // Cada test tiene su propio archivo settings efímero para evitar
+        // contaminación entre tests (parallel execution en xUnit).
+        _tempSettingsPath = Path.Combine(Path.GetTempPath(), $"wave-test-{Guid.NewGuid():N}.json");
+        _settings = new SettingsService(_tempSettingsPath);
         _engine = new AudioEngine();
         _songRepoMock = new Mock<ISongRepository>();
         _controller = new PlaybackController(_settings, _engine, _songRepoMock.Object);
@@ -235,7 +239,7 @@ public class PlaybackControllerTests : IDisposable
         // Configurar mock para que devuelva las canciones al restaurar
         _songRepoMock.Setup(r => r.ListAll()).Returns(songs);
 
-        // Act — restaurar en un controlador nuevo
+        // Act — restaurar en un controlador nuevo (mismo settings path para leer los prefs)
         var newController = new PlaybackController(_settings, new AudioEngine(), _songRepoMock.Object);
         newController.RestoreSavedQueue();
 
@@ -260,5 +264,8 @@ public class PlaybackControllerTests : IDisposable
     {
         _controller.Dispose();
         _engine.Dispose();
+        // Limpiar archivo efímero de settings
+        try { if (File.Exists(_tempSettingsPath)) File.Delete(_tempSettingsPath); }
+        catch { /* ignore */ }
     }
 }

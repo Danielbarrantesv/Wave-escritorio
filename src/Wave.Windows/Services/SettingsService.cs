@@ -9,15 +9,23 @@ namespace Wave.Windows.Services;
 /// </summary>
 public sealed class SettingsService
 {
-    private static readonly string SettingsPath = Path.Combine(
+    private static readonly string DefaultSettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Wave", "settings.json");
 
+    private readonly string _settingsPath;
     private Dictionary<string, JsonElement> _settings = new();
     private readonly object _lock = new();
 
-    public SettingsService()
+    public SettingsService() : this(DefaultSettingsPath) { }
+
+    /// <summary>
+    /// Constructor con path personalizado (para tests o entornos aislados).
+    /// </summary>
+    /// <param name="settingsPath">Ruta absoluta al archivo settings.json.</param>
+    public SettingsService(string settingsPath)
     {
+        _settingsPath = settingsPath;
         Load();
     }
 
@@ -106,9 +114,9 @@ public sealed class SettingsService
     {
         try
         {
-            if (File.Exists(SettingsPath))
+            if (File.Exists(_settingsPath))
             {
-                var json = File.ReadAllText(SettingsPath);
+                var json = File.ReadAllText(_settingsPath);
                 _settings = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ?? new();
             }
         }
@@ -122,9 +130,9 @@ public sealed class SettingsService
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
             var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(SettingsPath, json);
+            File.WriteAllText(_settingsPath, json);
         }
         catch
         {

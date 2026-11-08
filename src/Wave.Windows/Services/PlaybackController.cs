@@ -96,7 +96,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
         Queue.Clear();
         foreach (var s in _queue) Queue.Add(s);
 
-        if (_isShuffle) BuildShuffleOrder();
+        if (IsShuffle) BuildShuffleOrder();
 
         LoadAndPlay(autoPlay);
     }
@@ -104,7 +104,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
     /// <summary>Inicia la reproducción. Si no hay cola, no hace nada.</summary>
     public void Play()
     {
-        if (_currentSong == null)
+        if (CurrentSong == null)
         {
             if (_queue.Count > 0)
             {
@@ -136,12 +136,12 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
     {
         if (_queue.Count == 0) return;
 
-        if (_isShuffle)
+        if (IsShuffle)
         {
             _shuffleIndex++;
             if (_shuffleIndex >= _shuffleOrder.Count)
             {
-                if (_repeatOne || _settings.RepeatAll)
+                if (RepeatOne || _settings.RepeatAll)
                 {
                     _shuffleIndex = 0;
                     BuildShuffleOrder();
@@ -159,7 +159,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
             _currentIndex++;
             if (_currentIndex >= _queue.Count)
             {
-                if (_repeatOne || _settings.RepeatAll)
+                if (RepeatOne || _settings.RepeatAll)
                     _currentIndex = 0;
                 else
                 {
@@ -183,7 +183,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
             return;
         }
 
-        if (_isShuffle)
+        if (IsShuffle)
         {
             _shuffleIndex--;
             if (_shuffleIndex < 0) _shuffleIndex = _shuffleOrder.Count - 1;
@@ -307,9 +307,9 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
 
         // Throttle: actualizar last_played_at en DB cada 3 segundos
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (now - _lastLastPlayedUpdate >= 3 && _currentSong != null)
+        if (now - _lastLastPlayedUpdate >= 3 && CurrentSong != null)
         {
-            _songRepo.UpdateLastPlayedAt(_currentSong.Id, now);
+            _songRepo.UpdateLastPlayedAt(CurrentSong.Id, now);
             _lastLastPlayedUpdate = now;
         }
     }
