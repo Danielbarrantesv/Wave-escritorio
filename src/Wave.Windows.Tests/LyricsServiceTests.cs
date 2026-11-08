@@ -81,13 +81,14 @@ public class LyricsServiceTests
     public void Parse_ConTimestampsDe3DigitosMs_LosConvierteCorrectamente()
     {
         // Arrange — formato con milisegundos de 3 dígitos
+        // [00:01.123] = minuto 0, segundo 1, ms 123 → 0*60000 + 1*1000 + 123 = 1123 ms
         var lrc = "[00:01.123] Test";
 
         // Act
         var result = _service.Parse(lrc);
 
-        // Assert — 1*60000 + 1*1000 + 123 = 6123 ms
-        result.Lines[0].TimestampMs.Should().Be(6123);
+        // Assert
+        result.Lines[0].TimestampMs.Should().Be(1123);
     }
 
     [Fact]
