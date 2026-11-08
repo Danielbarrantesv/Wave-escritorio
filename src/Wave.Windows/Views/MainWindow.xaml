@@ -25,7 +25,7 @@
                        Foreground="{DynamicResource AccentBrush}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="1"
-                       Text="{Binding SongCount, StringFormat='{0} canciones', FallbackValue='0 canciones'}"
+                       Text="{Binding SongCount, StringFormat=\{0\} canciones, FallbackValue=0 canciones}"
                        Foreground="{DynamicResource OnSurfaceVariantBrush}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
             <Button Grid.Column="2" Click="AddMusic_Click"
