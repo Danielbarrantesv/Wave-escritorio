@@ -212,10 +212,9 @@ function onSeekEnd(e) {
 
 // === Import ===
 async function onAddMusic() {
-    // Pedir al usuario que seleccione carpeta via prompt
-    // En WebView2, necesitamos que C# abra el diálogo
+    // Llamar a C# que abre el folder picker nativo
     const result = await WaveAPI.call('library.importFromFolder', '');
-    if (result) {
+    if (result && !result.cancelled) {
         alert(`Importación: ${result.added} nuevas, ${result.duplicates} duplicadas`);
         await loadSongs();
         await loadPlaylists();

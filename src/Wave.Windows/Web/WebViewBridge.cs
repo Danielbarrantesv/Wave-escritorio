@@ -8,7 +8,7 @@ namespace Wave.Windows.Web;
 
 /// <summary>
 /// Puente de comunicación entre C# (backend) y JavaScript (frontend WebView2).
-/// Protocolo JSON-RPC simplificado.
+/// Protocolo JSON-RPC simplificado con camelCase serialization.
 /// </summary>
 public class WebViewBridge
 {
@@ -20,6 +20,13 @@ public class WebViewBridge
     private readonly IBackupService _backup;
     private readonly SettingsService _settings;
     private readonly AudioEngine _audioEngine;
+
+    // JSON options camelCase para que JS lea result.added, result.duplicates, etc.
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
 
     public WebViewBridge(
         CoreWebView2 webView,
@@ -55,7 +62,7 @@ public class WebViewBridge
             var paramsEl = msg.TryGetProperty("params", out var p) ? p : default;
 
             var result = await HandleMethod(method, paramsEl);
-            var response = JsonSerializer.Serialize(new { id, result });
+            var response = JsonSerializer.Serialize(new { id, result }, JsonOpts);
             _webView.PostWebMessageAsString(response);
         }
         catch (Exception ex)
@@ -74,10 +81,12 @@ public class WebViewBridge
     {
         return method switch
         {
+            // Library
             "library.getSongs" => _library.GetAllSongs(),
             "library.getSongCount" => _library.SongCount,
-            "library.importFromFolder" => await _library.ImportFromFolderAsync(p.ValueKind == JsonValueKind.String ? p.GetString()! : ""),
+            "library.importFromFolder" => await ImportFromFolder(p),
 
+            // Playback
             "playback.play" => Invoke(() => _playback.Play()),
             "playback.pause" => Invoke(() => _playback.Pause()),
             "playback.togglePlayPause" => Invoke(() => _playback.TogglePlayPause()),
@@ -90,19 +99,62 @@ public class WebViewBridge
             "playback.playSong" => PlaySong(p),
             "playback.setVolume" => Invoke(() => _audioEngine.Volume = p.GetProperty("volume").GetSingle()),
 
+            // Playlists
             "playlists.getAll" => _playlistService.GetAllSorted(),
             "playlists.getSongs" => _playlistService.GetSongs(p.GetProperty("playlistId").GetInt64()),
-            "playlists.toggleFavorite" => Invoke(() => _playlistService.ToggleFavorite(p.Deserialize<Song>()!)),
+            "playlists.toggleFavorite" => Invoke(() =>
+            {
+                var song = p.Deserialize<Song>(JsonOpts);
+                _playlistService.ToggleFavorite(song!);
+            }),
             "playlists.create" => _playlistService.CreatePlaylist(p.GetProperty("name").GetString()!),
 
-            "lyrics.get" => await _lyrics.GetLyricsAsync(p.Deserialize<Song>()!),
+            // Lyrics
+            "lyrics.get" => await _lyrics.GetLyricsAsync(p.Deserialize<Song>(JsonOpts)!),
+
+            // Backup
             "backup.export" => await InvokeAsync(() => _backup.ExportAsync(p.GetProperty("path").GetString()!)),
 
+            // Settings
             "settings.get" => _settings.Get<string>(p.GetProperty("key").GetString()!, ""),
             "settings.set" => Invoke(() => _settings.Set(p.GetProperty("key").GetString()!, p.GetProperty("value").GetString()!)),
 
             _ => throw new NotImplementedException($"Method '{method}' not implemented")
         };
+    }
+
+    /// <summary>
+    /// Importa música desde una carpeta. Si no se especifica path, abre folder picker.
+    /// </summary>
+    private async Task<object?> ImportFromFolder(JsonElement p)
+    {
+        string folderPath = p.ValueKind == JsonValueKind.String ? p.GetString() ?? "" : "";
+
+        // Si no hay path, abrir folder picker nativo de Windows
+        if (string.IsNullOrEmpty(folderPath))
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Selecciona la carpeta de música",
+                Multiselect = false
+            };
+
+            // Ejecutar en hilo UI
+            string? selectedPath = null;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (dialog.ShowDialog() == true)
+                    selectedPath = dialog.FolderName;
+            });
+
+            if (string.IsNullOrEmpty(selectedPath))
+                return new { added = 0, duplicates = 0, total = 0, cancelled = true };
+
+            folderPath = selectedPath;
+        }
+
+        var result = await _library.ImportFromFolderAsync(folderPath);
+        return result;
     }
 
     private object? PlaySong(JsonElement p)
@@ -139,7 +191,7 @@ public class WebViewBridge
         {
             try
             {
-                var stateJson = JsonSerializer.Serialize(new { @event = "playbackChanged", state = GetPlaybackState() });
+                var stateJson = JsonSerializer.Serialize(new { @event = "playbackChanged", state = GetPlaybackState() }, JsonOpts);
                 _webView.PostWebMessageAsString(stateJson);
             }
             catch { }
