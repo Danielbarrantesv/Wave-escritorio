@@ -11,9 +11,9 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Wave</AssemblyName>
     <RootNamespace>Wave.Windows</RootNamespace>
-    <Version>0.9.0</Version>
-    <AssemblyVersion>0.9.0.0</AssemblyVersion>
-    <FileVersion>0.9.0.0</FileVersion>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
     <Company>Daniel Barrantes</Company>
     <Product>Wave for Windows</Product>
     <Description>Reproductor de música offline para Windows 10/11</Description>
@@ -24,6 +24,14 @@
     <RepositoryType>git</RepositoryType>
     <!-- Alta DPI PerMonitorV2 -->
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <!-- MSIX packaging (v1.0.0) — desactivado por defecto porque requiere certificado.
+         Para empaquetar MSIX: -p:WindowsPackageType=MSIX -p:PackageCertificateKeyFile=cert.pfx
+         El Package.appxmanifest ya está preparado.
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,6 +55,9 @@
     <None Update="Data\Migrations\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
   </ItemGroup>
 
 </Project>

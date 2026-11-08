@@ -65,7 +65,52 @@ Wave-escritorio/
 | `v0.7.0` | Equalizer (5 bandas biquad) + Visualizer (FFT spectrum) | ✅ Released |
 | `v0.8.0` | System tray icon + SMTC + hotkeys globales (Ctrl+Alt+P, etc.) | ✅ Released |
 | `v0.9.0` | Mini player flotante + Backup/Restore en JSON | ✅ Released |
-| `v1.0.0` | Estabilización + tests + empaquetado MSIX | Pendiente |
+| `v1.0.0` | Estabilización + empaquetado MSIX + tests de integración | ✅ Released |
+
+## Características implementadas (v1.0.0)
+
+### Reproducción de audio
+- **NAudio** (MediaFoundationReader + WaveOutEvent) con pipeline completo:
+  `reader → resampler → VisualizerEngine → EqualizerSampleProvider → VolumeSampleProvider → waveOut`
+- Formatos soportados: **MP3, FLAC, AAC, M4A, OGG, WAV, WMA**
+- Cola observable con shuffle (Fisher-Yates) y repeat one/all
+- Persistencia de cola entre sesiones (settings.json)
+- Hotkeys globales: Ctrl+Alt+P (Play/Pausa), Ctrl+Alt+→ (Siguiente), Ctrl+Alt+← (Anterior), Ctrl+Alt+↑/↓ (volumen)
+
+### Biblioteca musical
+- Scanner recursivo con deduplicación por 3 estrategias (path, name+size, metadata)
+- Extracción de tags con **TagLib#** (ID3v1/v2, MP4, FLAC, OGG)
+- Portadas embebidas extraídas y cacheadas en `%LocalAppData%\Wave\art\`
+- Búsqueda en tiempo real (Title, Artist, Album, FileName)
+- Ordenación por 5 criterios (Recientes, Reproducidas, Título, Artista, Duración)
+
+### Playlists
+- Playlist "Favoritos" siempre presente (idempotente)
+- Playlists automáticas por género (v2.5.24 feature del spec Android)
+- Playlists manuales del usuario
+- Toggle favorito por canción (corazón)
+
+### Letras sincronizadas
+- Cliente HTTP de **lrclib.net** (sin API key, rate limit ~100 req/min)
+- Cache local en `%LocalAppData%\Wave\lyrics\`
+- Parser LRC completo (timestamps `[mm:ss.xx]`, multi-timestamp comprimido, líneas vacías → ♪)
+- Vista con portada de fondo + scrim oscuro + auto-scroll siguiendo playback
+
+### Audio avanzado
+- **Equalizer de 5 bandas biquad peaking EQ** (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz)
+  - Implementación real según Audio EQ Cookbook de Robert Bristow-Johnson
+  - Estado por banda por canal (Direct Form I)
+  - Bypass on/off, reset a 0 dB
+- **Visualizer FFT 1024** con ventana Hamming + mapeo logarítmico (32 barras)
+
+### Integración con Windows
+- **System tray icon** con menú contextual (Play/Pausa, Siguiente, Anterior, Mostrar, Salir)
+- **SMTC** (System Media Transport Controls) — overlay de Windows + teclas multimedia
+- **Hotkeys globales** (RegisterHotKey via P/Invoke)
+- **Mini player flotante** (320x80, topmost, sin borde, draggable)
+- **Backup/Restore** en JSON (biblioteca + playlists + asociaciones)
+- **Drag & drop** de archivos o carpetas
+- **Minimizar al tray** al cerrar ventana principal
 
 ## Cómo construir
 
