@@ -82,11 +82,12 @@ public partial class PlaybackController : ObservableObject, IDisposable
 
     /// <summary>
     /// Reemplaza la cola y opcionalmente inicia reproducción.
+    /// Marcado como virtual para permitir mockeo en tests (Moq requiere métodos overridable).
     /// </summary>
     /// <param name="songs">Lista de canciones a poner en cola.</param>
     /// <param name="startIndex">Índice inicial (default 0).</param>
     /// <param name="autoPlay">Si true, comienza a reproducir inmediatamente.</param>
-    public void SetQueue(List<Song> songs, int startIndex = 0, bool autoPlay = true)
+    public virtual void SetQueue(List<Song> songs, int startIndex = 0, bool autoPlay = true)
     {
         if (songs == null || songs.Count == 0) return;
 
