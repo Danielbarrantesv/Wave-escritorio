@@ -8,8 +8,6 @@ using Wave.Windows.External;
 using Wave.Windows.Services;
 using Wave.Windows.ViewModels;
 using Wave.Windows.Views;
-// Alias para desambiguar Application entre WPF y WinForms (UseWindowsForms=true en csproj)
-using Application = System.Windows.Application;
 
 namespace Wave.Windows;
 
