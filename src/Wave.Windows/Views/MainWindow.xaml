@@ -5,6 +5,9 @@
         Title="Wave" Height="720" Width="1200"
         WindowStartupLocation="CenterScreen"
         Background="#1A1A1A"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        AllowsTransparency="True"
         AllowDrop="True"
         Drop="Window_Drop"
         DragEnter="Window_DragEnter">
