@@ -92,7 +92,8 @@ public sealed class BackupService : IBackupService
         foreach (var song in backup.Songs)
         {
             var oldId = song.Id;
-            var newId = _songRepo.Insert(song with { Id = 0 });
+            song.Id = 0; // Forzar auto-increment del nuevo ID
+            var newId = _songRepo.Insert(song);
             songIdMap[oldId] = newId;
         }
 
@@ -100,7 +101,8 @@ public sealed class BackupService : IBackupService
         foreach (var pl in backup.Playlists)
         {
             var oldPlaylistId = pl.Id;
-            var newPlaylistId = _playlistRepo.Insert(pl with { Id = 0 });
+            pl.Id = 0; // Forzar auto-increment del nuevo ID
+            var newPlaylistId = _playlistRepo.Insert(pl);
 
             // Buscar las asociaciones para esta playlist
             var associations = backup.PlaylistSongs
