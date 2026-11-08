@@ -76,29 +76,59 @@ public partial class App : Application
             System.Diagnostics.Debug.WriteLine($"[Wave] SmtcService no inicializado: {ex.Message}");
         }
 
-        // 6. Crear y mostrar MainWindow
+        // 6. Crear y mostrar MainWindow (PRIMERO, antes de servicios que pueden fallar)
         var mainWindow = new MainWindow();
         MainWindow = mainWindow;
         mainWindow.Show();
 
-        // 7. Inicializar TrayService y HotkeyService (requieren MainWindow cargado)
-        var tray = Services.GetRequiredService<TrayService>();
-        tray.ShowMainWindowRequested += (s, args) => mainWindow.ShowFromTray();
-        tray.ExitRequested += (s, args) => Shutdown();
+        // 7. Inicializar TrayService (defensivo: NotifyIcon puede fallar en algunos entornos)
+        try
+        {
+            var tray = Services.GetRequiredService<TrayService>();
+            tray.ShowMainWindowRequested += (s, args) => mainWindow.ShowFromTray();
+            tray.ExitRequested += (s, args) => Shutdown();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Wave] TrayService no inicializado: {ex.Message}");
+            // La app continúa sin tray icon
+        }
 
-        // HotkeyService requiere el HWND de MainWindow
-        var helper = new System.Windows.Interop.WindowInteropHelper(mainWindow);
-        var hotkeyService = new HotkeyService(helper.Handle, playback, Services.GetRequiredService<AudioEngine>());
-        // Store para dispose
-        _hotkeyService = hotkeyService;
+        // 8. Inicializar HotkeyService (defensivo)
+        try
+        {
+            var helper = new System.Windows.Interop.WindowInteropHelper(mainWindow);
+            var hotkeyService = new HotkeyService(helper.Handle, playback, Services.GetRequiredService<AudioEngine>());
+            _hotkeyService = hotkeyService;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Wave] HotkeyService no inicializado: {ex.Message}");
+            // La app continúa sin hotkeys globales
+        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        // Log y mostrar mensaje amigable; marcar como handled evita el crash
-        System.Diagnostics.Debug.WriteLine($"[Wave] Dispatcher exception: {e.Exception}");
+        // Log completo y mostrar mensaje con stack trace para debugging
+        var ex = e.Exception;
+        System.Diagnostics.Debug.WriteLine($"[Wave] Dispatcher exception: {ex}");
+
+        // Escribir el error a un archivo de log para diagnóstico post-crash
+        try
+        {
+            var logPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Wave", "crash.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.AppendAllText(logPath,
+                $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] Dispatcher exception:\n{ex}\n\n");
+        }
+        catch { }
+
         MessageBox.Show(
-            $"Ocurrió un error: {e.Exception.Message}",
+            $"Ocurrió un error al iniciar Wave:\n\n{ex.Message}\n\nStack trace:\n{ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace?.Length ?? 0))}\n\n" +
+            $"El log completo está en %LocalAppData%\\Wave\\crash.log",
             "Wave - Error",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
