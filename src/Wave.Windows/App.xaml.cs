@@ -171,9 +171,7 @@ public partial class App : Application
         services.AddSingleton<ILibraryService, LibraryService>();
         services.AddSingleton<LrcLibClient>();
         services.AddSingleton<ILyricsService, LyricsService>();
-        services.AddSingleton<LyricsViewModel>();
-        services.AddSingleton<MainViewModel>();
-        services.AddSingleton<EqualizerViewModel>();
+        // v1.2.0: WebView2 UI — los ViewModels de WPF ya no se necesitan
         services.AddSingleton<TrayService>();
         services.AddSingleton<SmtcService>();
         services.AddSingleton<IBackupService, BackupService>();
@@ -237,9 +235,6 @@ public partial class App : Application
             _hotkeyService?.Dispose();
             if (Services.GetService<SmtcService>() is { } smtc) smtc.Dispose();
             if (Services.GetService<TrayService>() is { } tray) tray.Dispose();
-            if (Services.GetService<EqualizerViewModel>() is { } eqVm) eqVm.Dispose();
-            if (Services.GetService<MainViewModel>() is { } mainVm) mainVm.Dispose();
-            if (Services.GetService<LyricsViewModel>() is { } lyricsVm) lyricsVm.Dispose();
             if (Services.GetService<PlaybackController>() is { } playback) playback.Dispose();
             if (Services.GetService<LrcLibClient>() is { } lrcClient) lrcClient.Dispose();
             if (Services.GetService<SqliteDatabase>() is { } db) db.Dispose();

@@ -1,522 +1,105 @@
-using System.ComponentModel;
 using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
-using Wave.Windows.Models;
 using Wave.Windows.Services;
-using Wave.Windows.ViewModels;
-using Wave.Windows.Views.Controls;
+using Wave.Windows.Web;
 
 namespace Wave.Windows.Views;
 
 /// <summary>
-/// Ventana principal de Wave.
-/// v0.6.0: integra MainViewModel (búsqueda + sort), PlayerBar custom y lyrics.
+/// Ventana principal de Wave con WebView2.
+/// La UI se renderiza en HTML/CSS/JS, el backend en C#.
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly MainViewModel _viewModel;
-    private readonly ILibraryService _library;
-    private readonly IPlaylistService _playlistService;
-    private readonly PlaybackController _playback;
-    private readonly AudioEngine _audioEngine;
-    private readonly LyricsViewModel _lyricsViewModel;
-    private readonly EqualizerViewModel _equalizerViewModel;
-    private readonly IBackupService _backupService;
-    private LyricsWindow? _lyricsWindow;
-    private EqualizerWindow? _equalizerWindow;
-    private MiniPlayerWindow? _miniPlayerWindow;
-    private bool _isExiting = false;
+    private WebViewBridge? _bridge;
 
     public MainWindow()
     {
         InitializeComponent();
-
-        _viewModel = App.Services.GetRequiredService<MainViewModel>();
-        _library = App.Services.GetRequiredService<ILibraryService>();
-        _playlistService = App.Services.GetRequiredService<IPlaylistService>();
-        _playback = App.Services.GetRequiredService<PlaybackController>();
-        _audioEngine = App.Services.GetRequiredService<AudioEngine>();
-        _lyricsViewModel = App.Services.GetRequiredService<LyricsViewModel>();
-        _equalizerViewModel = App.Services.GetRequiredService<EqualizerViewModel>();
-        _backupService = App.Services.GetRequiredService<IBackupService>();
-
-        DataContext = _viewModel;
-
-        // Inicializar PlayerBar con el PlaybackController
-        PlayerBarControl.DataContext = _playback;
-
-        // Suscribirse a cambios de VisibleCount para actualizar el label
-        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        UpdateSongCountLabel();
-
-        // Buscar placeholder (cuando SearchBox está vacío, mostrar "Buscar canciones...")
-        SearchBox.GotFocus += (s, e) => { if (SearchBox.Text == "") SearchBox.Tag = ""; };
-        UpdateSortLabel();
+        Loaded += MainWindow_Loaded;
     }
 
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(MainViewModel.VisibleCount) || e.PropertyName == nameof(MainViewModel.SongCount))
-        {
-            UpdateSongCountLabel();
-        }
-        else if (e.PropertyName == nameof(MainViewModel.SortOrder))
-        {
-            UpdateSortLabel();
-        }
-    }
-
-    /// <summary>Actualiza el label "X de Y canciones" según VisibleCount y SongCount.</summary>
-    private void UpdateSongCountLabel()
-    {
-        var visible = _viewModel.VisibleCount;
-        var total = _viewModel.SongCount;
-
-        SongCountLabel.Text = total == 0
-            ? "0 canciones"
-            : visible == total
-                ? $"{total} canciones"
-                : $"{visible} de {total} canciones";
-    }
-
-    /// <summary>Actualiza el label del chip de sort según SortOrder actual.</summary>
-    private void UpdateSortLabel()
-    {
-        SortLabel.Text = _viewModel.SortOrder switch
-        {
-            SortOrder.RecentlyAdded => "Recientes",
-            SortOrder.RecentlyPlayed => "Reproducidas",
-            SortOrder.Title => "Título",
-            SortOrder.Artist => "Artista",
-            SortOrder.Duration => "Duración",
-            _ => "Recientes"
-        };
-    }
-
-    /// <summary>Botón "Agregar música" — abre folder picker.</summary>
-    private async void AddMusic_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new OpenFolderDialog
-        {
-            Title = "Selecciona la carpeta de música",
-            Multiselect = false
-        };
-
-        if (dialog.ShowDialog() != true) return;
-
-        var folderPath = dialog.FolderName;
-        if (string.IsNullOrEmpty(folderPath)) return;
-
-        Title = $"Wave — Importando desde {Path.GetFileName(folderPath)}...";
-
-        try
-        {
-            _library.ScanProgress += OnScanProgress;
-            var result = await _library.ImportFromFolderAsync(folderPath);
-            _library.ScanProgress -= OnScanProgress;
-
-            // Refrescar ViewModel
-            _viewModel.SelectPlaylist(null); // Volver a "todas"
-            _viewModel.RefreshSongs();
-            _viewModel.RefreshPlaylists();
-
-            Title = "Wave";
-
-            MessageBox.Show(
-                $"Importación completada:\n\n" +
-                $"• {result.Added} canciones nuevas agregadas\n" +
-                $"• {result.Duplicates} duplicadas ignoradas\n" +
-                $"• Total procesadas: {result.Total}\n\n" +
-                (result.Added > 0 ? "Se crearon playlists automáticas por género." : ""),
-                "Wave — Importación",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            _library.ScanProgress -= OnScanProgress;
-            Title = "Wave";
-            MessageBox.Show(
-                $"Error al importar música: {ex.Message}",
-                "Wave - Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-    }
-
-    private void OnScanProgress(object? sender, (int Current, int Total) e)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            Title = $"Wave — Escaneando {e.Current}/{e.Total} archivos...";
-        });
-    }
-
-    /// <summary>Drag&drop de archivos o carpetas.</summary>
-    private async void Window_Drop(object sender, DragEventArgs e)
-    {
-        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
-        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-        if (files == null || files.Length == 0) return;
-
-        var allFiles = new List<string>();
-        foreach (var path in files)
-        {
-            if (Directory.Exists(path))
-                allFiles.AddRange(_library.Scan(path));
-            else if (File.Exists(path) && _library.IsAudioFile(path))
-                allFiles.Add(path);
-        }
-
-        if (allFiles.Count == 0)
-        {
-            MessageBox.Show("No se encontraron archivos de audio soportados.",
-                "Wave", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        try
-        {
-            var result = await _library.ImportFilesAsync(allFiles);
-            _viewModel.SelectPlaylist(null);
-            _viewModel.RefreshSongs();
-            _viewModel.RefreshPlaylists();
-
-            MessageBox.Show(
-                $"Importación: {result.Added} nuevas, {result.Duplicates} duplicadas.",
-                "Wave — Drag & Drop",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error: {ex.Message}", "Wave - Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void Window_DragEnter(object sender, DragEventArgs e)
-    {
-        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
-            ? DragDropEffects.Copy
-            : DragDropEffects.None;
-        e.Handled = true;
-    }
-
-    /// <summary>Click simple en canción → reproducir (con logging para diagnóstico).</summary>
-    private void SongList_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        Wave.Windows.Services.WaveLogger.Info("SongList click detected");
-
-        // Buscar el ListViewItem bajo el click recorriendo el visual tree
-        var element = e.OriginalSource as System.Windows.DependencyObject;
-        while (element != null && element is not System.Windows.Controls.ListViewItem)
-        {
-            element = System.Windows.Media.VisualTreeHelper.GetParent(element);
-        }
-
-        if (element is System.Windows.Controls.ListViewItem item)
-        {
-            var song = item.DataContext as Song;
-            if (song != null)
-            {
-                Wave.Windows.Services.WaveLogger.Info($"Playing: {song.DisplayTitle} by {song.DisplayArtist} (DurationMs={song.DurationMs}, FilePath={song.FilePath})");
-                PlaySongInternal(song);
-                e.Handled = true;
-            }
-            else
-            {
-                Wave.Windows.Services.WaveLogger.Warn("Clicked item but DataContext is not a Song");
-            }
-        }
-        else
-        {
-            Wave.Windows.Services.WaveLogger.Warn("Click did not hit a ListViewItem");
-        }
-    }
-
-    /// <summary>Doble-click en canción → también reproducir (fallback).</summary>
-    private void SongRow_MouseDoubleClick(object sender, RoutedEventArgs e)
-    {
-        Wave.Windows.Services.WaveLogger.Info("SongRow double-click detected");
-        if (sender is System.Windows.Controls.ListView listView)
-        {
-            var song = listView.SelectedItem as Song;
-            if (song != null)
-            {
-                Wave.Windows.Services.WaveLogger.Info($"DoubleClick on: {song.DisplayTitle}");
-                PlaySongInternal(song);
-            }
-        }
-    }
-
-    /// <summary>Reproduce una canción: llama a PlaybackController.SetQueue.</summary>
-    private void PlaySongInternal(Song song)
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            var songs = _viewModel.Songs;
-            Wave.Windows.Services.WaveLogger.Info($"Finding index of '{song.DisplayTitle}' in {songs.Count} songs");
-            var index = songs.IndexOf(song);
-            Wave.Windows.Services.WaveLogger.Info($"Index found: {index}");
+            // Inicializar WebView2
+            await WebView.EnsureCoreWebView2Async(null);
 
-            if (index >= 0)
-            {
-                Wave.Windows.Services.WaveLogger.Info($"Calling SetQueue with {songs.Count} songs, startIndex={index}");
-                _playback.SetQueue(songs.ToList(), index, autoPlay: true);
-                Wave.Windows.Services.WaveLogger.Info("SetQueue called OK");
-            }
-            else
-            {
-                // Song not found in collection — play as single song
-                Wave.Windows.Services.WaveLogger.Warn("Song not found in collection, playing as single song");
-                _playback.SetQueue(new List<Song> { song }, 0, autoPlay: true);
-            }
+            // Configurar ruta virtual: los archivos de wwwroot se sirven desde el bin
+            var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            WebView.CoreWebView2.SetVirtualHostToFolderMapping("wave.app", wwwrootPath,
+                Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+            // Navegar a la página principal
+            WebView.CoreWebView2.Navigate("https://wave.app/index.html");
+
+            // Crear el bridge de comunicación C# ↔ JS
+            _bridge = new WebViewBridge(
+                WebView.CoreWebView2,
+                App.Services.GetRequiredService<ILibraryService>(),
+                App.Services.GetRequiredService<IPlaylistService>(),
+                App.Services.GetRequiredService<PlaybackController>(),
+                App.Services.GetRequiredService<ILyricsService>(),
+                App.Services.GetRequiredService<IBackupService>(),
+                App.Services.GetRequiredService<SettingsService>(),
+                App.Services.GetRequiredService<AudioEngine>()
+            );
+
+            WaveLogger.Info("WebView2 + Bridge initialized OK");
         }
         catch (Exception ex)
         {
-            Wave.Windows.Services.WaveLogger.Error("Error in PlaySongInternal", ex);
-            MessageBox.Show($"Error al reproducir: {ex.Message}", "Wave - Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            WaveLogger.Error("Failed to initialize WebView2", ex);
+            MessageBox.Show($"Error al inicializar la interfaz:\n\n{ex.Message}\n\n" +
+                          "Asegúrate de tener WebView2 Runtime instalado desde:\n" +
+                          "https://developer.microsoft.com/microsoft-edge/webview2/",
+                          "Wave - Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
-    /// <summary>Click en el botón Favorito (corazón) → toggle favorito.</summary>
-    private void Favorite_Click(object sender, RoutedEventArgs e)
+    /// <summary>Interceptar navegación para abrir folder picker cuando JS lo solicite.</summary>
+    private void WebView_NavigationStarting(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs e)
     {
-        if (sender is not FrameworkElement fe || fe.Tag is not Song song) return;
-        _viewModel.ToggleFavoriteCommand.Execute(song);
+        WaveLogger.Info($"WebView navigating to: {e.Uri}");
     }
 
-    /// <summary>Click en "Todas las canciones" del sidebar → mostrar biblioteca completa.</summary>
-    private void AllSongs_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        WaveLogger.Info("AllSongs selected — showing all songs");
-        _viewModel.SelectPlaylist(null);
-        UpdateSongCountLabel();
-    }
-
-    /// <summary>Click en playlist del sidebar → filtrar canciones por playlist.</summary>
-    private void PlaylistsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (PlaylistsList.SelectedItem is Playlist selected)
-        {
-            _viewModel.SelectPlaylist(selected);
-            UpdateSongCountLabel();
-        }
-    }
-
-    /// <summary>Botón "Configuración" (placeholder).</summary>
-    private void Settings_Click(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show("Configuración estará disponible en v1.0.0",
-            "Wave", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    /// <summary>Botón "Letra" del TopBar — abre LyricsWindow.</summary>
-    private void Lyrics_Click(object sender, RoutedEventArgs e)
-    {
-        if (_lyricsWindow == null || !_lyricsWindow.IsLoaded)
-        {
-            _lyricsWindow = new LyricsWindow(_lyricsViewModel);
-            _lyricsWindow.Owner = this;
-            _lyricsWindow.Closed += (s, args) => _lyricsWindow = null;
-        }
-        _lyricsWindow.Show();
-        _lyricsWindow.Activate();
-    }
-
-    /// <summary>Botón "EQ" del TopBar — abre EqualizerWindow.</summary>
-    private void Equalizer_Click(object sender, RoutedEventArgs e)
-    {
-        if (_equalizerWindow == null || !_equalizerWindow.IsLoaded)
-        {
-            _equalizerWindow = new EqualizerWindow(_equalizerViewModel);
-            _equalizerWindow.Owner = this;
-            _equalizerWindow.Closed += (s, args) => _equalizerWindow = null;
-        }
-        _equalizerWindow.Show();
-        _equalizerWindow.Activate();
-    }
-
-    /// <summary>Botón "Mini" — abre MiniPlayerWindow flotante.</summary>
-    private void MiniPlayer_Click(object sender, RoutedEventArgs e)
-    {
-        if (_miniPlayerWindow == null || !_miniPlayerWindow.IsLoaded)
-        {
-            _miniPlayerWindow = new MiniPlayerWindow(_playback);
-            _miniPlayerWindow.Closed += (s, args) => _miniPlayerWindow = null;
-        }
-        _miniPlayerWindow.Show();
-        _miniPlayerWindow.Activate();
-    }
-
-    /// <summary>Botón "Backup" — exporta o importa biblioteca.</summary>
-    private async void Backup_Click(object sender, RoutedEventArgs e)
-    {
-        var result = MessageBox.Show(
-            "¿Quieres exportar (Sí) o importar (No) la biblioteca?\n\n" +
-            "Exportar: guarda todas las canciones + playlists en JSON.\n" +
-            "Importar: reemplaza la biblioteca actual con un JSON.",
-            "Wave — Backup / Restore",
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Question);
-
-        if (result == MessageBoxResult.Cancel) return;
-
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Filter = "JSON|*.json",
-            DefaultExt = ".json",
-            FileName = result == MessageBoxResult.Yes ? "wave-backup.json" : ""
-        };
-
-        if (result == MessageBoxResult.No)
-        {
-            // Importar → abrir en su lugar OpenFileDialog
-            var openDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "JSON|*.json",
-                Title = "Selecciona el archivo de backup a importar"
-            };
-            if (openDialog.ShowDialog() != true) return;
-
-            try
-            {
-                await _backupService.ImportAsync(openDialog.FileName);
-                _viewModel.RefreshSongs();
-                _viewModel.RefreshPlaylists();
-                MessageBox.Show("Biblioteca importada correctamente.", "Wave",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al importar: {ex.Message}", "Wave - Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            return;
-        }
-
-        // Exportar
-        if (dialog.ShowDialog() != true) return;
-
-        try
-        {
-            await _backupService.ExportAsync(dialog.FileName);
-            MessageBox.Show($"Biblioteca exportada a:\n{dialog.FileName}", "Wave",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error al exportar: {ex.Message}", "Wave - Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    /// <summary>
-    /// Llamado por TrayService cuando el usuario hace doble-click en el icono
-    /// o elige "Mostrar ventana" del menú contextual.
-    /// Restaura la ventana desde minimizado/tray y la activa.
-    /// </summary>
+    /// <summary>Mostrar ventana desde el tray.</summary>
     public void ShowFromTray()
     {
         Show();
-        if (WindowState == WindowState.Minimized)
-            WindowState = WindowState.Normal;
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
-        Topmost = true;  // Traer al frente
-        Topmost = false; // Volver a normal
+        Topmost = true;
+        Topmost = false;
     }
 
-    /// <summary>
-    /// Al cerrar la ventana con la X, preguntar si minimizar al tray o salir.
-    /// Si el usuario elige salir, cerrar de verdad (no quedarse pegado en memoria).
-    /// </summary>
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        // Si ya estamos saliendo (via tray "Salir" o Shutdown), permitir el cierre
-        if (_isExiting)
-        {
-            base.OnClosing(e);
-            return;
-        }
+        if (_isExiting) { base.OnClosing(e); return; }
 
-        // Si hay tray, preguntar si minimizar o salir
         if (App.Services.GetService<TrayService>() is not null)
         {
             var result = MessageBox.Show(
-                "¿Quieres minimizar Wave a la bandeja (Sí) o cerrar la aplicación (No)?",
+                "¿Minimizar a bandeja (Sí) o cerrar (No)?",
                 "Wave — Cerrar",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
+                MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
 
-            if (result == MessageBoxResult.Yes)
-            {
-                // Minimizar al tray
-                e.Cancel = true;
-                Hide();
-                return;
-            }
-            else if (result == MessageBoxResult.No)
-            {
-                // Salir de verdad
-                _isExiting = true;
-                // Asegurar que el proceso termine
-                base.OnClosing(e);
-                Environment.Exit(0);
-                return;
-            }
-            else
-            {
-                // Cancel: no hacer nada
-                e.Cancel = true;
-                return;
-            }
+            if (result == MessageBoxResult.Yes) { e.Cancel = true; Hide(); return; }
+            if (result == MessageBoxResult.No) { _isExiting = true; base.OnClosing(e); Environment.Exit(0); return; }
+            e.Cancel = true; return;
         }
-
         base.OnClosing(e);
         Environment.Exit(0);
     }
 
-    // === Sort chip ===
-    private void Sort_Click(object sender, RoutedEventArgs e)
-    {
-        // Mostrar ContextMenu bajo el botón
-        SortMenu.PlacementTarget = SortChip;
-        SortMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-        SortMenu.IsOpen = true;
-    }
+    private bool _isExiting = false;
 
-    private void SortRecentlyAdded_Click(object sender, RoutedEventArgs e)
+    private void Window_Drop(object sender, DragEventArgs e) { }
+    private void Window_DragEnter(object sender, DragEventArgs e)
     {
-        _viewModel.SortOrder = SortOrder.RecentlyAdded;
-        UpdateSortLabel();
-    }
-
-    private void SortRecentlyPlayed_Click(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SortOrder = SortOrder.RecentlyPlayed;
-        UpdateSortLabel();
-    }
-
-    private void SortTitle_Click(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SortOrder = SortOrder.Title;
-        UpdateSortLabel();
-    }
-
-    private void SortArtist_Click(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SortOrder = SortOrder.Artist;
-        UpdateSortLabel();
-    }
-
-    private void SortDuration_Click(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SortOrder = SortOrder.Duration;
-        UpdateSortLabel();
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
     }
 }

@@ -11,9 +11,9 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Wave</AssemblyName>
     <RootNamespace>Wave.Windows</RootNamespace>
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
     <Company>Daniel Barrantes</Company>
     <Product>Wave for Windows</Product>
     <Description>Reproductor de música offline para Windows 10/11</Description>
@@ -52,6 +52,7 @@
     <PackageReference Include="Serilog" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
   </ItemGroup>
 
   <ItemGroup>
@@ -61,11 +62,13 @@
     <None Update="Data\Migrations\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- AppxManifest NO se incluye en el build normal (solo para MSIX packaging).
-         Se mantiene en el repo para cuando se quiera empaquetar MSIX. -->
     <None Update="Package.appxmanifest">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
+    <!-- wwwroot: archivos web (HTML/CSS/JS) copiados al output -->
+    <Content Include="wwwroot\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
