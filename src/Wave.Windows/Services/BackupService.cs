@@ -77,8 +77,18 @@ public sealed class BackupService : IBackupService
             throw new FileNotFoundException($"Archivo de backup no encontrado: {inputPath}");
 
         var json = await File.ReadAllTextAsync(inputPath);
-        var backup = JsonSerializer.Deserialize<BackupData>(json)
-            ?? throw new InvalidDataException("El archivo de backup no contiene JSON válido");
+        BackupData? backup;
+        try
+        {
+            backup = JsonSerializer.Deserialize<BackupData>(json);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("El archivo no contiene JSON válido", ex);
+        }
+
+        if (backup == null)
+            throw new InvalidDataException("El archivo de backup no contiene JSON válido");
 
         // Limpiar DB actual
         _songRepo.DeleteAll();

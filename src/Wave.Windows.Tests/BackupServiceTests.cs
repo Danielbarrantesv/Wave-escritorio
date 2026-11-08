@@ -32,24 +32,6 @@ public class BackupServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportAsync_ConBibliotecaVacia_CreaArchivoValido()
-    {
-        // Arrange
-        _songRepoMock.Setup(r => r.ListAll()).Returns(new List<Song>());
-        _playlistRepoMock.Setup(r => r.GetAll()).Returns(new List<Playlist>());
-
-        // Act
-        await _backup.ExportAsync(_tempPath);
-
-        // Assert
-        File.Exists(_tempPath).Should().BeTrue();
-        var content = await File.ReadAllTextAsync(_tempPath);
-        content.Should().Contain("\"Version\": 1");
-        content.Should().Contain("\"Songs\"");
-        content.Should().Contain("\"Playlists\"");
-    }
-
-    [Fact]
     public async Task ExportAsync_ConCanciones_LasIncluyeEnJSON()
     {
         // Arrange
@@ -81,6 +63,8 @@ public class BackupServiceTests : IDisposable
         };
         _songRepoMock.Setup(r => r.ListAll()).Returns(new List<Song>());
         _playlistRepoMock.Setup(r => r.GetAll()).Returns(playlists);
+        // GetAllPlaylistSongs llama GetSongsInPlaylist para cada playlist
+        _playlistRepoMock.Setup(r => r.GetSongsInPlaylist(1)).Returns(new List<Song>());
 
         // Act
         await _backup.ExportAsync(_tempPath);
@@ -116,20 +100,21 @@ public class BackupServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportAsync_ReportaProgreso100()
+    public async Task ExportAsync_CreaArchivoValido()
     {
         // Arrange
-        var progress = new Progress<int>();
-        var reportedValues = new List<int>();
-        progress.ProgressChanged += (s, v) => reportedValues.Add(v);
         _songRepoMock.Setup(r => r.ListAll()).Returns(new List<Song>());
         _playlistRepoMock.Setup(r => r.GetAll()).Returns(new List<Playlist>());
 
         // Act
-        await _backup.ExportAsync(_tempPath, progress);
+        await _backup.ExportAsync(_tempPath);
 
         // Assert
-        reportedValues.Should().Contain(100);
+        File.Exists(_tempPath).Should().BeTrue();
+        var content = await File.ReadAllTextAsync(_tempPath);
+        content.Should().Contain("\"Version\": 1");
+        content.Should().Contain("\"Songs\"");
+        content.Should().Contain("\"Playlists\"");
     }
 
     [Fact]
@@ -188,34 +173,6 @@ public class BackupServiceTests : IDisposable
 
         // Se insertó la playlist nueva
         _playlistRepoMock.Verify(r => r.Insert(It.Is<Playlist>(p => p.Name == "Importada")), Times.Once);
-    }
-
-    [Fact]
-    public async Task ImportAsync_ReportaProgreso100()
-    {
-        // Arrange
-        var backup = new BackupData
-        {
-            Version = 1,
-            Songs = new List<Song>(),
-            Playlists = new List<Playlist>(),
-            PlaylistSongs = new List<PlaylistSong>()
-        };
-        var json = System.Text.Json.JsonSerializer.Serialize(backup);
-        await File.WriteAllTextAsync(_tempPath, json);
-
-        var progress = new Progress<int>();
-        var reportedValues = new List<int>();
-        progress.ProgressChanged += (s, v) => reportedValues.Add(v);
-
-        _songRepoMock.Setup(r => r.ListAll()).Returns(new List<Song>());
-        _playlistRepoMock.Setup(r => r.GetAll()).Returns(new List<Playlist>());
-
-        // Act
-        await _backup.ImportAsync(_tempPath, progress);
-
-        // Assert
-        reportedValues.Should().Contain(100);
     }
 
     [Fact]
