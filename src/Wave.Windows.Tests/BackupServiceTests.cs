@@ -121,7 +121,7 @@ public class BackupServiceTests : IDisposable
         // Arrange
         var progress = new Progress<int>();
         var reportedValues = new List<int>();
-        ((IProgress<int>)progress).ProgressChanged += (s, v) => reportedValues.Add(v);
+        progress.ProgressChanged += (s, v) => reportedValues.Add(v);
         _songRepoMock.Setup(r => r.ListAll()).Returns(new List<Song>());
         _playlistRepoMock.Setup(r => r.GetAll()).Returns(new List<Playlist>());
 
@@ -206,7 +206,7 @@ public class BackupServiceTests : IDisposable
 
         var progress = new Progress<int>();
         var reportedValues = new List<int>();
-        ((IProgress<int>)progress).ProgressChanged += (s, v) => reportedValues.Add(v);
+        progress.ProgressChanged += (s, v) => reportedValues.Add(v);
 
         _songRepoMock.Setup(r => r.ListAll()).Returns(new List<Song>());
         _playlistRepoMock.Setup(r => r.GetAll()).Returns(new List<Playlist>());
