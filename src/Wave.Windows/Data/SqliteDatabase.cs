@@ -36,6 +36,12 @@ public sealed class SqliteDatabase : IDisposable
 
     private SqliteDatabase(string dbPath)
     {
+        // CRÍTICO: Dapper no mapea snake_case → PascalCase por defecto.
+        // Sin esto, columnas como 'file_path' no se mapean a propiedad 'FilePath',
+        // y los datos se leen como null/0 desde la DB.
+        // Esto hace que 'file_path' → 'filepath' → 'FilePath' (case-insensitive match).
+        Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
         // Asegurar que el directorio exista
         var dir = Path.GetDirectoryName(dbPath);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
