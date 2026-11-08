@@ -1,4 +1,5 @@
 using NAudio.Wave;
+using Wave.Windows.Models;
 
 namespace Wave.Windows.Services;
 
