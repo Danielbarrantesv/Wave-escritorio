@@ -1,6 +1,7 @@
 using System.IO;
 using FluentAssertions;
 using Moq;
+using Wave.Windows.Data.Repositories;
 using Wave.Windows.Models;
 using Wave.Windows.Services;
 using Wave.Windows.ViewModels;
