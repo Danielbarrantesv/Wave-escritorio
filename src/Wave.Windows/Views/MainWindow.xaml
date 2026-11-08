@@ -23,6 +23,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Wave" FontSize="20" FontWeight="Bold"
                        Foreground="{DynamicResource AccentBrush}"
@@ -51,7 +52,13 @@
                     Background="Transparent"
                     Foreground="{DynamicResource OnSurfaceVariantBrush}"
                     ToolTip="Mostrar letra sincronizada"/>
-            <Button Grid.Column="4" Click="Settings_Click"
+            <Button Grid.Column="4" Click="Equalizer_Click"
+                    Content="EQ"
+                    Padding="12,6" Margin="0,0,8,0"
+                    Background="Transparent"
+                    Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                    ToolTip="Ecualizador"/>
+            <Button Grid.Column="5" Click="Settings_Click"
                     Content="⚙"
                     Padding="12,6" Margin="0,0,16,0"
                     Background="Transparent"

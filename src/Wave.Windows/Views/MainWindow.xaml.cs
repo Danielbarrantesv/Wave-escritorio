@@ -21,8 +21,11 @@ public partial class MainWindow : Window
     private readonly ILibraryService _library;
     private readonly IPlaylistService _playlistService;
     private readonly PlaybackController _playback;
+    private readonly AudioEngine _audioEngine;
     private readonly LyricsViewModel _lyricsViewModel;
+    private readonly EqualizerViewModel _equalizerViewModel;
     private LyricsWindow? _lyricsWindow;
+    private EqualizerWindow? _equalizerWindow;
 
     public MainWindow()
     {
@@ -32,7 +35,9 @@ public partial class MainWindow : Window
         _library = App.Services.GetRequiredService<ILibraryService>();
         _playlistService = App.Services.GetRequiredService<IPlaylistService>();
         _playback = App.Services.GetRequiredService<PlaybackController>();
+        _audioEngine = App.Services.GetRequiredService<AudioEngine>();
         _lyricsViewModel = App.Services.GetRequiredService<LyricsViewModel>();
+        _equalizerViewModel = App.Services.GetRequiredService<EqualizerViewModel>();
 
         DataContext = _viewModel;
 
@@ -244,6 +249,19 @@ public partial class MainWindow : Window
         }
         _lyricsWindow.Show();
         _lyricsWindow.Activate();
+    }
+
+    /// <summary>Botón "EQ" del TopBar — abre EqualizerWindow.</summary>
+    private void Equalizer_Click(object sender, RoutedEventArgs e)
+    {
+        if (_equalizerWindow == null || !_equalizerWindow.IsLoaded)
+        {
+            _equalizerWindow = new EqualizerWindow(_equalizerViewModel);
+            _equalizerWindow.Owner = this;
+            _equalizerWindow.Closed += (s, args) => _equalizerWindow = null;
+        }
+        _equalizerWindow.Show();
+        _equalizerWindow.Activate();
     }
 
     // === Sort chip ===

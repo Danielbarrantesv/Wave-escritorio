@@ -1,12 +1,13 @@
 using System.IO;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using Wave.Windows.Audio;
 
 namespace Wave.Windows.Services;
 
 /// <summary>
 /// Wrapper sobre NAudio que gestiona el pipeline de audio:
-///   reader (MediaFoundationReader) → equalizer → volume → waveOut
+///   reader (MediaFoundationReader) → resampler → visualizer → equalizer → volume → waveOut
 ///
 /// Expone eventos para que PlaybackController sincronice UI.
 /// </summary>
@@ -15,6 +16,8 @@ public sealed class AudioEngine : IDisposable
     private WaveOutEvent? _waveOut;
     private MediaFoundationReader? _reader;
     private ISampleProvider? _sampleProvider;
+    private VisualizerEngine? _visualizer;
+    private EqualizerSampleProvider? _equalizer;
     private VolumeSampleProvider? _volume;
     private float _volumeLevel = 1.0f;
     private bool _disposed;
@@ -40,6 +43,19 @@ public sealed class AudioEngine : IDisposable
     public long LengthMs => _reader != null
         ? (long)_reader.TotalTime.TotalMilliseconds
         : 0;
+
+    /// <summary>Instancia del ecualizador (5 bandas). Null si no hay pista cargada.</summary>
+    public EqualizerSampleProvider? Equalizer => _equalizer;
+
+    /// <summary>Instancia del visualizador FFT. Null si no hay pista cargada.</summary>
+    public VisualizerEngine? Visualizer => _visualizer;
+
+    /// <summary>True si el ecualizador está activo (false = bypass).</summary>
+    public bool EqualizerEnabled
+    {
+        get => _equalizer?.Enabled ?? false;
+        set { if (_equalizer != null) _equalizer.Enabled = value; }
+    }
 
     /// <summary>Volumen de 0.0 a 1.0.</summary>
     public float Volume
@@ -72,9 +88,10 @@ public sealed class AudioEngine : IDisposable
         // Convertir a ISampleProvider (float 32-bit, 44.1kHz, stereo)
         _sampleProvider = ConvertToSampleProvider(_reader);
 
-        // Pipeline: source → volume → waveOut
-        // (Equalizer se insertará entre source y volume en v0.7.0)
-        _volume = new VolumeSampleProvider(_sampleProvider) { Volume = _volumeLevel };
+        // Pipeline: source → visualizer → equalizer → volume → waveOut
+        _visualizer = new VisualizerEngine(_sampleProvider, fftLength: 1024);
+        _equalizer = new EqualizerSampleProvider(_visualizer);
+        _volume = new VolumeSampleProvider(_equalizer) { Volume = _volumeLevel };
 
         _waveOut = new WaveOutEvent
         {

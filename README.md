@@ -62,7 +62,7 @@ Wave-escritorio/
 | `v0.4.0` | PlaylistService + Favoritos + género automático | ✅ Released |
 | `v0.5.0` | LyricsService + LrcLibClient + parser LRC + vista de letras | ✅ Released |
 | `v0.6.0` | MainViewModel + búsqueda + sort chip + PlayerBar custom | ✅ Released |
-| `v0.7.0` | Equalizer + Visualizer | Pendiente |
+| `v0.7.0` | Equalizer (5 bandas biquad) + Visualizer (FFT spectrum) | ✅ Released |
 | `v0.8.0` | Tray + SMTC + Hotkeys | Pendiente |
 | `v0.9.0` | Mini player + Drag&drop + Backup | Pendiente |
 | `v1.0.0` | Estabilización + tests + empaquetado MSIX | Pendiente |

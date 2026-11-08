@@ -1,0 +1,85 @@
+<UserControl x:Class="Wave.Windows.Views.EqualizerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BackgroundBrush}"
+             Padding="24">
+    <StackPanel>
+        <!-- Header -->
+        <Grid Margin="0,0,0,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Ecualizador"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="{DynamicResource OnSurfaceBrush}"/>
+            <Button Grid.Column="1"
+                    Content="{Binding Enabled, Converter={StaticResource BoolToTextConverter}, FallbackValue='ON'}"
+                    Click="ToggleEnabled_Click"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="Black"
+                    Padding="12,6" Margin="0,0,8,0"/>
+            <Button Grid.Column="2"
+                    Content="Reset"
+                    Click="Reset_Click"
+                    Background="Transparent"
+                    Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                    Padding="12,6"/>
+        </Grid>
+
+        <!-- Bandas del ecualizador (5 sliders verticales) -->
+        <ItemsControl ItemsSource="{Binding Bands}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Width="80" Margin="8,0">
+                        <!-- Display de ganancia -->
+                        <TextBlock Text="{Binding GainDisplay}"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,8"/>
+
+                        <!-- Slider vertical -->
+                        <Slider Orientation="Vertical"
+                                Minimum="0"
+                                Maximum="1"
+                                Value="{Binding GainNormalized}"
+                                Height="180"
+                                HorizontalAlignment="Center"
+                                TickFrequency="0.0833"
+                                TickPlacement="None"/>
+
+                        <!-- Display de frecuencia -->
+                        <TextBlock Text="{Binding DisplayFrequency}"
+                                   Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                   FontSize="12"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Rangos indicados -->
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Margin="0,16,0,0">
+            <TextBlock Text="-12 dB"
+                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                       FontSize="10" Margin="0,0,24,0"/>
+            <TextBlock Text="0 dB"
+                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                       FontSize="10" Margin="0,0,24,0"/>
+            <TextBlock Text="+12 dB"
+                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                       FontSize="10"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

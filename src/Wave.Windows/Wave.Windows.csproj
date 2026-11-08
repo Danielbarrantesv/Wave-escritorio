@@ -9,9 +9,9 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Wave</AssemblyName>
     <RootNamespace>Wave.Windows</RootNamespace>
-    <Version>0.6.0</Version>
-    <AssemblyVersion>0.6.0.0</AssemblyVersion>
-    <FileVersion>0.6.0.0</FileVersion>
+    <Version>0.7.0</Version>
+    <AssemblyVersion>0.7.0.0</AssemblyVersion>
+    <FileVersion>0.7.0.0</FileVersion>
     <Company>Daniel Barrantes</Company>
     <Product>Wave for Windows</Product>
     <Description>Reproductor de música offline para Windows 10/11</Description>
