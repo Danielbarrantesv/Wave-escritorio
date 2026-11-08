@@ -35,76 +35,127 @@
                     Foreground="Black" FontWeight="SemiBold"/>
         </Grid>
 
-        <!-- Lista de canciones -->
+        <!-- Contenido principal: sidebar + lista -->
         <Grid Grid.Row="1" Background="{DynamicResource BackgroundBrush}">
-            <!-- Empty state cuando no hay canciones -->
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                        Visibility="{Binding SongCount, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Visible}">
-                <TextBlock Text="Aún no hay música en tu biblioteca"
-                           FontSize="20" FontWeight="Bold"
-                           Foreground="{DynamicResource OnSurfaceBrush}"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="Arrastra archivos MP3/FLAC/M4A aquí o usa el botón superior"
-                           FontSize="13"
-                           Foreground="{DynamicResource OnSurfaceVariantBrush}"
-                           HorizontalAlignment="Center" Margin="0,8,0,24"/>
-                <Button Click="AddMusic_Click"
-                        Content="Seleccionar carpeta"
-                        Padding="16,8"
-                        Background="{DynamicResource AccentBrush}"
-                        Foreground="Black" FontWeight="SemiBold"/>
-            </StackPanel>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- ListView de canciones -->
-            <ListView ItemsSource="{Binding Songs}"
-                      Background="Transparent"
-                      BorderThickness="0"
-                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                      MouseDoubleClick="SongRow_MouseDoubleClick">
-                <ListView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="8,4" Height="48">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="48"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
+            <!-- Sidebar de playlists -->
+            <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}" BorderThickness="0,0,1,0" BorderBrush="{DynamicResource OutlineBrush}">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Top" Text="Playlists"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                               Margin="16,12,16,8"/>
 
-                            <!-- Cover art placeholder -->
-                            <Border Grid.Column="0"
-                                    Background="{DynamicResource AccentBrush}"
-                                    CornerRadius="4"/>
+                    <ListBox x:Name="PlaylistsList"
+                             ItemsSource="{Binding Playlists}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             SelectionChanged="PlaylistsList_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="8,4">
+                                    <TextBlock Text="&#x1F3B5;"
+                                               FontSize="14"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}"
+                                               Foreground="{DynamicResource OnSurfaceBrush}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
 
-                            <!-- Título + artista -->
-                            <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding DisplayTitle}"
-                                           Foreground="{DynamicResource OnSurfaceBrush}"
-                                           FontWeight="SemiBold"
-                                           TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding DisplayArtist}"
+            <!-- Lista de canciones (con empty state) -->
+            <Grid Grid.Column="1">
+                <!-- Empty state -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Visibility="{Binding SongCount, Converter={StaticResource ZeroToVisibleConverter}}">
+                    <TextBlock Text="Aún no hay música en tu biblioteca"
+                               FontSize="20" FontWeight="Bold"
+                               Foreground="{DynamicResource OnSurfaceBrush}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Arrastra archivos MP3/FLAC/M4A aquí o usa el botón superior"
+                               FontSize="13"
+                               Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                               HorizontalAlignment="Center" Margin="0,8,0,24"/>
+                    <Button Click="AddMusic_Click"
+                            Content="Seleccionar carpeta"
+                            Padding="16,8"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="Black" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <!-- Lista de canciones -->
+                <ListView ItemsSource="{Binding Songs}"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          MouseDoubleClick="SongRow_MouseDoubleClick">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="8,4" Height="48">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="32"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Cover art placeholder -->
+                                <Border Grid.Column="0"
+                                        Background="{DynamicResource AccentBrush}"
+                                        CornerRadius="4"/>
+
+                                <!-- Título + artista -->
+                                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DisplayTitle}"
+                                               Foreground="{DynamicResource OnSurfaceBrush}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding DisplayArtist}"
+                                               Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+
+                                <!-- Álbum -->
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding DisplayAlbum}"
                                            Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,16,0"
                                            TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
 
-                            <!-- Álbum -->
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding DisplayAlbum}"
-                                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,16,0"
-                                       TextTrimming="CharacterEllipsis"/>
+                                <!-- Botón Favorito (corazón) -->
+                                <Button Grid.Column="3"
+                                        Click="Favorite_Click"
+                                        Background="Transparent"
+                                        Foreground="{DynamicResource AccentBrush}"
+                                        Content="&#x2665;"
+                                        FontSize="18"
+                                        ToolTip="Marcar/desmarcar como favorito"
+                                        Tag="{Binding}"/>
 
-                            <!-- Duración -->
-                            <TextBlock Grid.Column="3"
-                                       Text="{Binding DisplayDuration}"
-                                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Right"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+                                <!-- Duración -->
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding DisplayDuration}"
+                                           Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Right"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
         </Grid>
 
         <!-- Player bar con bindings a PlaybackController -->
@@ -121,10 +172,8 @@
                     <ColumnDefinition Width="40"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Cover art placeholder -->
                 <Border Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4"/>
 
-                <!-- Título + artista -->
                 <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding CurrentSong.DisplayTitle, FallbackValue='No hay canción'}"
                                Foreground="{DynamicResource OnSurfaceBrush}"
@@ -135,7 +184,6 @@
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
 
-                <!-- Seek bar -->
                 <Slider Grid.Column="2"
                         Minimum="0"
                         Maximum="{Binding DurationMs}"
@@ -143,7 +191,6 @@
                         VerticalAlignment="Center"
                         Margin="12,0"/>
 
-                <!-- Controles -->
                 <Button Grid.Column="3" Click="Shuffle_Click" Background="Transparent"
                         Foreground="{DynamicResource OnSurfaceBrush}"
                         Content="&#x1F500;" ToolTip="Aleatorio"/>

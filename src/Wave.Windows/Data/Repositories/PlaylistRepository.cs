@@ -5,9 +5,27 @@ using Wave.Windows.Models;
 namespace Wave.Windows.Data.Repositories;
 
 /// <summary>
-/// Acceso a las tablas "playlists" y "playlist_songs".
+/// Interfaz del repositorio de playlists.
+/// Permite mockear en tests sin depender de SQLite.
 /// </summary>
-public class PlaylistRepository
+public interface IPlaylistRepository
+{
+    List<Playlist> GetAll();
+    Playlist? GetById(long id);
+    Playlist? GetByName(string name);
+    long Insert(Playlist playlist);
+    void Update(Playlist playlist);
+    void DeleteById(long id);
+    List<Song> GetSongsInPlaylist(long playlistId);
+    void AddSongsToPlaylist(long playlistId, List<long> songIds);
+    void RemoveSong(long playlistId, long songId);
+    void ReorderPlaylist(long playlistId, List<long> songIdsInOrder);
+}
+
+/// <summary>
+/// Implementación de IPlaylistRepository usando Dapper + SQLite.
+/// </summary>
+public class PlaylistRepository : IPlaylistRepository
 {
     private readonly IDbConnection _db;
 
@@ -104,3 +122,4 @@ public class PlaylistRepository
         tx.Commit();
     }
 }
+

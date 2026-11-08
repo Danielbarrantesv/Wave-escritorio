@@ -17,12 +17,18 @@ namespace Wave.Windows.Services;
 public sealed class LibraryService : ILibraryService
 {
     private readonly ISongRepository _songRepo;
+    private readonly IPlaylistService? _playlistService;
 
     public event EventHandler<(int Current, int Total)>? ScanProgress;
 
-    public LibraryService(ISongRepository songRepo)
+    /// <summary>
+    /// Constructor principal. PlaylistService es opcional: si se pasa, tras importar
+    /// canciones nuevas se invoca CreateGenrePlaylists() automáticamente (v2.5.24 feature).
+    /// </summary>
+    public LibraryService(ISongRepository songRepo, IPlaylistService? playlistService = null)
     {
         _songRepo = songRepo;
+        _playlistService = playlistService;
     }
 
     public List<Song> GetAllSongs() => _songRepo.ListAll();
@@ -191,8 +197,33 @@ public sealed class LibraryService : ILibraryService
             }
         }
 
-        // Si se especificó una playlist target, agregar las canciones (vía PlaylistService en v0.4.0)
-        // Por ahora solo devolvemos el resultado; PlaylistService se integra en v0.4.0.
+        // Si se agregaron canciones nuevas y hay PlaylistService, crear playlists automáticas por género.
+        // CRITICAL: v2.5.24 feature del spec Android — auto-generar playlists "Rock", "Pop", "Jazz", etc.
+        if (added > 0 && _playlistService != null)
+        {
+            try
+            {
+                _playlistService.CreateGenrePlaylists();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Wave] CreateGenrePlaylists falló: {ex.Message}");
+                // No fallar la importación si CreateGenrePlaylists falla
+            }
+        }
+
+        // Si se especificó una playlist target, agregar las canciones vía el servicio
+        if (targetPlaylistId.HasValue && playlistAttachIds.Count > 0 && _playlistService != null)
+        {
+            try
+            {
+                _playlistService.AddSongs(targetPlaylistId.Value, playlistAttachIds.Distinct().ToList());
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Wave] AddSongs a playlist {targetPlaylistId} falló: {ex.Message}");
+            }
+        }
 
         return new ImportResult(added, duplicates, total);
     }

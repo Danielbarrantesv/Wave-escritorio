@@ -10,17 +10,24 @@ namespace Wave.Windows.Views;
 
 /// <summary>
 /// Ventana principal de Wave.
-/// v0.3.0: integra LibraryService para importar y mostrar biblioteca.
+/// v0.4.0: integra PlaylistService (sidebar + Favoritos por canción).
 /// </summary>
 public partial class MainWindow : Window
 {
     private readonly PlaybackController _playback;
     private readonly ILibraryService _library;
+    private readonly IPlaylistService _playlistService;
 
-    /// <summary>Lista observable de canciones para que la UI bindee.</summary>
+    /// <summary>Lista observable de canciones mostradas en el ListView.</summary>
     public ObservableCollection<Song> Songs { get; } = new();
 
-    /// <summary>Total de canciones (para mostrar "X canciones" en la UI).</summary>
+    /// <summary>Lista observable de playlists en el sidebar.</summary>
+    public ObservableCollection<Playlist> Playlists { get; } = new();
+
+    /// <summary>Playlist seleccionada en el sidebar (null = todas las canciones).</summary>
+    private Playlist? _selectedPlaylist;
+
+    /// <summary>Total de canciones en la biblioteca (para mostrar "X canciones").</summary>
     public int SongCount => Songs.Count;
 
     public MainWindow()
@@ -29,18 +36,50 @@ public partial class MainWindow : Window
 
         _playback = App.Services.GetRequiredService<PlaybackController>();
         _library = App.Services.GetRequiredService<ILibraryService>();
+        _playlistService = App.Services.GetRequiredService<IPlaylistService>();
 
-        // Cargar biblioteca existente desde DB al iniciar
-        foreach (var song in _library.GetAllSongs())
-        {
-            Songs.Add(song);
-        }
+        // Cargar biblioteca y playlists desde DB al iniciar
+        RefreshSongs();
+        RefreshPlaylists();
 
-        // DataContext = this (la propia ventana expone Songs + SongCount)
+        // DataContext = this (la propia ventana expone Songs + Playlists + SongCount)
         DataContext = this;
 
         // Bindear el PlayerBar al PlaybackController via Resources
         Resources["Playback"] = _playback;
+    }
+
+    /// <summary>Recarga la lista de canciones según la playlist seleccionada.</summary>
+    private void RefreshSongs()
+    {
+        Songs.Clear();
+
+        List<Song> songs;
+        if (_selectedPlaylist == null)
+        {
+            // "Todas" — mostrar biblioteca completa
+            songs = _library.GetAllSongs();
+        }
+        else
+        {
+            // Playlist específica — mostrar solo sus canciones
+            songs = _playlistService.GetSongs(_selectedPlaylist.Id);
+        }
+
+        foreach (var song in songs)
+        {
+            Songs.Add(song);
+        }
+    }
+
+    /// <summary>Recarga la lista de playlists en el sidebar.</summary>
+    private void RefreshPlaylists()
+    {
+        Playlists.Clear();
+        foreach (var playlist in _playlistService.GetAllSorted())
+        {
+            Playlists.Add(playlist);
+        }
     }
 
     /// <summary>Botón "Agregar música" del TopBar (abre folder picker).</summary>
@@ -57,32 +96,25 @@ public partial class MainWindow : Window
         var folderPath = dialog.FolderName;
         if (string.IsNullOrEmpty(folderPath)) return;
 
-        // Mostrar estado de carga en el contenido
         Title = $"Wave — Importando desde {Path.GetFileName(folderPath)}...";
 
         try
         {
-            // Suscribirse al progreso para actualizar título
             _library.ScanProgress += OnScanProgress;
-
             var result = await _library.ImportFromFolderAsync(folderPath);
-
             _library.ScanProgress -= OnScanProgress;
 
-            // Refrescar la lista observable
-            Songs.Clear();
-            foreach (var song in _library.GetAllSongs())
-            {
-                Songs.Add(song);
-            }
-
+            // Refrescar UI: lista de canciones + sidebar de playlists
+            RefreshSongs();
+            RefreshPlaylists();
             Title = "Wave";
 
             MessageBox.Show(
                 $"Importación completada:\n\n" +
                 $"• {result.Added} canciones nuevas agregadas\n" +
                 $"• {result.Duplicates} duplicadas ignoradas\n" +
-                $"• Total procesadas: {result.Total}",
+                $"• Total procesadas: {result.Total}\n\n" +
+                (result.Added > 0 ? "Se crearon playlists automáticas por género." : ""),
                 "Wave — Importación",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -101,7 +133,6 @@ public partial class MainWindow : Window
 
     private void OnScanProgress(object? sender, (int Current, int Total) e)
     {
-        // Actualizar título con progreso (thread-safe via Dispatcher)
         Dispatcher.Invoke(() =>
         {
             Title = $"Wave — Escaneando {e.Current}/{e.Total} archivos...";
@@ -115,18 +146,13 @@ public partial class MainWindow : Window
         var files = (string[])e.Data.GetData(DataFormats.FileDrop);
         if (files == null || files.Length == 0) return;
 
-        // Recopilar: si es carpeta, escanear; si es archivo, agregar directo
         var allFiles = new List<string>();
         foreach (var path in files)
         {
             if (Directory.Exists(path))
-            {
                 allFiles.AddRange(_library.Scan(path));
-            }
             else if (File.Exists(path) && _library.IsAudioFile(path))
-            {
                 allFiles.Add(path);
-            }
         }
 
         if (allFiles.Count == 0)
@@ -139,13 +165,8 @@ public partial class MainWindow : Window
         try
         {
             var result = await _library.ImportFilesAsync(allFiles);
-
-            // Refrescar
-            Songs.Clear();
-            foreach (var song in _library.GetAllSongs())
-            {
-                Songs.Add(song);
-            }
+            RefreshSongs();
+            RefreshPlaylists();
 
             MessageBox.Show(
                 $"Importación: {result.Added} nuevas, {result.Duplicates} duplicadas.",
@@ -160,7 +181,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Feedback visual al arrastrar archivos.</summary>
     private void Window_DragEnter(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
@@ -169,13 +189,36 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>Click en canción → reproducir.</summary>
+    /// <summary>Doble-click en canción → reproducir.</summary>
     private void SongRow_MouseDoubleClick(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.DataContext is not Song song) return;
 
-        // Reproducir esta canción como cola completa
         _playback.SetQueue(Songs.ToList(), Songs.IndexOf(song), autoPlay: true);
+    }
+
+    /// <summary>Click en el botón Favorito (corazón) → toggle favorito.</summary>
+    private void Favorite_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not Song song) return;
+
+        _playlistService.ToggleFavorite(song);
+
+        // Refrescar playlist de Favoritos si está seleccionada
+        if (_selectedPlaylist?.IsFavorites == true)
+        {
+            RefreshSongs();
+        }
+    }
+
+    /// <summary>Click en una playlist del sidebar → mostrar sus canciones.</summary>
+    private void PlaylistsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (PlaylistsList.SelectedItem is Playlist selected)
+        {
+            _selectedPlaylist = selected;
+            RefreshSongs();
+        }
     }
 
     // === PlayerBar handlers ===

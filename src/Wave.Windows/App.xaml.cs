@@ -34,12 +34,14 @@ public partial class App : Application
         services.AddSingleton<SettingsService>();
         services.AddSingleton<AudioEngine>();
         services.AddSingleton<ISongRepository, SongRepository>();
+        services.AddSingleton<IPlaylistRepository, PlaylistRepository>();
+        services.AddSingleton<IPlaylistService, PlaylistService>();
         services.AddSingleton<PlaybackController>();
         services.AddSingleton<ILibraryService, LibraryService>();
         // Los servicios restantes se registran en versiones posteriores
         // cuando se implementen:
-        //   PlaylistService, LyricsService, BackupService,
-        //   TrayService, SmtcService, HotkeyService, MiniPlayerWindow
+        //   LyricsService, BackupService, TrayService, SmtcService,
+        //   HotkeyService, MiniPlayerWindow
         Services = services.BuildServiceProvider();
 
         // 3. Capturar excepciones no controladas
@@ -47,7 +49,10 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        // 4. Restaurar cola guardada (si existe) al iniciar
+        // 4. Asegurar playlist Favoritos existe + restaurar cola guardada
+        var playlistService = Services.GetRequiredService<IPlaylistService>();
+        playlistService.EnsureFavoritesPlaylist();
+
         var playback = Services.GetRequiredService<PlaybackController>();
         playback.RestoreSavedQueue();
 
