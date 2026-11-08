@@ -17,7 +17,7 @@ namespace Wave.Windows.Services;
 ///
 /// Delega la reproducción real de audio a <see cref="AudioEngine"/>.
 /// </summary>
-public sealed class PlaybackController : ObservableObject, IDisposable
+public sealed partial class PlaybackController : ObservableObject, IDisposable
 {
     private readonly AudioEngine _engine;
     private readonly DispatcherTimer _positionTimer;
