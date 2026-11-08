@@ -28,13 +28,10 @@ public partial class MainWindow : Window
         {
             await WebView.EnsureCoreWebView2Async(null);
 
-            // Servir wwwroot como host virtual
-            var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
-            WebView.CoreWebView2.SetVirtualHostToFolderMapping(
-                "wave.app", wwwrootPath,
-                CoreWebView2HostResourceAccessKind.Allow);
-
-            WebView.CoreWebView2.Navigate("https://wave.app/index.html");
+            // Navegar directamente al index.html via file:// protocol
+            var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
+            WaveLogger.Info($"Loading WebView2 from: {wwwrootPath}");
+            WebView.CoreWebView2.Navigate(new Uri(wwwrootPath).AbsoluteUri);
 
             // Crear el bridge
             _bridge = new WebViewBridge(
