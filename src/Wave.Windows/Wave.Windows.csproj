@@ -7,7 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <LangVersion>latest</LangVersion>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>Wave</AssemblyName>
     <RootNamespace>Wave.Windows</RootNamespace>
     <Version>0.1.0</Version>
