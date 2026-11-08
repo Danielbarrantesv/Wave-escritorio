@@ -8,6 +8,8 @@ using Wave.Windows.External;
 using Wave.Windows.Services;
 using Wave.Windows.ViewModels;
 using Wave.Windows.Views;
+// Alias para desambiguar Application entre WPF y WinForms (UseWindowsForms=true en csproj)
+using Application = System.Windows.Application;
 
 namespace Wave.Windows;
 
@@ -20,19 +22,120 @@ public partial class App : Application
     public static IServiceProvider Services { get; private set; } = null!;
     private HotkeyService? _hotkeyService;
 
+    /// <summary>Ruta del archivo de log para diagnóstico.</summary>
+    private static readonly string LogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Wave", "wave.log");
+
     protected override void OnStartup(StartupEventArgs e)
     {
-        base.OnStartup(e);
+        // Log de startup — cualquier excepción se captura aquí
+        LogInfo("=== Wave starting ===");
+        LogInfo($"Version: {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}");
+        LogInfo($"BaseDirectory: {AppContext.BaseDirectory}");
+        LogInfo($"OS: {Environment.OSVersion.VersionString}");
+        LogInfo($".NET Runtime: {Environment.Version}");
 
-        // 1. Inicializar DB en %LocalAppData%\Wave\wave.db
+        try
+        {
+            base.OnStartup(e);
+            LogInfo("OnStartup base OK");
+
+            InitializeDatabase();
+            LogInfo("Database initialized OK");
+
+            ConfigureDependencyInjection();
+            LogInfo("DI configured OK");
+
+            // Capturar excepciones no controladas
+            DispatcherUnhandledException += OnDispatcherUnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
+            // Asegurar playlist Favoritos existe + restaurar cola guardada
+            var playlistService = Services.GetRequiredService<IPlaylistService>();
+            playlistService.EnsureFavoritesPlaylist();
+            LogInfo("Favoritos playlist ensured");
+
+            var playback = Services.GetRequiredService<PlaybackController>();
+            playback.RestoreSavedQueue();
+            LogInfo("Queue restored");
+
+            // Inicializar SmtcService (puede fallar en CI/sin WinRT — defensivo)
+            try
+            {
+                Services.GetRequiredService<SmtcService>();
+                LogInfo("SMTC initialized");
+            }
+            catch (Exception ex)
+            {
+                LogInfo($"SMTC not available (expected in some environments): {ex.Message}");
+            }
+
+            // Crear y mostrar MainWindow PRIMERO (antes de servicios que pueden fallar)
+            LogInfo("Creating MainWindow...");
+            var mainWindow = new MainWindow();
+            MainWindow = mainWindow;
+            mainWindow.Show();
+            LogInfo("MainWindow shown");
+
+            // Inicializar TrayService (defensivo)
+            try
+            {
+                var tray = Services.GetRequiredService<TrayService>();
+                tray.ShowMainWindowRequested += (s, args) => mainWindow.ShowFromTray();
+                tray.ExitRequested += (s, args) => Shutdown();
+                LogInfo("TrayService initialized");
+            }
+            catch (Exception ex)
+            {
+                LogInfo($"TrayService failed (continuing without tray): {ex.Message}");
+            }
+
+            // Inicializar HotkeyService (defensivo)
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(mainWindow);
+                var hotkeyService = new HotkeyService(helper.Handle, playback, Services.GetRequiredService<AudioEngine>());
+                _hotkeyService = hotkeyService;
+                LogInfo("HotkeyService initialized");
+            }
+            catch (Exception ex)
+            {
+                LogInfo($"HotkeyService failed (continuing without hotkeys): {ex.Message}");
+            }
+
+            LogInfo("=== Wave startup complete ===");
+        }
+        catch (Exception ex)
+        {
+            LogError("FATAL ERROR during startup", ex);
+            // Mostrar MessageBox con el error
+            MessageBox.Show(
+                $"Error al iniciar Wave:\n\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}\n\n" +
+                $"Log completo en:\n{LogPath}",
+                "Wave - Error Fatal",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+        }
+    }
+
+    /// <summary>Inicializa la DB en %LocalAppData%\Wave\wave.db</summary>
+    private static void InitializeDatabase()
+    {
         var appData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Wave");
         Directory.CreateDirectory(appData);
         var dbPath = Path.Combine(appData, "wave.db");
+        LogInfo($"DB path: {dbPath}");
         SqliteDatabase.Init(dbPath);
+    }
 
-        // 2. Configurar DI
+    /// <summary>Configura el contenedor de DI con todos los servicios.</summary>
+    private void ConfigureDependencyInjection()
+    {
         var services = new ServiceCollection();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<AudioEngine>();
@@ -46,89 +149,18 @@ public partial class App : Application
         services.AddSingleton<LyricsViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<EqualizerViewModel>();
-        // v0.8.0: Tray + SMTC + Hotkeys
         services.AddSingleton<TrayService>();
         services.AddSingleton<SmtcService>();
-        // v0.9.0: Backup
         services.AddSingleton<IBackupService, BackupService>();
-        // HotkeyService se registra después de crear MainWindow (necesita HWND)
         Services = services.BuildServiceProvider();
-
-        // 3. Capturar excepciones no controladas
-        DispatcherUnhandledException += OnDispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
-        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
-
-        // 4. Asegurar playlist Favoritos existe + restaurar cola guardada
-        var playlistService = Services.GetRequiredService<IPlaylistService>();
-        playlistService.EnsureFavoritesPlaylist();
-
-        var playback = Services.GetRequiredService<PlaybackController>();
-        playback.RestoreSavedQueue();
-
-        // 5. Inicializar SmtcService (puede fallar en CI/sin WinRT — defensivo)
-        try
-        {
-            Services.GetRequiredService<SmtcService>();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Wave] SmtcService no inicializado: {ex.Message}");
-        }
-
-        // 6. Crear y mostrar MainWindow (PRIMERO, antes de servicios que pueden fallar)
-        var mainWindow = new MainWindow();
-        MainWindow = mainWindow;
-        mainWindow.Show();
-
-        // 7. Inicializar TrayService (defensivo: NotifyIcon puede fallar en algunos entornos)
-        try
-        {
-            var tray = Services.GetRequiredService<TrayService>();
-            tray.ShowMainWindowRequested += (s, args) => mainWindow.ShowFromTray();
-            tray.ExitRequested += (s, args) => Shutdown();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Wave] TrayService no inicializado: {ex.Message}");
-            // La app continúa sin tray icon
-        }
-
-        // 8. Inicializar HotkeyService (defensivo)
-        try
-        {
-            var helper = new System.Windows.Interop.WindowInteropHelper(mainWindow);
-            var hotkeyService = new HotkeyService(helper.Handle, playback, Services.GetRequiredService<AudioEngine>());
-            _hotkeyService = hotkeyService;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Wave] HotkeyService no inicializado: {ex.Message}");
-            // La app continúa sin hotkeys globales
-        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        // Log completo y mostrar mensaje con stack trace para debugging
-        var ex = e.Exception;
-        System.Diagnostics.Debug.WriteLine($"[Wave] Dispatcher exception: {ex}");
-
-        // Escribir el error a un archivo de log para diagnóstico post-crash
-        try
-        {
-            var logPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Wave", "crash.log");
-            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-            File.AppendAllText(logPath,
-                $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] Dispatcher exception:\n{ex}\n\n");
-        }
-        catch { }
-
+        LogError("Dispatcher unhandled exception", e.Exception);
         MessageBox.Show(
-            $"Ocurrió un error al iniciar Wave:\n\n{ex.Message}\n\nStack trace:\n{ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace?.Length ?? 0))}\n\n" +
-            $"El log completo está en %LocalAppData%\\Wave\\crash.log",
+            $"Ocurrió un error:\n\n{e.Exception.Message}\n\nStack trace:\n{e.Exception.StackTrace}\n\n" +
+            $"Log completo en:\n{LogPath}",
             "Wave - Error",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
@@ -138,52 +170,62 @@ public partial class App : Application
     private void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         var ex = e.ExceptionObject as Exception;
-        System.Diagnostics.Debug.WriteLine($"[Wave] AppDomain exception: {ex}");
+        LogError("AppDomain unhandled exception", ex);
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
-        System.Diagnostics.Debug.WriteLine($"[Wave] Unobserved task exception: {e.Exception}");
+        LogError("Unobserved task exception", e.Exception);
         e.SetObserved();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Dispose ordenado: HotkeyService → TrayService → SmtcService → ViewModels
-        // → PlaybackController → LrcLibClient → SqliteDatabase
-        _hotkeyService?.Dispose();
-        if (Services.GetService<SmtcService>() is { } smtc)
+        LogInfo("=== Wave exiting ===");
+        try
         {
-            smtc.Dispose();
+            _hotkeyService?.Dispose();
+            if (Services.GetService<SmtcService>() is { } smtc) smtc.Dispose();
+            if (Services.GetService<TrayService>() is { } tray) tray.Dispose();
+            if (Services.GetService<EqualizerViewModel>() is { } eqVm) eqVm.Dispose();
+            if (Services.GetService<MainViewModel>() is { } mainVm) mainVm.Dispose();
+            if (Services.GetService<LyricsViewModel>() is { } lyricsVm) lyricsVm.Dispose();
+            if (Services.GetService<PlaybackController>() is { } playback) playback.Dispose();
+            if (Services.GetService<LrcLibClient>() is { } lrcClient) lrcClient.Dispose();
+            if (Services.GetService<SqliteDatabase>() is { } db) db.Dispose();
         }
-        if (Services.GetService<TrayService>() is { } tray)
+        catch (Exception ex)
         {
-            tray.Dispose();
-        }
-        if (Services.GetService<EqualizerViewModel>() is { } eqVm)
-        {
-            eqVm.Dispose();
-        }
-        if (Services.GetService<MainViewModel>() is { } mainVm)
-        {
-            mainVm.Dispose();
-        }
-        if (Services.GetService<LyricsViewModel>() is { } lyricsVm)
-        {
-            lyricsVm.Dispose();
-        }
-        if (Services.GetService<PlaybackController>() is { } playback)
-        {
-            playback.Dispose();
-        }
-        if (Services.GetService<LrcLibClient>() is { } lrcClient)
-        {
-            lrcClient.Dispose();
-        }
-        if (Services.GetService<SqliteDatabase>() is { } db)
-        {
-            db.Dispose();
+            LogError("Error during dispose", ex);
         }
         base.OnExit(e);
+    }
+
+    // === Logging helpers ===
+
+    private static void LogInfo(string message)
+    {
+        WriteLog("INFO", message);
+    }
+
+    private static void LogError(string context, Exception? ex)
+    {
+        WriteLog("ERROR", $"{context}: {ex?.ToString() ?? "(null)"}");
+    }
+
+    private static void WriteLog(string level, string message)
+    {
+        try
+        {
+            var logDir = Path.GetDirectoryName(LogPath);
+            if (!string.IsNullOrEmpty(logDir)) Directory.CreateDirectory(logDir);
+            var line = $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}{Environment.NewLine}";
+            File.AppendAllText(LogPath, line);
+            System.Diagnostics.Debug.WriteLine(line.Trim());
+        }
+        catch
+        {
+            // Si no podemos loguear, no rompemos la app
+        }
     }
 }

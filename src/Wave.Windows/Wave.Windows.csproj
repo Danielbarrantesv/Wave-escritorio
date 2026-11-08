@@ -11,9 +11,9 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Wave</AssemblyName>
     <RootNamespace>Wave.Windows</RootNamespace>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
     <Company>Daniel Barrantes</Company>
     <Product>Wave for Windows</Product>
     <Description>Reproductor de música offline para Windows 10/11</Description>
@@ -31,7 +31,13 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>false</SelfContained>
+    <!-- Self-contained true: NO requiere .NET 8 Runtime instalado en la máquina destino.
+         El ejecutable incluye el runtime de .NET (~70 MB) pero funciona en cualquier Windows 10+ -->
+    <SelfContained>true</SelfContained>
+    <!-- Single file: el .exe incluye todos los DLLs extraídos a memoria al arrancar -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -55,9 +61,11 @@
     <None Update="Data\Migrations\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <AppxManifest Include="Package.appxmanifest">
-      <SubType>Designer</SubType>
-    </AppxManifest>
+    <!-- AppxManifest NO se incluye en el build normal (solo para MSIX packaging).
+         Se mantiene en el repo para cuando se quiera empaquetar MSIX. -->
+    <None Update="Package.appxmanifest">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
