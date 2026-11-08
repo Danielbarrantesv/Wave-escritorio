@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wave.Windows.Data;
 using Wave.Windows.Data.Repositories;
 using Wave.Windows.External;
+using Wave.Windows.Models;
 using Wave.Windows.Services;
 using Wave.Windows.ViewModels;
 using Xunit;
