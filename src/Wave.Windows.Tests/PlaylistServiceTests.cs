@@ -202,10 +202,15 @@ public class PlaylistServiceTests
     {
         // Arrange
         var song = new Song { Id = 1, IsFavorite = false };
-        // Primera llamada: Favoritos no existe. Segunda: ya existe.
-        _playlistRepoMock.SetupSequence(r => r.GetByName(Playlist.FavoritesName))
-                         .Returns((Playlist?)null)
-                         .Returns(new Playlist { Id = 200, Name = Playlist.FavoritesName });
+        var favPlaylist = new Playlist { Id = 200, Name = Playlist.FavoritesName };
+
+        // Simular: primera llamada devuelve null (no existe), siguientes devuelven la playlist creada.
+        // ToggleFavorite llama GetByName varias veces (EnsureFavorites + su propia lógica),
+        // así que usamos un contador para devolver null solo la primera vez.
+        var callCount = 0;
+        _playlistRepoMock
+            .Setup(r => r.GetByName(Playlist.FavoritesName))
+            .Returns(() => callCount++ == 0 ? null : favPlaylist);
         _playlistRepoMock.Setup(r => r.Insert(It.IsAny<Playlist>())).Returns(200);
 
         // Act
