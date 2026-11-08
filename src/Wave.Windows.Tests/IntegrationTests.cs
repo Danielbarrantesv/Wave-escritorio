@@ -1,4 +1,6 @@
 using System.IO;
+using System.Data;
+using Dapper;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Wave.Windows.Data;
@@ -54,17 +56,23 @@ public class IntegrationTests
         return services.BuildServiceProvider();
     }
 
-    /// <summary>Inicializa la DB con migraciones inline para tests locales.</summary>
+    /// <summary>
+    /// Inicializa la DB con migraciones inline para tests locales.
+    /// Devuelve false si las tablas no están disponibles (CI sin archivos .sql).
+    /// </summary>
     private static bool TryInitTestDatabase(string dbPath)
     {
         try
         {
             SqliteDatabase.Init(dbPath);
-            return true;
+            // Verificar si la tabla 'songs' realmente existe
+            // (RunMigrations no lanza si no encuentra los .sql)
+            var conn = SqliteDatabase.Instance.Connection;
+            var tables = conn.Query<string>("SELECT name FROM sqlite_master WHERE type='table'").ToList();
+            return tables.Contains("songs");
         }
         catch
         {
-            // En CI sin migraciones .sql disponibles, falla — los tests dependientes se skip
             return false;
         }
     }
