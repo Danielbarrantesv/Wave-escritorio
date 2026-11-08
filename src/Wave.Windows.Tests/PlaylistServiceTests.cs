@@ -204,13 +204,14 @@ public class PlaylistServiceTests
         var song = new Song { Id = 1, IsFavorite = false };
         var favPlaylist = new Playlist { Id = 200, Name = Playlist.FavoritesName };
 
-        // Simular: primera llamada devuelve null (no existe), siguientes devuelven la playlist creada.
-        // ToggleFavorite llama GetByName varias veces (EnsureFavorites + su propia lógica),
-        // así que usamos un contador para devolver null solo la primera vez.
+        // ToggleFavorite llama GetByName 2 veces cuando Favoritos no existe:
+        //   1. Línea 68 (var fav = _repo.GetByName(...)) → null
+        //   2. Línea 48 dentro de EnsureFavoritesPlaylist → null (entro al Insert)
+        //   3. Línea 73 (fav = _repo.GetByName(...)) → favPlaylist (ya creado)
         var callCount = 0;
         _playlistRepoMock
             .Setup(r => r.GetByName(Playlist.FavoritesName))
-            .Returns(() => callCount++ == 0 ? null : favPlaylist);
+            .Returns(() => callCount++ < 2 ? null : favPlaylist);
         _playlistRepoMock.Setup(r => r.Insert(It.IsAny<Playlist>())).Returns(200);
 
         // Act
