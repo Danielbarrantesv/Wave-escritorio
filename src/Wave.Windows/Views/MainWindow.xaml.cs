@@ -1,4 +1,5 @@
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using Wave.Windows.Services;
 
 namespace Wave.Windows.Views;
