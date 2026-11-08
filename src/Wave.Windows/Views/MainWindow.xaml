@@ -30,9 +30,15 @@
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
             <Button Grid.Column="2" Click="AddMusic_Click"
                     Content="+ Agregar música"
-                    Padding="12,6" Margin="0,0,16,0"
+                    Padding="12,6" Margin="0,0,8,0"
                     Background="{DynamicResource AccentBrush}"
                     Foreground="Black" FontWeight="SemiBold"/>
+            <Button Grid.Column="3" Click="Lyrics_Click"
+                    Content="♪ Letra"
+                    Padding="12,6" Margin="0,0,16,0"
+                    Background="Transparent"
+                    Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                    ToolTip="Mostrar letra sincronizada"/>
         </Grid>
 
         <!-- Contenido principal: sidebar + lista -->

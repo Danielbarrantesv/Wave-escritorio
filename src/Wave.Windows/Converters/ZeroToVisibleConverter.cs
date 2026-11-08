@@ -32,3 +32,26 @@ public class ZeroToVisibleConverter : IValueConverter
         throw new NotSupportedException();
     }
 }
+
+/// <summary>
+/// Convierte bool → Visibility.
+/// - true → Visible
+/// - false → Collapsed
+///
+/// Útil para mostrar/ocultar elementos basados en flags booleanos (IsLoading, HasLyrics, etc.).
+/// </summary>
+public class BoolToVisibleConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is bool b)
+        {
+            return b ? Visibility.Visible : Visibility.Collapsed;
+        }
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+

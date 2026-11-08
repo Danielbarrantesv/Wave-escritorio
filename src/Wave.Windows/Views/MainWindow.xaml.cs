@@ -5,18 +5,21 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Wave.Windows.Models;
 using Wave.Windows.Services;
+using Wave.Windows.ViewModels;
 
 namespace Wave.Windows.Views;
 
 /// <summary>
 /// Ventana principal de Wave.
-/// v0.4.0: integra PlaylistService (sidebar + Favoritos por canción).
+/// v0.5.0: integra LyricsService con botón "Letra" para abrir vista de letras.
 /// </summary>
 public partial class MainWindow : Window
 {
     private readonly PlaybackController _playback;
     private readonly ILibraryService _library;
     private readonly IPlaylistService _playlistService;
+    private readonly LyricsViewModel _lyricsViewModel;
+    private LyricsWindow? _lyricsWindow;
 
     /// <summary>Lista observable de canciones mostradas en el ListView.</summary>
     public ObservableCollection<Song> Songs { get; } = new();
@@ -37,6 +40,7 @@ public partial class MainWindow : Window
         _playback = App.Services.GetRequiredService<PlaybackController>();
         _library = App.Services.GetRequiredService<ILibraryService>();
         _playlistService = App.Services.GetRequiredService<IPlaylistService>();
+        _lyricsViewModel = App.Services.GetRequiredService<LyricsViewModel>();
 
         // Cargar biblioteca y playlists desde DB al iniciar
         RefreshSongs();
@@ -227,4 +231,17 @@ public partial class MainWindow : Window
     private void Prev_Click(object sender, RoutedEventArgs e) => _playback.SkipToPrevious();
     private void Shuffle_Click(object sender, RoutedEventArgs e) => _playback.ToggleShuffle();
     private void Repeat_Click(object sender, RoutedEventArgs e) => _playback.ToggleRepeatOne();
+
+    /// <summary>Botón "Letra" del TopBar — abre la ventana de letras sincronizadas.</summary>
+    private void Lyrics_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lyricsWindow == null || !_lyricsWindow.IsLoaded)
+        {
+            _lyricsWindow = new LyricsWindow(_lyricsViewModel);
+            _lyricsWindow.Owner = this;
+            _lyricsWindow.Closed += (s, args) => _lyricsWindow = null;
+        }
+        _lyricsWindow.Show();
+        _lyricsWindow.Activate();
+    }
 }

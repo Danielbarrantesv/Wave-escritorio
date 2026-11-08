@@ -12,6 +12,10 @@
             </ResourceDictionary.MergedDictionaries>
             <!-- Converters globales disponibles en todos los XAML -->
             <conv:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter"/>
+            <conv:BoolToVisibleConverter x:Key="BoolToVisibleConverter"/>
+            <conv:BoolToColorConverter x:Key="BoolToColorConverter"/>
+            <conv:BoolToFontSizeConverter x:Key="BoolToFontSizeConverter"/>
+            <conv:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

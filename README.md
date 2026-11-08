@@ -60,7 +60,7 @@ Wave-escritorio/
 | `v0.2.0` | AudioEngine + PlaybackController (NAudio) + bindings UI | ✅ Released |
 | `v0.3.0` | LibraryService + TagReader (TagLib#) + importación carpeta | ✅ Released |
 | `v0.4.0` | PlaylistService + Favoritos + género automático | ✅ Released |
-| `v0.5.0` | LyricsService + LrcLibClient + parser LRC | Pendiente |
+| `v0.5.0` | LyricsService + LrcLibClient + parser LRC + vista de letras | ✅ Released |
 | `v0.6.0` | MainWindow + LibraryView + PlayerBar UI | Pendiente |
 | `v0.7.0` | Equalizer + Visualizer | Pendiente |
 | `v0.8.0` | Tray + SMTC + Hotkeys | Pendiente |

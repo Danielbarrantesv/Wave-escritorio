@@ -4,7 +4,9 @@ using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Wave.Windows.Data;
 using Wave.Windows.Data.Repositories;
+using Wave.Windows.External;
 using Wave.Windows.Services;
+using Wave.Windows.ViewModels;
 using Wave.Windows.Views;
 
 namespace Wave.Windows;
@@ -38,9 +40,12 @@ public partial class App : Application
         services.AddSingleton<IPlaylistService, PlaylistService>();
         services.AddSingleton<PlaybackController>();
         services.AddSingleton<ILibraryService, LibraryService>();
+        services.AddSingleton<LrcLibClient>();
+        services.AddSingleton<ILyricsService, LyricsService>();
+        services.AddSingleton<LyricsViewModel>();
         // Los servicios restantes se registran en versiones posteriores
         // cuando se implementen:
-        //   LyricsService, BackupService, TrayService, SmtcService,
+        //   BackupService, TrayService, SmtcService,
         //   HotkeyService, MiniPlayerWindow
         Services = services.BuildServiceProvider();
 
@@ -88,11 +93,19 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Dispose ordenado: PlaybackController guarda la cola y dispose del engine,
-        // luego SqliteDatabase cierra la conexión.
+        // Dispose ordenado: LyricsViewModel (desuscribir eventos) → PlaybackController
+        // (guarda cola + dispose engine) → LrcLibClient (HttpClient) → SqliteDatabase (conexión)
+        if (Services.GetService<LyricsViewModel>() is { } lyricsVm)
+        {
+            lyricsVm.Dispose();
+        }
         if (Services.GetService<PlaybackController>() is { } playback)
         {
             playback.Dispose();
+        }
+        if (Services.GetService<LrcLibClient>() is { } lrcClient)
+        {
+            lrcClient.Dispose();
         }
         if (Services.GetService<SqliteDatabase>() is { } db)
         {
