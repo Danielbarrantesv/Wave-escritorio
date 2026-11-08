@@ -207,12 +207,22 @@ public class WebViewBridge
     private static object? Invoke(Action action) { action(); return null; }
     private static async Task<object?> InvokeAsync(Func<Task> func) { await func(); return null; }
 
+    private Views.MiniPlayerWindow? _miniPlayer;
+    private Views.EqualizerWindow? _equalizer;
+
     private object? OpenMiniPlayer()
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            var mini = new Views.MiniPlayerWindow(_playback);
-            mini.Show();
+            // Singleton: si ya está abierto, solo activarlo
+            if (_miniPlayer != null && _miniPlayer.IsLoaded)
+            {
+                _miniPlayer.Activate();
+                return;
+            }
+            _miniPlayer = new Views.MiniPlayerWindow(_playback);
+            _miniPlayer.Closed += (s, e) => _miniPlayer = null;
+            _miniPlayer.Show();
         });
         return null;
     }
@@ -221,9 +231,15 @@ public class WebViewBridge
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            var eq = new Views.EqualizerWindow(
+            if (_equalizer != null && _equalizer.IsLoaded)
+            {
+                _equalizer.Activate();
+                return;
+            }
+            _equalizer = new Views.EqualizerWindow(
                 new ViewModels.EqualizerViewModel(_audioEngine));
-            eq.Show();
+            _equalizer.Closed += (s, e) => _equalizer = null;
+            _equalizer.Show();
         });
         return null;
     }

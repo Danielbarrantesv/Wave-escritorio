@@ -69,8 +69,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .song-title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .song-artist { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .song-album { font-size: 12px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-.fav-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 20px; opacity: 0.4; transition: opacity 0.15s; padding: 4px; }
-.fav-btn:hover { opacity: 0.8; }
+.fav-btn { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 20px; opacity: 0.5; transition: all 0.15s; padding: 4px; }
+.fav-btn:hover { opacity: 1; color: var(--text-dim); }
 .fav-btn.active { opacity: 1; color: #ff4444; }
 .song-duration { font-size: 12px; color: var(--text-dim); text-align: right; }
 

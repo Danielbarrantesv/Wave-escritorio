@@ -219,9 +219,9 @@ async function playSong(songId) {
 async function toggleFavorite(songId) {
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
-    song.isFavorite = !song.isFavorite;
     await WaveAPI.call('playlists.toggleFavorite', song);
-    renderSongs();
+    // Recargar canciones desde DB para que el cambio persista
+    await loadSongs();
 }
 
 function onPlaybackChanged(state) {
