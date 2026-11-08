@@ -96,7 +96,7 @@ public class WebViewBridge
             "playlists.create" => _playlistService.CreatePlaylist(p.GetProperty("name").GetString()!),
 
             "lyrics.get" => await _lyrics.GetLyricsAsync(p.Deserialize<Song>()!),
-            "backup.export" => await _backup.ExportAsync(p.GetProperty("path").GetString()!),
+            "backup.export" => await InvokeAsync(() => _backup.ExportAsync(p.GetProperty("path").GetString()!)),
 
             "settings.get" => _settings.Get<string>(p.GetProperty("key").GetString()!, ""),
             "settings.set" => Invoke(() => _settings.Set(p.GetProperty("key").GetString()!, p.GetProperty("value").GetString()!)),
@@ -147,4 +147,5 @@ public class WebViewBridge
     }
 
     private static object? Invoke(Action action) { action(); return null; }
+    private static async Task<object?> InvokeAsync(Func<Task> func) { await func(); return null; }
 }

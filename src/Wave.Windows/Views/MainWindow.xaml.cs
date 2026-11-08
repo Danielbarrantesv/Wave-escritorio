@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
-using Microsoft.Win32;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Web.WebView2.Core;
 using Wave.Windows.Services;
 using Wave.Windows.Web;
 
@@ -13,6 +14,7 @@ namespace Wave.Windows.Views;
 public partial class MainWindow : Window
 {
     private WebViewBridge? _bridge;
+    private bool _isExiting = false;
 
     public MainWindow()
     {
@@ -24,18 +26,17 @@ public partial class MainWindow : Window
     {
         try
         {
-            // Inicializar WebView2
             await WebView.EnsureCoreWebView2Async(null);
 
-            // Configurar ruta virtual: los archivos de wwwroot se sirven desde el bin
+            // Servir wwwroot como host virtual
             var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
-            WebView.CoreWebView2.SetVirtualHostToFolderMapping("wave.app", wwwrootPath,
-                Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+            WebView.CoreWebView2.SetVirtualHostToFolderMapping(
+                "wave.app", wwwrootPath,
+                CoreWebView2HostResourceAccessKind.Allow);
 
-            // Navegar a la página principal
             WebView.CoreWebView2.Navigate("https://wave.app/index.html");
 
-            // Crear el bridge de comunicación C# ↔ JS
+            // Crear el bridge
             _bridge = new WebViewBridge(
                 WebView.CoreWebView2,
                 App.Services.GetRequiredService<ILibraryService>(),
@@ -52,20 +53,16 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             WaveLogger.Error("Failed to initialize WebView2", ex);
-            MessageBox.Show($"Error al inicializar la interfaz:\n\n{ex.Message}\n\n" +
-                          "Asegúrate de tener WebView2 Runtime instalado desde:\n" +
-                          "https://developer.microsoft.com/microsoft-edge/webview2/",
-                          "Wave - Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error al inicializar:\n\n{ex.Message}",
+                "Wave - Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
-    /// <summary>Interceptar navegación para abrir folder picker cuando JS lo solicite.</summary>
-    private void WebView_NavigationStarting(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs e)
+    private void WebView_NavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
     {
         WaveLogger.Info($"WebView navigating to: {e.Uri}");
     }
 
-    /// <summary>Mostrar ventana desde el tray.</summary>
     public void ShowFromTray()
     {
         Show();
@@ -93,8 +90,6 @@ public partial class MainWindow : Window
         base.OnClosing(e);
         Environment.Exit(0);
     }
-
-    private bool _isExiting = false;
 
     private void Window_Drop(object sender, DragEventArgs e) { }
     private void Window_DragEnter(object sender, DragEventArgs e)
