@@ -206,15 +206,81 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>Doble-click en canción → reproducir.</summary>
+    /// <summary>Click simple en canción → reproducir (con logging para diagnóstico).</summary>
+    private void SongList_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        Wave.Windows.Services.WaveLogger.Info("SongList click detected");
+
+        // Buscar el ListViewItem bajo el click recorriendo el visual tree
+        var element = e.OriginalSource as System.Windows.DependencyObject;
+        while (element != null && element is not System.Windows.Controls.ListViewItem)
+        {
+            element = System.Windows.Media.VisualTreeHelper.GetParent(element);
+        }
+
+        if (element is System.Windows.Controls.ListViewItem item)
+        {
+            var song = item.DataContext as Song;
+            if (song != null)
+            {
+                Wave.Windows.Services.WaveLogger.Info($"Playing: {song.DisplayTitle} by {song.DisplayArtist} (DurationMs={song.DurationMs}, FilePath={song.FilePath})");
+                PlaySongInternal(song);
+                e.Handled = true;
+            }
+            else
+            {
+                Wave.Windows.Services.WaveLogger.Warn("Clicked item but DataContext is not a Song");
+            }
+        }
+        else
+        {
+            Wave.Windows.Services.WaveLogger.Warn("Click did not hit a ListViewItem");
+        }
+    }
+
+    /// <summary>Doble-click en canción → también reproducir (fallback).</summary>
     private void SongRow_MouseDoubleClick(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement fe || fe.DataContext is not Song song) return;
-
-        var index = _viewModel.Songs.IndexOf(song);
-        if (index >= 0)
+        Wave.Windows.Services.WaveLogger.Info("SongRow double-click detected");
+        if (sender is System.Windows.Controls.ListView listView)
         {
-            _playback.SetQueue(_viewModel.Songs.ToList(), index, autoPlay: true);
+            var song = listView.SelectedItem as Song;
+            if (song != null)
+            {
+                Wave.Windows.Services.WaveLogger.Info($"DoubleClick on: {song.DisplayTitle}");
+                PlaySongInternal(song);
+            }
+        }
+    }
+
+    /// <summary>Reproduce una canción: llama a PlaybackController.SetQueue.</summary>
+    private void PlaySongInternal(Song song)
+    {
+        try
+        {
+            var songs = _viewModel.Songs;
+            Wave.Windows.Services.WaveLogger.Info($"Finding index of '{song.DisplayTitle}' in {songs.Count} songs");
+            var index = songs.IndexOf(song);
+            Wave.Windows.Services.WaveLogger.Info($"Index found: {index}");
+
+            if (index >= 0)
+            {
+                Wave.Windows.Services.WaveLogger.Info($"Calling SetQueue with {songs.Count} songs, startIndex={index}");
+                _playback.SetQueue(songs.ToList(), index, autoPlay: true);
+                Wave.Windows.Services.WaveLogger.Info("SetQueue called OK");
+            }
+            else
+            {
+                // Song not found in collection — play as single song
+                Wave.Windows.Services.WaveLogger.Warn("Song not found in collection, playing as single song");
+                _playback.SetQueue(new List<Song> { song }, 0, autoPlay: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Wave.Windows.Services.WaveLogger.Error("Error in PlaySongInternal", ex);
+            MessageBox.Show($"Error al reproducir: {ex.Message}", "Wave - Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

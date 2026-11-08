@@ -188,7 +188,17 @@
                           Background="Transparent"
                           BorderThickness="0"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          PreviewMouseLeftButtonDown="SongList_PreviewMouseLeftButtonDown"
                           MouseDoubleClick="SongRow_MouseDoubleClick">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="8,4" Height="48">

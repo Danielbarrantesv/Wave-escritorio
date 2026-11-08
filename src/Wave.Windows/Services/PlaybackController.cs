@@ -89,7 +89,13 @@ public partial class PlaybackController : ObservableObject, IDisposable
     /// <param name="autoPlay">Si true, comienza a reproducir inmediatamente.</param>
     public virtual void SetQueue(List<Song> songs, int startIndex = 0, bool autoPlay = true)
     {
-        if (songs == null || songs.Count == 0) return;
+        if (songs == null || songs.Count == 0)
+        {
+            WaveLogger.Warn("SetQueue called with empty list, ignoring");
+            return;
+        }
+
+        WaveLogger.Info($"SetQueue: {songs.Count} songs, startIndex={startIndex}, autoPlay={autoPlay}");
 
         _queue = songs.ToList();
         _currentIndex = Math.Clamp(startIndex, 0, _queue.Count - 1);
@@ -246,36 +252,37 @@ public partial class PlaybackController : ObservableObject, IDisposable
     /// <summary>Carga la canción actual en AudioEngine y opcionalmente reproduce.</summary>
     private void LoadAndPlay(bool autoPlay)
     {
-        if (_currentIndex < 0 || _currentIndex >= _queue.Count) return;
+        if (_currentIndex < 0 || _currentIndex >= _queue.Count)
+        {
+            WaveLogger.Warn($"LoadAndPlay: invalid index {_currentIndex} (queue count: {_queue.Count})");
+            return;
+        }
+
         CurrentSong = _queue[_currentIndex];
+        WaveLogger.Info($"LoadAndPlay: '{CurrentSong.DisplayTitle}' by {CurrentSong.DisplayArtist}, autoPlay={autoPlay}, FilePath={CurrentSong.FilePath}");
+
         try
         {
             _engine.Load(CurrentSong.FilePath);
             DurationMs = _engine.LengthMs;
+            WaveLogger.Info($"Engine loaded OK, DurationMs={DurationMs}");
+
             if (autoPlay)
             {
                 _engine.Play();
                 IsPlaying = true;
+                WaveLogger.Info("Playback started OK");
             }
         }
-        catch (FileNotFoundException)
+        catch (FileNotFoundException ex)
         {
-            // El archivo fue borrado/movido.
-            // Si autoPlay=true, saltar al siguiente (UX: no queremos quedarnos en una canción que no suena).
-            // Si autoPlay=false, mantener el CurrentSong apuntado (puede ser que el archivo aparezca después).
-            System.Diagnostics.Debug.WriteLine($"[Wave] Archivo no encontrado: {CurrentSong.FilePath}");
-            if (autoPlay)
-            {
-                SkipToNext();
-            }
+            WaveLogger.Error($"File not found: {CurrentSong.FilePath}", ex);
+            if (autoPlay) SkipToNext();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Wave] Error cargando {CurrentSong.FilePath}: {ex.Message}");
-            if (autoPlay)
-            {
-                SkipToNext();
-            }
+            WaveLogger.Error($"Error loading/playing: {CurrentSong.FilePath}", ex);
+            if (autoPlay) SkipToNext();
         }
     }
 
