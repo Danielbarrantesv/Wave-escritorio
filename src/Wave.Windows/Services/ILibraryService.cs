@@ -31,4 +31,10 @@ public interface ILibraryService
 
     /// <summary>Determina si un archivo es de audio por su extensión.</summary>
     bool IsAudioFile(string filePath);
+
+    /// <summary>
+    /// Re-escanea las canciones que tienen DurationMs=0 o ArtUri=null en la DB,
+    /// actualizando sus metadatos con TagReader. Útil para migrar datos viejos.
+    /// </summary>
+    Task<int> FixMissingMetadataAsync();
 }

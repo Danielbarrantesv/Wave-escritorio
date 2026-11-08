@@ -25,7 +25,7 @@ public partial class App : Application
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Wave", "wave.log");
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         // Truncar log viejo al iniciar (mantener solo la sesión actual)
         try { File.WriteAllText(LogPath, ""); } catch { }
@@ -61,6 +61,26 @@ public partial class App : Application
             var playback = Services.GetRequiredService<PlaybackController>();
             playback.RestoreSavedQueue();
             LogInfo("Queue restored");
+
+            // v1.0.6: Re-escanear canciones con DurationMs=0 o ArtUri=null
+            // para migrar datos de versiones anteriores
+            try
+            {
+                var library = Services.GetRequiredService<ILibraryService>();
+                var fixedCount = await library.FixMissingMetadataAsync();
+                if (fixedCount > 0)
+                {
+                    LogInfo($"Fixed metadata for {fixedCount} songs");
+                    // Refrescar playlist de género también
+                    var ps = Services.GetRequiredService<IPlaylistService>();
+                    ps.CreateGenrePlaylists();
+                    LogInfo("Genre playlists refreshed");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogInfo($"FixMissingMetadata failed: {ex.Message}");
+            }
 
             // Inicializar SmtcService (puede fallar en CI/sin WinRT — defensivo)
             try

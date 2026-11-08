@@ -1,4 +1,5 @@
 using System.IO;
+using Dapper;
 using Wave.Windows.Audio;
 using Wave.Windows.Data.Repositories;
 using Wave.Windows.Models;
@@ -250,6 +251,77 @@ public sealed class LibraryService : ILibraryService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Wave] Error limpiando cache de portadas: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Re-escanea las canciones que tienen DurationMs=0 o ArtUri=null en la DB,
+    /// actualizando sus metadatos con TagReader. Útil para migrar datos de
+    /// versiones anteriores donde TagLib# no pudo leer la duración.
+    /// </summary>
+    /// <returns>Número de canciones actualizadas.</returns>
+    public async Task<int> FixMissingMetadataAsync()
+    {
+        return await Task.Run(() =>
+        {
+            var allSongs = _songRepo.ListAll();
+            var toFix = allSongs.Where(s => s.DurationMs == 0 || string.IsNullOrEmpty(s.ArtUri)).ToList();
+
+            if (toFix.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("[LibraryService] No songs to fix");
+                return 0;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[LibraryService] Fixing metadata for {toFix.Count} songs...");
+
+            int fixed = 0;
+            foreach (var song in toFix)
+            {
+                // Verificar que el archivo aún existe
+                if (!System.IO.File.Exists(song.FilePath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[LibraryService] File not found, skipping: {song.FilePath}");
+                    continue;
+                }
+
+                try
+                {
+                    // Re-leer metadatos con TagReader (que ahora usa NAudio fallback)
+                    var updated = Wave.Windows.Audio.TagReader.Read(song.FilePath);
+                    if (updated != null && updated.DurationMs > 0)
+                    {
+                        // Actualizar la canción en la DB
+                        // Como no tenemos método Update en SongRepository, usamos DeleteAll + Insert
+                        // Pero eso es destructivo. Mejor: actualizar directamente con SQL.
+                        UpdateSongMetadata(song.Id, updated.DurationMs, updated.ArtUri);
+                        fixed++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[LibraryService] Error fixing {song.FilePath}: {ex.Message}");
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[LibraryService] Fixed {fixed} of {toFix.Count} songs");
+            return fixed;
+        });
+    }
+
+    /// <summary>Actualiza DurationMs y ArtUri de una canción directamente en la DB.</summary>
+    private void UpdateSongMetadata(long songId, long durationMs, string? artUri)
+    {
+        try
+        {
+            var db = Wave.Windows.Data.SqliteDatabase.Instance.Connection;
+            db.Execute(
+                "UPDATE songs SET duration_ms = @durationMs, art_uri = @artUri WHERE id = @songId",
+                new { durationMs, artUri, songId });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[LibraryService] Error updating song {songId}: {ex.Message}");
         }
     }
 }
