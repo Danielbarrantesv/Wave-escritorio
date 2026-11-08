@@ -1,0 +1,54 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Estilos base de la app -->
+
+    <Style TargetType="Window">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnSurfaceBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource SurfaceVariantBrush}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.4"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+    </Style>
+
+    <Style TargetType="TextBox">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceVariantBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnSurfaceBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style TargetType="Slider">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+</ResourceDictionary>

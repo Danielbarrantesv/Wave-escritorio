@@ -1,0 +1,127 @@
+# .gitignore para proyecto Wave Windows (.NET 8 + WPF)
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Pp]ublish/
+[Pp]ublished/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.vshost.exe*
+*.vshost.exe.config
+*.vshost.exe.manifest
+
+# Visual Studio cache
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/packages/build/
+
+# Build results
+[Dd]ebugPublic/
+[Rr]eleasePublic/
+*.[Pp]ublish.xml
+*.azurePubxml
+*.pubxml
+*.publishproj
+PublishProfiles/
+
+# Microsoft Azure
+PublishScripts/
+*.Publish.xml
+
+# Windows App SDK / MSIX
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.pfx
+*.cer
+*.appxsym
+*.bld
+*.suo
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResults/
+coverage-report/
+coverage.cobertura.xml
+*.coverage
+*.coveragexml
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Logs
+*.log
+logs/
+
+# Certificados (NUNCA commitear)
+*.pfx
+*.p12
+*.key
+*.pem
+secrets.json
+appsettings.Development.json
+appsettings.Local.json
+
+# User secrets
+secrets.json
+
+# Database files (development)
+*.db
+*.db-shm
+*.db-wal
+!Migrations/*.sql
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+*~
+
+# Cover art cache (generados en runtime)
+# (no aplica en el repo pero por si se copian aquí)
+art_cache/
+
+# Backup files generados
+*.wavebackup

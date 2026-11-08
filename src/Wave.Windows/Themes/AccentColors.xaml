@@ -1,0 +1,12 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Color de acento por defecto: verde Wave (#32C98B) -->
+    <Color x:Key="AccentColor">#32C98B</Color>
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+
+    <!-- Color de error -->
+    <Color x:Key="ErrorColor">#F44336</Color>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}"/>
+
+</ResourceDictionary>

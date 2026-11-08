@@ -1,0 +1,84 @@
+<Window x:Class="Wave.Windows.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wave" Height="720" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BackgroundBrush}"
+        AllowDrop="True">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top bar (placeholder v0.1.0) -->
+        <Grid Grid.Row="0" Background="{DynamicResource SurfaceBrush}" Height="56">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Wave" FontSize="20" FontWeight="Bold"
+                       Foreground="{DynamicResource AccentBrush}"
+                       Margin="16,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="v0.1.0 — Scaffold"
+                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                       Margin="16,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2" Text="Proximamente: biblioteca + reproductor"
+                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                       Margin="0,0,16,0" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- Content area placeholder -->
+        <Grid Grid.Row="1" Background="{DynamicResource BackgroundBrush}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Wave for Windows"
+                           FontSize="36" FontWeight="Bold"
+                           Foreground="{DynamicResource OnSurfaceBrush}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="Reproductor de música offline"
+                           FontSize="16"
+                           Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                           HorizontalAlignment="Center" Margin="0,8,0,32"/>
+                <TextBlock Text="Scaffold inicial — v0.1.0"
+                           FontSize="14"
+                           Foreground="{DynamicResource AccentBrush}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="Las features se implementarán en versiones posteriores."
+                           FontSize="12"
+                           Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Player bar placeholder -->
+        <Border Grid.Row="2" Background="{DynamicResource SurfaceVariantBrush}" Height="64">
+            <Grid Margin="12,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4"/>
+                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                    <TextBlock Text="No hay canción reproduciéndose"
+                               Foreground="{DynamicResource OnSurfaceBrush}" FontWeight="SemiBold"/>
+                    <TextBlock Text="—"
+                               Foreground="{DynamicResource OnSurfaceVariantBrush}"/>
+                </StackPanel>
+                <Slider Grid.Column="2" Minimum="0" Maximum="100" Value="0"
+                        VerticalAlignment="Center" Margin="12,0"/>
+                <Button Grid.Column="3" Content="&#x23EE;"
+                        Background="Transparent" Foreground="{DynamicResource OnSurfaceBrush}"/>
+                <Button Grid.Column="4" Content="&#x25B6;"
+                        Background="Transparent" Foreground="{DynamicResource AccentBrush}"/>
+                <Button Grid.Column="5" Content="&#x23ED;"
+                        Background="Transparent" Foreground="{DynamicResource OnSurfaceBrush}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,55 @@
+# .editorconfig para Wave Windows
+# https://editorconfig.org/
+
+root = true
+
+# Default para todos los archivos
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# Archivos C#
+[*.cs]
+indent_size = 4
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:suggestion
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+
+# Convenciones de naming (Wave)
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = camel_case_underscore
+dotnet_naming_rule.private_fields_underscore.severity = suggestion
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.camel_case_underscore.required_prefix = _
+dotnet_naming_style.camel_case_underscore.capitalization = camel_case
+
+# Archivos XAML
+[*.{xaml,axaml}]
+indent_size = 2
+
+# Archivos XML
+[*.{xml,resx,resw,csproj,props,targets}]
+indent_size = 2
+
+# Archivos JSON
+[*.json]
+indent_size = 2
+
+# Archivos YAML
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
