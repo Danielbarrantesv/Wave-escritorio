@@ -37,8 +37,8 @@ public class BackupServiceTests : IDisposable
         // Arrange
         var songs = new List<Song>
         {
-            new() { Id = 1, Title = "Canción A", Artist = "Artista X", FilePath = "/path/a.mp3" },
-            new() { Id = 2, Title = "Canción B", Artist = "Artista Y", FilePath = "/path/b.mp3" }
+            new() { Id = 1, Title = "Song A", Artist = "Artist X", FilePath = "/path/a.mp3" },
+            new() { Id = 2, Title = "Song B", Artist = "Artist Y", FilePath = "/path/b.mp3" }
         };
         _songRepoMock.Setup(r => r.ListAll()).Returns(songs);
         _playlistRepoMock.Setup(r => r.GetAll()).Returns(new List<Playlist>());
@@ -46,11 +46,12 @@ public class BackupServiceTests : IDisposable
         // Act
         await _backup.ExportAsync(_tempPath);
 
-        // Assert
+        // Assert — los strings se serializan con escape Unicode (Canci\u00F3n) por defecto,
+        // así que usamos títulos ASCII en el test.
         var content = await File.ReadAllTextAsync(_tempPath);
-        content.Should().Contain("Canción A");
-        content.Should().Contain("Canción B");
-        content.Should().Contain("Artista X");
+        content.Should().Contain("Song A");
+        content.Should().Contain("Song B");
+        content.Should().Contain("Artist X");
     }
 
     [Fact]
