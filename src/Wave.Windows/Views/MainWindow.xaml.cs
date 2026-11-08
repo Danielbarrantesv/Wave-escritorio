@@ -1,92 +1,93 @@
-using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Wave.Windows.Models;
 using Wave.Windows.Services;
 using Wave.Windows.ViewModels;
+using Wave.Windows.Views.Controls;
 
 namespace Wave.Windows.Views;
 
 /// <summary>
 /// Ventana principal de Wave.
-/// v0.5.0: integra LyricsService con botón "Letra" para abrir vista de letras.
+/// v0.6.0: integra MainViewModel (búsqueda + sort), PlayerBar custom y lyrics.
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly PlaybackController _playback;
+    private readonly MainViewModel _viewModel;
     private readonly ILibraryService _library;
     private readonly IPlaylistService _playlistService;
+    private readonly PlaybackController _playback;
     private readonly LyricsViewModel _lyricsViewModel;
     private LyricsWindow? _lyricsWindow;
-
-    /// <summary>Lista observable de canciones mostradas en el ListView.</summary>
-    public ObservableCollection<Song> Songs { get; } = new();
-
-    /// <summary>Lista observable de playlists en el sidebar.</summary>
-    public ObservableCollection<Playlist> Playlists { get; } = new();
-
-    /// <summary>Playlist seleccionada en el sidebar (null = todas las canciones).</summary>
-    private Playlist? _selectedPlaylist;
-
-    /// <summary>Total de canciones en la biblioteca (para mostrar "X canciones").</summary>
-    public int SongCount => Songs.Count;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        _playback = App.Services.GetRequiredService<PlaybackController>();
+        _viewModel = App.Services.GetRequiredService<MainViewModel>();
         _library = App.Services.GetRequiredService<ILibraryService>();
         _playlistService = App.Services.GetRequiredService<IPlaylistService>();
+        _playback = App.Services.GetRequiredService<PlaybackController>();
         _lyricsViewModel = App.Services.GetRequiredService<LyricsViewModel>();
 
-        // Cargar biblioteca y playlists desde DB al iniciar
-        RefreshSongs();
-        RefreshPlaylists();
+        DataContext = _viewModel;
 
-        // DataContext = this (la propia ventana expone Songs + Playlists + SongCount)
-        DataContext = this;
+        // Inicializar PlayerBar con el PlaybackController
+        PlayerBarControl.DataContext = _playback;
 
-        // Bindear el PlayerBar al PlaybackController via Resources
-        Resources["Playback"] = _playback;
+        // Suscribirse a cambios de VisibleCount para actualizar el label
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        UpdateSongCountLabel();
+
+        // Buscar placeholder (cuando SearchBox está vacío, mostrar "Buscar canciones...")
+        SearchBox.GotFocus += (s, e) => { if (SearchBox.Text == "") SearchBox.Tag = ""; };
+        UpdateSortLabel();
     }
 
-    /// <summary>Recarga la lista de canciones según la playlist seleccionada.</summary>
-    private void RefreshSongs()
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        Songs.Clear();
-
-        List<Song> songs;
-        if (_selectedPlaylist == null)
+        if (e.PropertyName == nameof(MainViewModel.VisibleCount) || e.PropertyName == nameof(MainViewModel.SongCount))
         {
-            // "Todas" — mostrar biblioteca completa
-            songs = _library.GetAllSongs();
+            UpdateSongCountLabel();
         }
-        else
+        else if (e.PropertyName == nameof(MainViewModel.SortOrder))
         {
-            // Playlist específica — mostrar solo sus canciones
-            songs = _playlistService.GetSongs(_selectedPlaylist.Id);
-        }
-
-        foreach (var song in songs)
-        {
-            Songs.Add(song);
+            UpdateSortLabel();
         }
     }
 
-    /// <summary>Recarga la lista de playlists en el sidebar.</summary>
-    private void RefreshPlaylists()
+    /// <summary>Actualiza el label "X de Y canciones" según VisibleCount y SongCount.</summary>
+    private void UpdateSongCountLabel()
     {
-        Playlists.Clear();
-        foreach (var playlist in _playlistService.GetAllSorted())
-        {
-            Playlists.Add(playlist);
-        }
+        var visible = _viewModel.VisibleCount;
+        var total = _viewModel.SongCount;
+
+        SongCountLabel.Text = total == 0
+            ? "0 canciones"
+            : visible == total
+                ? $"{total} canciones"
+                : $"{visible} de {total} canciones";
     }
 
-    /// <summary>Botón "Agregar música" del TopBar (abre folder picker).</summary>
+    /// <summary>Actualiza el label del chip de sort según SortOrder actual.</summary>
+    private void UpdateSortLabel()
+    {
+        SortLabel.Text = _viewModel.SortOrder switch
+        {
+            SortOrder.RecentlyAdded => "Recientes",
+            SortOrder.RecentlyPlayed => "Reproducidas",
+            SortOrder.Title => "Título",
+            SortOrder.Artist => "Artista",
+            SortOrder.Duration => "Duración",
+            _ => "Recientes"
+        };
+    }
+
+    /// <summary>Botón "Agregar música" — abre folder picker.</summary>
     private async void AddMusic_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog
@@ -108,9 +109,11 @@ public partial class MainWindow : Window
             var result = await _library.ImportFromFolderAsync(folderPath);
             _library.ScanProgress -= OnScanProgress;
 
-            // Refrescar UI: lista de canciones + sidebar de playlists
-            RefreshSongs();
-            RefreshPlaylists();
+            // Refrescar ViewModel
+            _viewModel.SelectPlaylist(null); // Volver a "todas"
+            _viewModel.RefreshSongs();
+            _viewModel.RefreshPlaylists();
+
             Title = "Wave";
 
             MessageBox.Show(
@@ -169,8 +172,9 @@ public partial class MainWindow : Window
         try
         {
             var result = await _library.ImportFilesAsync(allFiles);
-            RefreshSongs();
-            RefreshPlaylists();
+            _viewModel.SelectPlaylist(null);
+            _viewModel.RefreshSongs();
+            _viewModel.RefreshPlaylists();
 
             MessageBox.Show(
                 $"Importación: {result.Added} nuevas, {result.Duplicates} duplicadas.",
@@ -198,41 +202,38 @@ public partial class MainWindow : Window
     {
         if (sender is not FrameworkElement fe || fe.DataContext is not Song song) return;
 
-        _playback.SetQueue(Songs.ToList(), Songs.IndexOf(song), autoPlay: true);
+        var index = _viewModel.Songs.IndexOf(song);
+        if (index >= 0)
+        {
+            _playback.SetQueue(_viewModel.Songs.ToList(), index, autoPlay: true);
+        }
     }
 
     /// <summary>Click en el botón Favorito (corazón) → toggle favorito.</summary>
     private void Favorite_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.Tag is not Song song) return;
-
-        _playlistService.ToggleFavorite(song);
-
-        // Refrescar playlist de Favoritos si está seleccionada
-        if (_selectedPlaylist?.IsFavorites == true)
-        {
-            RefreshSongs();
-        }
+        _viewModel.ToggleFavoriteCommand.Execute(song);
     }
 
-    /// <summary>Click en una playlist del sidebar → mostrar sus canciones.</summary>
-    private void PlaylistsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    /// <summary>Click en playlist del sidebar → filtrar canciones por playlist.</summary>
+    private void PlaylistsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (PlaylistsList.SelectedItem is Playlist selected)
         {
-            _selectedPlaylist = selected;
-            RefreshSongs();
+            _viewModel.SelectPlaylist(selected);
+            UpdateSongCountLabel();
         }
     }
 
-    // === PlayerBar handlers ===
-    private void PlayPause_Click(object sender, RoutedEventArgs e) => _playback.TogglePlayPause();
-    private void Next_Click(object sender, RoutedEventArgs e) => _playback.SkipToNext();
-    private void Prev_Click(object sender, RoutedEventArgs e) => _playback.SkipToPrevious();
-    private void Shuffle_Click(object sender, RoutedEventArgs e) => _playback.ToggleShuffle();
-    private void Repeat_Click(object sender, RoutedEventArgs e) => _playback.ToggleRepeatOne();
+    /// <summary>Botón "Configuración" (placeholder).</summary>
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show("Configuración estará disponible en v1.0.0",
+            "Wave", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
 
-    /// <summary>Botón "Letra" del TopBar — abre la ventana de letras sincronizadas.</summary>
+    /// <summary>Botón "Letra" del TopBar — abre LyricsWindow.</summary>
     private void Lyrics_Click(object sender, RoutedEventArgs e)
     {
         if (_lyricsWindow == null || !_lyricsWindow.IsLoaded)
@@ -243,5 +244,44 @@ public partial class MainWindow : Window
         }
         _lyricsWindow.Show();
         _lyricsWindow.Activate();
+    }
+
+    // === Sort chip ===
+    private void Sort_Click(object sender, RoutedEventArgs e)
+    {
+        // Mostrar ContextMenu bajo el botón
+        SortMenu.PlacementTarget = SortChip;
+        SortMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        SortMenu.IsOpen = true;
+    }
+
+    private void SortRecentlyAdded_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SortOrder = SortOrder.RecentlyAdded;
+        UpdateSortLabel();
+    }
+
+    private void SortRecentlyPlayed_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SortOrder = SortOrder.RecentlyPlayed;
+        UpdateSortLabel();
+    }
+
+    private void SortTitle_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SortOrder = SortOrder.Title;
+        UpdateSortLabel();
+    }
+
+    private void SortArtist_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SortOrder = SortOrder.Artist;
+        UpdateSortLabel();
+    }
+
+    private void SortDuration_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SortOrder = SortOrder.Duration;
+        UpdateSortLabel();
     }
 }

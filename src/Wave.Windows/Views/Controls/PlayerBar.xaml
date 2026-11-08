@@ -1,0 +1,127 @@
+<UserControl x:Class="Wave.Windows.Views.Controls.PlayerBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="72" Background="{DynamicResource SurfaceVariantBrush}">
+    <Grid Margin="12,8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="48"/>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="40"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Cover art placeholder -->
+        <Border Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4"/>
+
+        <!-- Título + artista -->
+        <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+            <TextBlock Text="{Binding CurrentSong.DisplayTitle, FallbackValue='No hay canción'}"
+                       Foreground="{DynamicResource OnSurfaceBrush}"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding CurrentSong.DisplayArtist, FallbackValue='—'}"
+                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                       TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+
+        <!-- Posición actual (mm:ss) -->
+        <TextBlock Grid.Column="2"
+                   Text="{Binding PositionMs, Converter={StaticResource MsToTextConverter}}"
+                   Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"
+                   FontSize="11"/>
+
+        <!-- Slider personalizado con bolita siempre visible -->
+        <Slider Grid.Column="3"
+                x:Name="SeekBar"
+                Minimum="0"
+                Maximum="{Binding DurationMs}"
+                Value="{Binding PositionMs}"
+                VerticalAlignment="Center"
+                Margin="8,0"
+                Thumb.DragStarted="SeekBar_DragStarted"
+                Thumb.DragCompleted="SeekBar_DragCompleted">
+            <Slider.Template>
+                <ControlTemplate TargetType="Slider">
+                    <Grid>
+                        <!-- Track -->
+                        <Border Height="4"
+                                Background="{DynamicResource OutlineBrush}"
+                                CornerRadius="2"
+                                VerticalAlignment="Center"/>
+                        <!-- DecreaseRepeatButton (progreso ya reproducido) -->
+                        <Track x:Name="PART_Track" VerticalAlignment="Center">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Height="4"
+                                                    Background="{DynamicResource AccentBrush}"
+                                                    CornerRadius="2"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Background="Transparent"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.IncreaseRepeatButton>
+                            <!-- Thumb (bolita SIEMPRE visible) -->
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Grid>
+                                                <!-- Halo más grande para hit target -->
+                                                <Ellipse Width="24" Height="24" Fill="Transparent"/>
+                                                <!-- Bolita visible -->
+                                                <Ellipse Width="14" Height="14" Fill="{DynamicResource AccentBrush}"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Slider.Template>
+        </Slider>
+
+        <!-- Duración total (mm:ss) -->
+        <TextBlock Grid.Column="4"
+                   Text="{Binding DurationMs, Converter={StaticResource MsToTextConverter}, FallbackValue='0:00'}"
+                   Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                   VerticalAlignment="Center"
+                   Margin="8,0,16,0"
+                   FontSize="11"/>
+
+        <!-- Controles de playback -->
+        <Button Grid.Column="5" Click="Shuffle_Click" Background="Transparent"
+                Foreground="{DynamicResource OnSurfaceBrush}"
+                Content="&#x1F500;" ToolTip="Aleatorio"/>
+        <Button Grid.Column="6" Click="Prev_Click" Background="Transparent"
+                Foreground="{DynamicResource OnSurfaceBrush}"
+                Content="&#x23EE;" ToolTip="Anterior"/>
+        <Button Grid.Column="7" Click="PlayPause_Click" Background="Transparent"
+                Foreground="{DynamicResource AccentBrush}"
+                Content="&#x25B6;" ToolTip="Reproducir/Pausar"/>
+        <Button Grid.Column="8" Click="Next_Click" Background="Transparent"
+                Foreground="{DynamicResource OnSurfaceBrush}"
+                Content="&#x23ED;" ToolTip="Siguiente"/>
+        <Button Grid.Column="9" Click="Repeat_Click" Background="Transparent"
+                Foreground="{DynamicResource OnSurfaceBrush}"
+                Content="&#x1F501;" ToolTip="Repetir"/>
+    </Grid>
+</UserControl>

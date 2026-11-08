@@ -43,6 +43,7 @@ public partial class App : Application
         services.AddSingleton<LrcLibClient>();
         services.AddSingleton<ILyricsService, LyricsService>();
         services.AddSingleton<LyricsViewModel>();
+        services.AddSingleton<MainViewModel>();
         // Los servicios restantes se registran en versiones posteriores
         // cuando se implementen:
         //   BackupService, TrayService, SmtcService,
@@ -93,8 +94,12 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Dispose ordenado: LyricsViewModel (desuscribir eventos) → PlaybackController
-        // (guarda cola + dispose engine) → LrcLibClient (HttpClient) → SqliteDatabase (conexión)
+        // Dispose ordenado: MainViewModel + LyricsViewModel (desuscribir eventos)
+        // → PlaybackController (guarda cola + dispose engine) → LrcLibClient → SqliteDatabase (conexión)
+        if (Services.GetService<MainViewModel>() is { } mainVm)
+        {
+            mainVm.Dispose();
+        }
         if (Services.GetService<LyricsViewModel>() is { } lyricsVm)
         {
             lyricsVm.Dispose();

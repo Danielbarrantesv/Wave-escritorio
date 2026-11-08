@@ -16,6 +16,7 @@
             <conv:BoolToColorConverter x:Key="BoolToColorConverter"/>
             <conv:BoolToFontSizeConverter x:Key="BoolToFontSizeConverter"/>
             <conv:BoolToFontWeightConverter x:Key="BoolToFontWeightConverter"/>
+            <conv:MsToTextConverter x:Key="MsToTextConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
