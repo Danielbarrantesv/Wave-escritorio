@@ -259,14 +259,22 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
         }
         catch (FileNotFoundException)
         {
-            // El archivo fue borrado/movido: saltar al siguiente
+            // El archivo fue borrado/movido.
+            // Si autoPlay=true, saltar al siguiente (UX: no queremos quedarnos en una canción que no suena).
+            // Si autoPlay=false, mantener el CurrentSong apuntado (puede ser que el archivo aparezca después).
             System.Diagnostics.Debug.WriteLine($"[Wave] Archivo no encontrado: {CurrentSong.FilePath}");
-            SkipToNext();
+            if (autoPlay)
+            {
+                SkipToNext();
+            }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Wave] Error cargando {CurrentSong.FilePath}: {ex.Message}");
-            SkipToNext();
+            if (autoPlay)
+            {
+                SkipToNext();
+            }
         }
     }
 
