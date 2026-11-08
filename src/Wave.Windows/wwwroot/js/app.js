@@ -17,13 +17,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 // === Event binding ===
 function bindEvents() {
     document.getElementById('btn-add').onclick = onAddMusic;
-    document.getElementById('btn-play').onclick = () => WaveAPI.call('playback.togglePlayPause');
-    document.getElementById('btn-next').onclick = () => WaveAPI.call('playback.next');
-    document.getElementById('btn-prev').onclick = () => WaveAPI.call('playback.prev');
-    document.getElementById('btn-shuffle').onclick = () => WaveAPI.call('playback.toggleShuffle');
-    document.getElementById('btn-repeat').onclick = () => WaveAPI.call('playback.toggleRepeat');
-    document.getElementById('btn-mini').onclick = () => WaveAPI.call('playback.togglePlayPause'); // placeholder
-    document.getElementById('btn-eq').onclick = () => alert('Ecualizador próximamente');
+    document.getElementById('btn-play').onclick = onPlayPause;
+    document.getElementById('btn-next').onclick = onNext;
+    document.getElementById('btn-prev').onclick = onPrev;
+    document.getElementById('btn-shuffle').onclick = onShuffle;
+    document.getElementById('btn-repeat').onclick = onRepeat;
+    document.getElementById('btn-mini').onclick = onMiniPlayer;
+    document.getElementById('btn-lyrics').onclick = onLyrics;
+    document.getElementById('btn-eq').onclick = onEqualizer;
     document.getElementById('btn-backup').onclick = onBackup;
 
     document.getElementById('search').oninput = onSearch;
@@ -208,6 +209,56 @@ function onSeek(e) {
 function onSeekEnd(e) {
     WaveAPI.call('playback.seek', { positionMs: parseInt(e.target.value) });
     isSeeking = false;
+}
+
+// === Playback handlers ===
+async function onPlayPause() { await WaveAPI.call('playback.togglePlayPause'); }
+async function onNext() { await WaveAPI.call('playback.next'); }
+async function onPrev() { await WaveAPI.call('playback.prev'); }
+async function onShuffle() { await WaveAPI.call('playback.toggleShuffle'); }
+async function onRepeat() { await WaveAPI.call('playback.toggleRepeat'); }
+
+// === Other handlers ===
+function onMiniPlayer() {
+    // TODO: abrir mini player window via C# bridge
+    alert('Mini player próximamente');
+}
+
+async function onLyrics() {
+    const panel = document.getElementById('lyrics-panel');
+    const content = document.getElementById('lyrics-content');
+    const songsList = document.getElementById('songs-container');
+
+    if (panel.classList.contains('hidden')) {
+        // Mostrar letras
+        const state = await WaveAPI.call('playback.getState');
+        if (state && state.currentSong) {
+            const lyrics = await WaveAPI.call('lyrics.get', state.currentSong);
+            if (lyrics && lyrics.lines && lyrics.lines.length > 0) {
+                content.innerHTML = lyrics.lines.map(l =>
+                    `<div class="lyric-line">${escapeHtml(l.text)}</div>`
+                ).join('');
+            } else if (lyrics && lyrics.plainLyrics) {
+                content.innerHTML = lyrics.plainLyrics.split('\n').map(l =>
+                    `<div class="lyric-line">${escapeHtml(l)}</div>`
+                ).join('');
+            } else {
+                content.innerHTML = '<div class="empty-state"><div class="empty-icon">♪</div><p>Letra no disponible</p></div>';
+            }
+            panel.classList.remove('hidden');
+            songsList.classList.add('hidden');
+        } else {
+            alert('No hay canción reproduciéndose');
+        }
+    } else {
+        // Ocultar letras
+        panel.classList.add('hidden');
+        songsList.classList.remove('hidden');
+    }
+}
+
+function onEqualizer() {
+    alert('Ecualizador próximamente');
 }
 
 // === Import ===
