@@ -64,7 +64,7 @@ Wave-escritorio/
 | `v0.6.0` | MainViewModel + búsqueda + sort chip + PlayerBar custom | ✅ Released |
 | `v0.7.0` | Equalizer (5 bandas biquad) + Visualizer (FFT spectrum) | ✅ Released |
 | `v0.8.0` | System tray icon + SMTC + hotkeys globales (Ctrl+Alt+P, etc.) | ✅ Released |
-| `v0.9.0` | Mini player + Drag&drop + Backup | Pendiente |
+| `v0.9.0` | Mini player flotante + Backup/Restore en JSON | ✅ Released |
 | `v1.0.0` | Estabilización + tests + empaquetado MSIX | Pendiente |
 
 ## Cómo construir

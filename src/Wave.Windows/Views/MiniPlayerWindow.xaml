@@ -1,0 +1,52 @@
+<Window x:Class="Wave.Windows.Views.MiniPlayerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wave Mini Player" Height="80" Width="320"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Topmost="True"
+        ShowInTaskbar="False"
+        AllowsTransparency="True"
+        Background="Transparent"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Border Background="#DD1F2937" CornerRadius="12" Padding="8">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="48"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="32"/>
+                <ColumnDefinition Width="32"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Cover art placeholder -->
+            <Border Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4"/>
+
+            <!-- Título + artista -->
+            <StackPanel Grid.Column="1" Margin="8,0" VerticalAlignment="Center">
+                <TextBlock x:Name="TitleText"
+                           Text="{Binding CurrentSong.DisplayTitle, FallbackValue='No hay canción'}"
+                           Foreground="White" FontSize="13" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="ArtistText"
+                           Text="{Binding CurrentSong.DisplayArtist, FallbackValue='—'}"
+                           Foreground="#99FFFFFF" FontSize="11"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <!-- Botones -->
+            <Button Grid.Column="2" Click="Prev_Click" Background="Transparent" BorderThickness="0"
+                    Cursor="Hand" ToolTip="Anterior">
+                <TextBlock Text="&#x23EE;" Foreground="White" FontSize="16"/>
+            </Button>
+            <Button Grid.Column="3" Click="PlayPause_Click" Background="Transparent" BorderThickness="0"
+                    Cursor="Hand" ToolTip="Reproducir/Pausar">
+                <TextBlock x:Name="PlayPauseIcon" Text="&#x25B6;" Foreground="White" FontSize="18"/>
+            </Button>
+            <Button Grid.Column="4" Click="Next_Click" Background="Transparent" BorderThickness="0"
+                    Cursor="Hand" ToolTip="Siguiente">
+                <TextBlock Text="&#x23ED;" Foreground="White" FontSize="16"/>
+            </Button>
+        </Grid>
+    </Border>
+</Window>

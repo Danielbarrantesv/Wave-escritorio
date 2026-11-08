@@ -49,6 +49,8 @@ public partial class App : Application
         // v0.8.0: Tray + SMTC + Hotkeys
         services.AddSingleton<TrayService>();
         services.AddSingleton<SmtcService>();
+        // v0.9.0: Backup
+        services.AddSingleton<IBackupService, BackupService>();
         // HotkeyService se registra después de crear MainWindow (necesita HWND)
         Services = services.BuildServiceProvider();
 

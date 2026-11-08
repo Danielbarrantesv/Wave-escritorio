@@ -24,6 +24,8 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Wave" FontSize="20" FontWeight="Bold"
                        Foreground="{DynamicResource AccentBrush}"
@@ -60,10 +62,22 @@
                     ToolTip="Ecualizador"/>
             <Button Grid.Column="5" Click="Settings_Click"
                     Content="⚙"
-                    Padding="12,6" Margin="0,0,16,0"
+                    Padding="12,6" Margin="0,0,8,0"
                     Background="Transparent"
                     Foreground="{DynamicResource OnSurfaceVariantBrush}"
                     ToolTip="Configuración"/>
+            <Button Grid.Column="6" Click="MiniPlayer_Click"
+                    Content="⊞"
+                    Padding="12,6" Margin="0,0,8,0"
+                    Background="Transparent"
+                    Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                    ToolTip="Mini player flotante"/>
+            <Button Grid.Column="7" Click="Backup_Click"
+                    Content="💾"
+                    Padding="12,6" Margin="0,0,16,0"
+                    Background="Transparent"
+                    Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                    ToolTip="Backup / Restore"/>
         </Grid>
 
         <!-- Contenido principal: sidebar + lista -->

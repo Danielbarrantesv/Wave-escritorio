@@ -24,8 +24,10 @@ public partial class MainWindow : Window
     private readonly AudioEngine _audioEngine;
     private readonly LyricsViewModel _lyricsViewModel;
     private readonly EqualizerViewModel _equalizerViewModel;
+    private readonly IBackupService _backupService;
     private LyricsWindow? _lyricsWindow;
     private EqualizerWindow? _equalizerWindow;
+    private MiniPlayerWindow? _miniPlayerWindow;
 
     public MainWindow()
     {
@@ -38,6 +40,7 @@ public partial class MainWindow : Window
         _audioEngine = App.Services.GetRequiredService<AudioEngine>();
         _lyricsViewModel = App.Services.GetRequiredService<LyricsViewModel>();
         _equalizerViewModel = App.Services.GetRequiredService<EqualizerViewModel>();
+        _backupService = App.Services.GetRequiredService<IBackupService>();
 
         DataContext = _viewModel;
 
@@ -262,6 +265,80 @@ public partial class MainWindow : Window
         }
         _equalizerWindow.Show();
         _equalizerWindow.Activate();
+    }
+
+    /// <summary>Botón "Mini" — abre MiniPlayerWindow flotante.</summary>
+    private void MiniPlayer_Click(object sender, RoutedEventArgs e)
+    {
+        if (_miniPlayerWindow == null || !_miniPlayerWindow.IsLoaded)
+        {
+            _miniPlayerWindow = new MiniPlayerWindow(_playback);
+            _miniPlayerWindow.Closed += (s, args) => _miniPlayerWindow = null;
+        }
+        _miniPlayerWindow.Show();
+        _miniPlayerWindow.Activate();
+    }
+
+    /// <summary>Botón "Backup" — exporta o importa biblioteca.</summary>
+    private async void Backup_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            "¿Quieres exportar (Sí) o importar (No) la biblioteca?\n\n" +
+            "Exportar: guarda todas las canciones + playlists en JSON.\n" +
+            "Importar: reemplaza la biblioteca actual con un JSON.",
+            "Wave — Backup / Restore",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Cancel) return;
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "JSON|*.json",
+            DefaultExt = ".json",
+            FileName = result == MessageBoxResult.Yes ? "wave-backup.json" : ""
+        };
+
+        if (result == MessageBoxResult.No)
+        {
+            // Importar → abrir en su lugar OpenFileDialog
+            var openDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "JSON|*.json",
+                Title = "Selecciona el archivo de backup a importar"
+            };
+            if (openDialog.ShowDialog() != true) return;
+
+            try
+            {
+                await _backupService.ImportAsync(openDialog.FileName);
+                _viewModel.RefreshSongs();
+                _viewModel.RefreshPlaylists();
+                MessageBox.Show("Biblioteca importada correctamente.", "Wave",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al importar: {ex.Message}", "Wave - Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return;
+        }
+
+        // Exportar
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            await _backupService.ExportAsync(dialog.FileName);
+            MessageBox.Show($"Biblioteca exportada a:\n{dialog.FileName}", "Wave",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error al exportar: {ex.Message}", "Wave - Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     /// <summary>
