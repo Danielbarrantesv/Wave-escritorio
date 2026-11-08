@@ -5,7 +5,7 @@
         Title="Wave" Height="720" Width="1200"
         WindowStartupLocation="CenterScreen"
         Background="#0F0F0F"
-        AllowsDrop="True"
+        AllowDrop="True"
         Drop="Window_Drop"
         DragEnter="Window_DragEnter">
     <Grid>
