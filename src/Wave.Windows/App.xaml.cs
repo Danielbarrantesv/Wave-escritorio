@@ -27,6 +27,9 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Truncar log viejo al iniciar (mantener solo la sesión actual)
+        try { File.WriteAllText(LogPath, ""); } catch { }
+
         // Log de startup — cualquier excepción se captura aquí
         LogInfo("=== Wave starting ===");
         LogInfo($"Version: {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}");
@@ -180,8 +183,33 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         LogInfo("=== Wave exiting ===");
+
+        // Cerrar todas las ventanas hijas (MiniPlayer, Lyrics, Equalizer)
         try
         {
+            foreach (Window window in Windows)
+            {
+                if (window != MainWindow && window.IsLoaded)
+                {
+                    LogInfo($"Closing window: {window.GetType().Name}");
+                    window.Close();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LogError("Error closing child windows", ex);
+        }
+
+        try
+        {
+            // Services puede ser null si el startup falló antes de configurar DI
+            if (Services == null)
+            {
+                LogInfo("Services is null, skipping dispose");
+                return;
+            }
+
             _hotkeyService?.Dispose();
             if (Services.GetService<SmtcService>() is { } smtc) smtc.Dispose();
             if (Services.GetService<TrayService>() is { } tray) tray.Dispose();

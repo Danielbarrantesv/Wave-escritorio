@@ -34,18 +34,18 @@
                            TextTrimming="CharacterEllipsis"/>
             </StackPanel>
 
-            <!-- Botones -->
+            <!-- Botones — usar texto/símbolos compatibles en lugar de emoji -->
             <Button Grid.Column="2" Click="Prev_Click" Background="Transparent" BorderThickness="0"
                     Cursor="Hand" ToolTip="Anterior">
-                <TextBlock Text="&#x23EE;" Foreground="White" FontSize="16"/>
+                <TextBlock Text="&#xAB;" Foreground="White" FontSize="18"/>
             </Button>
             <Button Grid.Column="3" Click="PlayPause_Click" Background="Transparent" BorderThickness="0"
                     Cursor="Hand" ToolTip="Reproducir/Pausar">
-                <TextBlock x:Name="PlayPauseIcon" Text="&#x25B6;" Foreground="White" FontSize="18"/>
+                <TextBlock x:Name="PlayPauseIcon" Text="&#x25B6;" Foreground="White" FontSize="20"/>
             </Button>
             <Button Grid.Column="4" Click="Next_Click" Background="Transparent" BorderThickness="0"
                     Cursor="Hand" ToolTip="Siguiente">
-                <TextBlock Text="&#x23ED;" Foreground="White" FontSize="16"/>
+                <TextBlock Text="&#xBB;" Foreground="White" FontSize="18"/>
             </Button>
         </Grid>
     </Border>

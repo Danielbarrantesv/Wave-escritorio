@@ -1,6 +1,7 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using NAudio.Wave;
 using TagLib;
 using File = System.IO.File;
 using TagFile = TagLib.File;
@@ -12,6 +13,8 @@ namespace Wave.Windows.Audio;
 ///
 /// Extrae: title, artist, album, duration, trackNo, year, genre, mimeType, portada.
 /// La portada embebida se guarda como JPG en %LocalAppData%\Wave\art\ para persistencia.
+///
+/// Si TagLib# no puede leer la duración (devuelve 0), usa NAudio como fallback.
 /// </summary>
 public static class TagReader
 {
@@ -28,11 +31,8 @@ public static class TagReader
 
     /// <summary>
     /// Lee los metadatos de un archivo de audio usando TagLib#.
+    /// Si TagLib# no puede leer la duración, usa NAudio como fallback.
     /// </summary>
-    /// <param name="filePath">Ruta absoluta al archivo.</param>
-    /// <param name="fileName">Nombre del archivo (puede diferir del basename de filePath en drag&drop).</param>
-    /// <param name="fileSize">Tamaño en bytes del archivo.</param>
-    /// <returns>Objeto Song con metadatos, o null si el archivo está corrupto/sin audio.</returns>
     public static Models.Song? Read(string filePath, string? fileName = null, long? fileSize = null)
     {
         if (!File.Exists(filePath)) return null;
@@ -47,9 +47,15 @@ public static class TagReader
             var tag = tagFile.Tag;
             var properties = tagFile.Properties;
 
+            // Intentar leer duración con TagLib#
             var durationMs = (long)properties.Duration.TotalMilliseconds;
-            // Archivo corrupto o sin audio válido
-            if (durationMs <= 0) return null;
+
+            // Fallback: si TagLib# no pudo leer la duración, usar NAudio
+            if (durationMs <= 0)
+            {
+                durationMs = GetDurationWithNaudio(filePath);
+                if (durationMs <= 0) return null; // archivo corrupto o sin audio
+            }
 
             var title = !string.IsNullOrWhiteSpace(tag.Title)
                 ? tag.Title
@@ -102,6 +108,23 @@ public static class TagReader
         {
             System.Diagnostics.Debug.WriteLine($"[Wave] TagReader failed for {filePath}: {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Fallback: lee la duración del archivo usando NAudio (MediaFoundationReader).
+    /// TagLib# a veces devuelve 0 para algunos formatos; NAudio es más robusto.
+    /// </summary>
+    private static long GetDurationWithNaudio(string filePath)
+    {
+        try
+        {
+            using var reader = new MediaFoundationReader(filePath);
+            return (long)reader.TotalTime.TotalMilliseconds;
+        }
+        catch
+        {
+            return 0;
         }
     }
 

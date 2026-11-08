@@ -107,21 +107,21 @@
                    Margin="8,0,16,0"
                    FontSize="11"/>
 
-        <!-- Controles de playback -->
+        <!-- Controles de playback — usar texto en lugar de emoji para mejor compatibilidad -->
         <Button Grid.Column="5" Click="Shuffle_Click" Background="Transparent"
                 Foreground="{DynamicResource OnSurfaceBrush}"
-                Content="&#x1F500;" ToolTip="Aleatorio"/>
+                Content="SHF" FontSize="10" FontWeight="Bold" ToolTip="Aleatorio"/>
         <Button Grid.Column="6" Click="Prev_Click" Background="Transparent"
                 Foreground="{DynamicResource OnSurfaceBrush}"
-                Content="&#x23EE;" ToolTip="Anterior"/>
+                Content="&#xAB;" FontSize="16" ToolTip="Anterior"/>
         <Button Grid.Column="7" Click="PlayPause_Click" Background="Transparent"
                 Foreground="{DynamicResource AccentBrush}"
-                Content="&#x25B6;" ToolTip="Reproducir/Pausar"/>
+                Content="&#x25B6;" FontSize="14" ToolTip="Reproducir/Pausar"/>
         <Button Grid.Column="8" Click="Next_Click" Background="Transparent"
                 Foreground="{DynamicResource OnSurfaceBrush}"
-                Content="&#x23ED;" ToolTip="Siguiente"/>
+                Content="&#xBB;" FontSize="16" ToolTip="Siguiente"/>
         <Button Grid.Column="9" Click="Repeat_Click" Background="Transparent"
                 Foreground="{DynamicResource OnSurfaceBrush}"
-                Content="&#x1F501;" ToolTip="Repetir"/>
+                Content="RPT" FontSize="10" FontWeight="Bold" ToolTip="Repetir"/>
     </Grid>
 </UserControl>

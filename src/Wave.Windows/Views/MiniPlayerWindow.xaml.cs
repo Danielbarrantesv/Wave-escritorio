@@ -24,7 +24,7 @@ public partial class MiniPlayerWindow : Window
             if (e.PropertyName == nameof(PlaybackController.IsPlaying))
             {
                 Dispatcher.Invoke(() =>
-                    PlayPauseIcon.Text = _playback.IsPlaying ? "⏸" : "▶");
+                    PlayPauseIcon.Text = _playback.IsPlaying ? "\u238B" : "\u25B6");
             }
         };
     }
