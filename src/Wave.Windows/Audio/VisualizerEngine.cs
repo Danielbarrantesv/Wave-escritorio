@@ -49,7 +49,18 @@ public class VisualizerEngine : ISampleProvider
 
         _fftLength = fftLength;
         _fftBuffer = new Complex[_fftLength];
-        _window = FastFourierTransform.HammingWindow(_fftLength);
+        _window = GenerateHammingWindow(_fftLength);
+    }
+
+    /// <summary>Genera una ventana Hamming de N muestras: w[i] = 0.54 - 0.46*cos(2π*i/(N-1)).</summary>
+    private static float[] GenerateHammingWindow(int length)
+    {
+        var window = new float[length];
+        for (int i = 0; i < length; i++)
+        {
+            window[i] = 0.54f - 0.46f * MathF.Cos(2f * MathF.PI * i / (length - 1));
+        }
+        return window;
     }
 
     public WaveFormat WaveFormat { get; }
