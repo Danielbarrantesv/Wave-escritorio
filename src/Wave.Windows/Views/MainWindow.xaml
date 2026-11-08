@@ -12,7 +12,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Top bar (placeholder v0.1.0) -->
+        <!-- Top bar -->
         <Grid Grid.Row="0" Background="{DynamicResource SurfaceBrush}" Height="56">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -22,15 +22,16 @@
             <TextBlock Grid.Column="0" Text="Wave" FontSize="20" FontWeight="Bold"
                        Foreground="{DynamicResource AccentBrush}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text="v0.1.0 — Scaffold"
+            <TextBlock Grid.Column="1" Text="v0.2.0 — Audio engine"
                        Foreground="{DynamicResource OnSurfaceVariantBrush}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="2" Text="Proximamente: biblioteca + reproductor"
+            <TextBlock Grid.Column="2"
+                       Text="v0.3.0+: importar música desde carpeta"
                        Foreground="{DynamicResource OnSurfaceVariantBrush}"
                        Margin="0,0,16,0" VerticalAlignment="Center"/>
         </Grid>
 
-        <!-- Content area placeholder -->
+        <!-- Content: empty state v0.2.0 -->
         <Grid Grid.Row="1" Background="{DynamicResource BackgroundBrush}">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="Wave for Windows"
@@ -41,19 +42,19 @@
                            FontSize="16"
                            Foreground="{DynamicResource OnSurfaceVariantBrush}"
                            HorizontalAlignment="Center" Margin="0,8,0,32"/>
-                <TextBlock Text="Scaffold inicial — v0.1.0"
+                <TextBlock Text="v0.2.0 — Motor de audio (NAudio) + PlaybackController"
                            FontSize="14"
                            Foreground="{DynamicResource AccentBrush}"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="Las features se implementarán en versiones posteriores."
+                <TextBlock Text="La biblioteca musical y el botón 'Agregar música' llegan en v0.3.0."
                            FontSize="12"
                            Foreground="{DynamicResource OnSurfaceVariantBrush}"
                            HorizontalAlignment="Center" Margin="0,8,0,0"/>
             </StackPanel>
         </Grid>
 
-        <!-- Player bar placeholder -->
-        <Border Grid.Row="2" Background="{DynamicResource SurfaceVariantBrush}" Height="64">
+        <!-- Player bar con bindings reales a PlaybackController -->
+        <Border Grid.Row="2" Background="{DynamicResource SurfaceVariantBrush}" Height="72">
             <Grid Margin="12,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="48"/>
@@ -62,22 +63,48 @@
                     <ColumnDefinition Width="40"/>
                     <ColumnDefinition Width="40"/>
                     <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="40"/>
                 </Grid.ColumnDefinitions>
+
+                <!-- Cover art placeholder (amarillo accent) -->
                 <Border Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4"/>
+
+                <!-- Título + artista de la canción actual -->
                 <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
-                    <TextBlock Text="No hay canción reproduciéndose"
-                               Foreground="{DynamicResource OnSurfaceBrush}" FontWeight="SemiBold"/>
-                    <TextBlock Text="—"
-                               Foreground="{DynamicResource OnSurfaceVariantBrush}"/>
+                    <TextBlock Text="{Binding CurrentSong.DisplayTitle, FallbackValue='No hay canción'}"
+                               Foreground="{DynamicResource OnSurfaceBrush}"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding CurrentSong.DisplayArtist, FallbackValue='—'}"
+                               Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                               TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
-                <Slider Grid.Column="2" Minimum="0" Maximum="100" Value="0"
-                        VerticalAlignment="Center" Margin="12,0"/>
-                <Button Grid.Column="3" Content="&#x23EE;"
-                        Background="Transparent" Foreground="{DynamicResource OnSurfaceBrush}"/>
-                <Button Grid.Column="4" Content="&#x25B6;"
-                        Background="Transparent" Foreground="{DynamicResource AccentBrush}"/>
-                <Button Grid.Column="5" Content="&#x23ED;"
-                        Background="Transparent" Foreground="{DynamicResource OnSurfaceBrush}"/>
+
+                <!-- Seek bar (binds a PositionMs / DurationMs) -->
+                <Slider Grid.Column="2"
+                        Minimum="0"
+                        Maximum="{Binding DurationMs}"
+                        Value="{Binding PositionMs}"
+                        VerticalAlignment="Center"
+                        Margin="12,0"/>
+
+                <!-- Controles -->
+                <Button Grid.Column="3" Click="Shuffle_Click" Background="Transparent"
+                        Foreground="{DynamicResource OnSurfaceBrush}"
+                        Content="&#x1F500;" ToolTip="Aleatorio"/>
+                <Button Grid.Column="4" Click="Prev_Click" Background="Transparent"
+                        Foreground="{DynamicResource OnSurfaceBrush}"
+                        Content="&#x23EE;" ToolTip="Anterior"/>
+                <Button Grid.Column="5" Click="PlayPause_Click" Background="Transparent"
+                        Foreground="{DynamicResource AccentBrush}"
+                        Content="&#x25B6;" ToolTip="Reproducir/Pausar"/>
+                <Button Grid.Column="6" Click="Next_Click" Background="Transparent"
+                        Foreground="{DynamicResource OnSurfaceBrush}"
+                        Content="&#x23ED;" ToolTip="Siguiente"/>
+                <Button Grid.Column="7" Click="Repeat_Click" Background="Transparent"
+                        Foreground="{DynamicResource OnSurfaceBrush}"
+                        Content="&#x1F501;" ToolTip="Repetir"/>
             </Grid>
         </Border>
     </Grid>

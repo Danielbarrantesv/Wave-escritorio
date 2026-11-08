@@ -5,9 +5,29 @@ using Wave.Windows.Models;
 namespace Wave.Windows.Data.Repositories;
 
 /// <summary>
-/// Acceso a la tabla "songs" usando Dapper.
+/// Interfaz del repositorio de canciones.
+/// Permite mockear en tests sin depender de SQLite.
 /// </summary>
-public class SongRepository
+public interface ISongRepository
+{
+    List<Song> ListAll();
+    Song? GetById(long id);
+    Song? GetByPath(string filePath);
+    List<Song> Search(string query);
+    List<Song> GetFavorites();
+    List<Song> GetRecentlyPlayed(int limit = 50);
+    long Insert(Song song);
+    void UpdateFavorite(long songId, bool isFavorite);
+    void UpdateLastPlayedAt(long songId, long timestamp);
+    int Count();
+    void Delete(long id);
+    void DeleteAll();
+}
+
+/// <summary>
+/// Implementación de ISongRepository usando Dapper + SQLite.
+/// </summary>
+public class SongRepository : ISongRepository
 {
     private readonly IDbConnection _db;
 

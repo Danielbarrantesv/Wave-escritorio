@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Wave.Windows.Data;
+using Wave.Windows.Data.Repositories;
 using Wave.Windows.Services;
 using Wave.Windows.Views;
 
@@ -31,10 +32,13 @@ public partial class App : Application
         // 2. Configurar DI
         var services = new ServiceCollection();
         services.AddSingleton<SettingsService>();
+        services.AddSingleton<AudioEngine>();
+        services.AddSingleton<ISongRepository, SongRepository>();
+        services.AddSingleton<PlaybackController>();
         // Los servicios restantes se registran en versiones posteriores
         // cuando se implementen:
-        //   PlaybackController, LibraryService, PlaylistService, LyricsService,
-        //   BackupService, TrayService, SmtcService, HotkeyService, MiniPlayerWindow
+        //   LibraryService, PlaylistService, LyricsService, BackupService,
+        //   TrayService, SmtcService, HotkeyService, MiniPlayerWindow
         Services = services.BuildServiceProvider();
 
         // 3. Capturar excepciones no controladas
@@ -42,7 +46,11 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        // 4. Crear y mostrar MainWindow
+        // 4. Restaurar cola guardada (si existe) al iniciar
+        var playback = Services.GetRequiredService<PlaybackController>();
+        playback.RestoreSavedQueue();
+
+        // 5. Crear y mostrar MainWindow
         var mainWindow = new MainWindow();
         MainWindow = mainWindow;
         mainWindow.Show();
@@ -74,7 +82,12 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Dispose de servicios pendiente cuando se implementen (PlaybackController, TrayService, etc.)
+        // Dispose ordenado: PlaybackController guarda la cola y dispose del engine,
+        // luego SqliteDatabase cierra la conexión.
+        if (Services.GetService<PlaybackController>() is { } playback)
+        {
+            playback.Dispose();
+        }
         if (Services.GetService<SqliteDatabase>() is { } db)
         {
             db.Dispose();
