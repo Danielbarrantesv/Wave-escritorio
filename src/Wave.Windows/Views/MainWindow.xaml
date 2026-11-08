@@ -4,7 +4,7 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Wave" Height="720" Width="1200"
         WindowStartupLocation="CenterScreen"
-        Background="#0F0F0F"
+        Background="#1A1A1A"
         AllowDrop="True"
         Drop="Window_Drop"
         DragEnter="Window_DragEnter">

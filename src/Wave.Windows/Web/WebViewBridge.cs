@@ -3,6 +3,8 @@ using System.Windows;
 using Microsoft.Web.WebView2.Core;
 using Wave.Windows.Models;
 using Wave.Windows.Services;
+using Wave.Windows.ViewModels;
+using Wave.Windows.Views;
 
 namespace Wave.Windows.Web;
 
@@ -119,6 +121,10 @@ public class WebViewBridge
             "settings.get" => _settings.Get<string>(p.GetProperty("key").GetString()!, ""),
             "settings.set" => Invoke(() => _settings.Set(p.GetProperty("key").GetString()!, p.GetProperty("value").GetString()!)),
 
+            // Window management
+            "window.openMiniPlayer" => OpenMiniPlayer(),
+            "window.openEqualizer" => OpenEqualizer(),
+
             _ => throw new NotImplementedException($"Method '{method}' not implemented")
         };
     }
@@ -200,4 +206,25 @@ public class WebViewBridge
 
     private static object? Invoke(Action action) { action(); return null; }
     private static async Task<object?> InvokeAsync(Func<Task> func) { await func(); return null; }
+
+    private object? OpenMiniPlayer()
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var mini = new Views.MiniPlayerWindow(_playback);
+            mini.Show();
+        });
+        return null;
+    }
+
+    private object? OpenEqualizer()
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var eq = new Views.EqualizerWindow(
+                new ViewModels.EqualizerViewModel(_audioEngine));
+            eq.Show();
+        });
+        return null;
+    }
 }
