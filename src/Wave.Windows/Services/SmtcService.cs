@@ -91,7 +91,7 @@ public sealed class SmtcService : IDisposable
             props.Title = song.DisplayTitle;
             props.Artist = song.DisplayArtist;
             props.AlbumTitle = song.DisplayAlbum;
-            props.AlbumTrackNumber = (uint)(song.TrackNo ?? 0);
+            props.TrackNumber = (uint)(song.TrackNo ?? 0);
 
             // Cover art (si existe ArtUri como path local)
             if (!string.IsNullOrEmpty(song.ArtUri) && File.Exists(song.ArtUri))

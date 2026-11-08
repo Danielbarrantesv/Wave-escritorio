@@ -7,5 +7,7 @@ global using Brush = System.Windows.Media.Brush;
 global using UserControl = System.Windows.Controls.UserControl;
 global using ContentControl = System.Windows.Controls.ContentControl;
 global using DragEventArgs = System.Windows.DragEventArgs;
+global using DragDropEffects = System.Windows.DragDropEffects;
+global using DataFormats = System.Windows.DataFormats;
 global using MessageBox = System.Windows.MessageBox;
 global using SortOrder = Wave.Windows.Models.SortOrder;
