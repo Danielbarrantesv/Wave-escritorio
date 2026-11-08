@@ -4,7 +4,9 @@
         Title="Wave" Height="720" Width="1200"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BackgroundBrush}"
-        AllowDrop="True">
+        AllowDrop="True"
+        Drop="Window_Drop"
+        DragEnter="Window_DragEnter">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -12,7 +14,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Top bar -->
+        <!-- Top bar con botón "Agregar música" -->
         <Grid Grid.Row="0" Background="{DynamicResource SurfaceBrush}" Height="56">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -22,40 +24,92 @@
             <TextBlock Grid.Column="0" Text="Wave" FontSize="20" FontWeight="Bold"
                        Foreground="{DynamicResource AccentBrush}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text="v0.2.0 — Audio engine"
+            <TextBlock Grid.Column="1"
+                       Text="{Binding SongCount, StringFormat='{0} canciones', FallbackValue='0 canciones'}"
                        Foreground="{DynamicResource OnSurfaceVariantBrush}"
                        Margin="16,0,0,0" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="2"
-                       Text="v0.3.0+: importar música desde carpeta"
-                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
-                       Margin="0,0,16,0" VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Click="AddMusic_Click"
+                    Content="+ Agregar música"
+                    Padding="12,6" Margin="0,0,16,0"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="Black" FontWeight="SemiBold"/>
         </Grid>
 
-        <!-- Content: empty state v0.2.0 -->
+        <!-- Lista de canciones -->
         <Grid Grid.Row="1" Background="{DynamicResource BackgroundBrush}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="Wave for Windows"
-                           FontSize="36" FontWeight="Bold"
+            <!-- Empty state cuando no hay canciones -->
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Visibility="{Binding SongCount, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Visible}">
+                <TextBlock Text="Aún no hay música en tu biblioteca"
+                           FontSize="20" FontWeight="Bold"
                            Foreground="{DynamicResource OnSurfaceBrush}"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="Reproductor de música offline"
-                           FontSize="16"
+                <TextBlock Text="Arrastra archivos MP3/FLAC/M4A aquí o usa el botón superior"
+                           FontSize="13"
                            Foreground="{DynamicResource OnSurfaceVariantBrush}"
-                           HorizontalAlignment="Center" Margin="0,8,0,32"/>
-                <TextBlock Text="v0.2.0 — Motor de audio (NAudio) + PlaybackController"
-                           FontSize="14"
-                           Foreground="{DynamicResource AccentBrush}"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="La biblioteca musical y el botón 'Agregar música' llegan en v0.3.0."
-                           FontSize="12"
-                           Foreground="{DynamicResource OnSurfaceVariantBrush}"
-                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                           HorizontalAlignment="Center" Margin="0,8,0,24"/>
+                <Button Click="AddMusic_Click"
+                        Content="Seleccionar carpeta"
+                        Padding="16,8"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="Black" FontWeight="SemiBold"/>
             </StackPanel>
+
+            <!-- ListView de canciones -->
+            <ListView ItemsSource="{Binding Songs}"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      MouseDoubleClick="SongRow_MouseDoubleClick">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="8,4" Height="48">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="48"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="80"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Cover art placeholder -->
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="4"/>
+
+                            <!-- Título + artista -->
+                            <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayTitle}"
+                                           Foreground="{DynamicResource OnSurfaceBrush}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding DisplayArtist}"
+                                           Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <!-- Álbum -->
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding DisplayAlbum}"
+                                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,16,0"
+                                       TextTrimming="CharacterEllipsis"/>
+
+                            <!-- Duración -->
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding DisplayDuration}"
+                                       Foreground="{DynamicResource OnSurfaceVariantBrush}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Right"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
         </Grid>
 
-        <!-- Player bar con bindings reales a PlaybackController -->
+        <!-- Player bar con bindings a PlaybackController -->
         <Border Grid.Row="2" Background="{DynamicResource SurfaceVariantBrush}" Height="72">
-            <Grid Margin="12,8">
+            <Grid Margin="12,8" DataContext="{Binding Playback, Source={StaticResource Playback}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="48"/>
                     <ColumnDefinition Width="200"/>
@@ -67,10 +121,10 @@
                     <ColumnDefinition Width="40"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Cover art placeholder (amarillo accent) -->
+                <!-- Cover art placeholder -->
                 <Border Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4"/>
 
-                <!-- Título + artista de la canción actual -->
+                <!-- Título + artista -->
                 <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding CurrentSong.DisplayTitle, FallbackValue='No hay canción'}"
                                Foreground="{DynamicResource OnSurfaceBrush}"
@@ -81,7 +135,7 @@
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
 
-                <!-- Seek bar (binds a PositionMs / DurationMs) -->
+                <!-- Seek bar -->
                 <Slider Grid.Column="2"
                         Minimum="0"
                         Maximum="{Binding DurationMs}"

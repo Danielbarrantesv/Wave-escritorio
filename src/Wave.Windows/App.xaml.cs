@@ -35,9 +35,10 @@ public partial class App : Application
         services.AddSingleton<AudioEngine>();
         services.AddSingleton<ISongRepository, SongRepository>();
         services.AddSingleton<PlaybackController>();
+        services.AddSingleton<ILibraryService, LibraryService>();
         // Los servicios restantes se registran en versiones posteriores
         // cuando se implementen:
-        //   LibraryService, PlaylistService, LyricsService, BackupService,
+        //   PlaylistService, LyricsService, BackupService,
         //   TrayService, SmtcService, HotkeyService, MiniPlayerWindow
         Services = services.BuildServiceProvider();
 
