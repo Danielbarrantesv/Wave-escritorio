@@ -95,6 +95,26 @@
                                Foreground="{DynamicResource OnSurfaceVariantBrush}"
                                Margin="16,12,16,8"/>
 
+                    <!-- Opción "Todas las canciones" -->
+                    <ListView x:Name="AllSongsItem"
+                              Background="Transparent"
+                              BorderThickness="0"
+                          SelectionChanged="AllSongs_SelectionChanged"
+                          Margin="0,0,0,4">
+                        <ListViewItem Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x266B;"
+                                           FontSize="14"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           Margin="0,0,8,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="Todas las canciones"
+                                           Foreground="{DynamicResource OnSurfaceBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ListViewItem>
+                    </ListView>
+
                     <ListBox x:Name="PlaylistsList"
                              ItemsSource="{Binding Playlists}"
                              Background="Transparent"
@@ -210,9 +230,12 @@
                                     <ColumnDefinition Width="80"/>
                                 </Grid.ColumnDefinitions>
 
+                                <!-- Cover art (binds a ArtUri del Song) -->
                                 <Border Grid.Column="0"
                                         Background="{DynamicResource AccentBrush}"
-                                        CornerRadius="4"/>
+                                        CornerRadius="4">
+                                    <Image Source="{Binding ArtUri}" Stretch="UniformToFill"/>
+                                </Border>
 
                                 <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding DisplayTitle}"

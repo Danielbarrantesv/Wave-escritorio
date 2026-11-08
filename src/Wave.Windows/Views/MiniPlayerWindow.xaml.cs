@@ -41,6 +41,7 @@ public partial class MiniPlayerWindow : Window
     private void PlayPause_Click(object sender, RoutedEventArgs e) => _playback.TogglePlayPause();
     private void Prev_Click(object sender, RoutedEventArgs e) => _playback.SkipToPrevious();
     private void Next_Click(object sender, RoutedEventArgs e) => _playback.SkipToNext();
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     /// <summary>Botón derecho → cerrar mini player (volver a ventana principal).</summary>
     protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)

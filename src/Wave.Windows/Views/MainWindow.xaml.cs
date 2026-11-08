@@ -291,6 +291,14 @@ public partial class MainWindow : Window
         _viewModel.ToggleFavoriteCommand.Execute(song);
     }
 
+    /// <summary>Click en "Todas las canciones" del sidebar → mostrar biblioteca completa.</summary>
+    private void AllSongs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        WaveLogger.Info("AllSongs selected — showing all songs");
+        _viewModel.SelectPlaylist(null);
+        UpdateSongCountLabel();
+    }
+
     /// <summary>Click en playlist del sidebar → filtrar canciones por playlist.</summary>
     private void PlaylistsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
