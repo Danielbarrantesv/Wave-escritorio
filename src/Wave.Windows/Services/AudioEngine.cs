@@ -77,9 +77,12 @@ public sealed class AudioEngine : IDisposable
     /// <exception cref="InvalidOperationException">Si NAudio no puede leer el formato.</exception>
     public void Load(string filePath)
     {
-        System.Diagnostics.Debug.WriteLine($"[AudioEngine] Loading: {filePath}");
+        WaveLogger.Info($"AudioEngine.Load: {filePath}");
         if (!File.Exists(filePath))
+        {
+            WaveLogger.Error($"File not found: {filePath}");
             throw new FileNotFoundException($"Archivo de audio no encontrado: {filePath}", filePath);
+        }
 
         // Descartar pipeline anterior
         DisposeInternal();
@@ -87,30 +90,38 @@ public sealed class AudioEngine : IDisposable
         try
         {
             _reader = new MediaFoundationReader(filePath);
-            System.Diagnostics.Debug.WriteLine($"[AudioEngine] Reader created: {_reader.WaveFormat} duration={_reader.TotalTime}");
+            WaveLogger.Info($"Reader created: format={_reader.WaveFormat}, duration={_reader.TotalTime}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AudioEngine] MediaFoundationReader failed: {ex.Message}");
+            WaveLogger.Error($"MediaFoundationReader failed for {filePath}", ex);
             throw;
         }
 
-        // Convertir a ISampleProvider (float 32-bit, 44.1kHz, stereo)
-        _sampleProvider = ConvertToSampleProvider(_reader);
-
-        // Pipeline: source → visualizer → equalizer → volume → waveOut
-        _visualizer = new VisualizerEngine(_sampleProvider, fftLength: 1024);
-        _equalizer = new EqualizerSampleProvider(_visualizer);
-        _volume = new VolumeSampleProvider(_equalizer) { Volume = _volumeLevel };
-
-        _waveOut = new WaveOutEvent
+        try
         {
-            DesiredLatency = 200,
-            NumberOfBuffers = 3
-        };
-        _waveOut.Init(_volume);
-        _waveOut.PlaybackStopped += (s, e) => PlaybackStopped?.Invoke(s, e);
-        System.Diagnostics.Debug.WriteLine("[AudioEngine] Pipeline initialized OK");
+            // Convertir a ISampleProvider (float 32-bit, 44.1kHz, stereo)
+            _sampleProvider = ConvertToSampleProvider(_reader);
+
+            // Pipeline: source → visualizer → equalizer → volume → waveOut
+            _visualizer = new VisualizerEngine(_sampleProvider, fftLength: 1024);
+            _equalizer = new EqualizerSampleProvider(_visualizer);
+            _volume = new VolumeSampleProvider(_equalizer) { Volume = _volumeLevel };
+
+            _waveOut = new WaveOutEvent
+            {
+                DesiredLatency = 200,
+                NumberOfBuffers = 3
+            };
+            _waveOut.Init(_volume);
+            _waveOut.PlaybackStopped += (s, e) => PlaybackStopped?.Invoke(s, e);
+            WaveLogger.Info("AudioEngine pipeline initialized OK");
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Error($"Pipeline init failed for {filePath}", ex);
+            throw;
+        }
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using NAudio.Wave;
 using TagLib;
+using Wave.Windows.Services;
 using File = System.IO.File;
 using TagFile = TagLib.File;
 
@@ -32,6 +33,7 @@ public static class TagReader
     /// <summary>
     /// Lee los metadatos de un archivo de audio usando TagLib#.
     /// Si TagLib# no puede leer la duración, usa NAudio como fallback.
+    /// Todo el proceso se loguea a wave.log para diagnóstico.
     /// </summary>
     public static Models.Song? Read(string filePath, string? fileName = null, long? fileSize = null)
     {
@@ -41,84 +43,121 @@ public static class TagReader
         fileName ??= fileInfo.Name;
         fileSize ??= fileInfo.Length;
 
+        long durationMs = 0;
+        TagLib.Tag? tag = null;
+        bool tagLibSuccess = false;
+
+        // PASO 1: Intentar TagLib#
         try
         {
             using var tagFile = TagFile.Create(filePath);
-            var tag = tagFile.Tag;
+            tag = tagFile.Tag;
             var properties = tagFile.Properties;
+            durationMs = (long)properties.Duration.TotalMilliseconds;
+            tagLibSuccess = true;
 
-            // Intentar leer duración con TagLib#
-            var durationMs = (long)properties.Duration.TotalMilliseconds;
-
-            // Fallback: si TagLib# no pudo leer la duración, usar NAudio
             if (durationMs <= 0)
             {
-                durationMs = GetDurationWithNaudio(filePath);
-                if (durationMs <= 0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[TagReader] No duration for {fileName}");
-                    return null; // archivo corrupto o sin audio
-                }
+                WaveLogger.Warn($"TagLib# duration=0 for {fileName}, trying NAudio fallback");
             }
+        }
+        catch (CorruptFileException ex)
+        {
+            WaveLogger.Warn($"TagLib# corrupt: {fileName}: {ex.Message}");
+        }
+        catch (UnsupportedFormatException ex)
+        {
+            WaveLogger.Warn($"TagLib# unsupported: {fileName}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Warn($"TagLib# failed: {fileName}: {ex.Message}");
+        }
 
-            var title = !string.IsNullOrWhiteSpace(tag.Title)
+        // PASO 2: Fallback NAudio si TagLib# no pudo leer la duración
+        if (durationMs <= 0)
+        {
+            durationMs = GetDurationWithNaudio(filePath);
+            if (durationMs > 0)
+            {
+                WaveLogger.Info($"NAudio fallback OK: {fileName} duration={durationMs}ms");
+            }
+            else
+            {
+                WaveLogger.Error($"No duration found for {fileName} (TagLib# and NAudio both failed)");
+                return null; // No se pudo leer la duración
+            }
+        }
+
+        // PASO 3: Extraer metadatos restantes
+        string title;
+        string? artist;
+        string? album;
+        int? trackNo;
+        int? year;
+        string? genre;
+        string mimeType = GetMimeType(filePath);
+
+        if (tag != null && tagLibSuccess)
+        {
+            title = !string.IsNullOrWhiteSpace(tag.Title)
                 ? tag.Title
                 : Path.GetFileNameWithoutExtension(fileName);
 
-            var artist = !string.IsNullOrWhiteSpace(tag.FirstArtist)
+            artist = !string.IsNullOrWhiteSpace(tag.FirstArtist)
                 ? tag.FirstArtist
                 : (!string.IsNullOrWhiteSpace(tag.FirstAlbumArtist)
                     ? tag.FirstAlbumArtist
                     : null);
 
-            var album = !string.IsNullOrWhiteSpace(tag.Album) ? tag.Album : null;
-            var trackNo = tag.Track > 0 ? (int?)tag.Track : null;
-            var year = tag.Year > 0 ? (int?)tag.Year : null;
-            var genre = tag.FirstGenre;
-            var mimeType = GetMimeType(filePath);
-
-            // Extraer portada embebida (si existe)
-            var artUri = ExtractEmbeddedPicture(tag, filePath);
-
-            // Fallback: buscar cover.jpg / folder.jpg en la misma carpeta
-            if (string.IsNullOrEmpty(artUri))
-            {
-                artUri = FindCoverArtInFolder(filePath);
-            }
-
-            return new Models.Song
-            {
-                FilePath = filePath,
-                FileName = fileName,
-                FileSize = fileSize.Value,
-                Title = title,
-                Artist = artist,
-                Album = album,
-                DurationMs = durationMs,
-                TrackNo = trackNo,
-                Year = year,
-                Genre = genre,
-                MimeType = mimeType,
-                DateAddedSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                ArtUri = artUri,
-                LastModified = new DateTimeOffset(fileInfo.LastWriteTime).ToUnixTimeSeconds()
-            };
+            album = !string.IsNullOrWhiteSpace(tag.Album) ? tag.Album : null;
+            trackNo = tag.Track > 0 ? (int?)tag.Track : null;
+            year = tag.Year > 0 ? (int?)tag.Year : null;
+            genre = tag.FirstGenre;
         }
-        catch (CorruptFileException ex)
+        else
         {
-            System.Diagnostics.Debug.WriteLine($"[TagReader] Corrupt file: {filePath}: {ex.Message}");
-            return null;
+            // TagLib# falló completamente, usar defaults
+            title = Path.GetFileNameWithoutExtension(fileName);
+            artist = null;
+            album = null;
+            trackNo = null;
+            year = null;
+            genre = null;
         }
-        catch (UnsupportedFormatException ex)
+
+        // PASO 4: Extraer portada embebida (si existe)
+        string? artUri = null;
+        if (tag != null)
         {
-            System.Diagnostics.Debug.WriteLine($"[TagReader] Unsupported format: {filePath}: {ex.Message}");
-            return null;
+            artUri = ExtractEmbeddedPicture(tag, filePath);
         }
-        catch (Exception ex)
+
+        // PASO 5: Fallback — buscar cover.jpg / folder.jpg en la carpeta
+        if (string.IsNullOrEmpty(artUri))
         {
-            System.Diagnostics.Debug.WriteLine($"[TagReader] Failed for {filePath}: {ex.Message}");
-            return null;
+            artUri = FindCoverArtInFolder(filePath);
         }
+
+        WaveLogger.Debug($"Read OK: {fileName} | duration={durationMs}ms | artist={artist} | genre={genre} | art={(artUri != null ? "yes" : "no")}");
+
+        return new Models.Song
+        {
+            FilePath = filePath,
+            FileName = fileName,
+            FileSize = fileSize.Value,
+            Title = title,
+            Artist = artist,
+            Album = album,
+            DurationMs = durationMs,
+            TrackNo = trackNo,
+            Year = year,
+            Genre = genre,
+            MimeType = mimeType,
+            DateAddedSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            ArtUri = artUri,
+            LastModified = new DateTimeOffset(fileInfo.LastWriteTime).ToUnixTimeSeconds()
+        };
     }
 
     /// <summary>

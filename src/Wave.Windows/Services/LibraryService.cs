@@ -103,6 +103,7 @@ public sealed class LibraryService : ILibraryService
     {
         if (files.Count == 0) return new ImportResult(0, 0, 0);
 
+        WaveLogger.Info($"Import started: {files.Count} files to process");
         int added = 0, duplicates = 0;
         var total = files.Count;
 
@@ -197,6 +198,8 @@ public sealed class LibraryService : ILibraryService
                 duplicates++;
             }
         }
+
+        WaveLogger.Info($"Import complete: {added} added, {duplicates} duplicates, {total} total processed");
 
         // Si se agregaron canciones nuevas y hay PlaylistService, crear playlists automáticas por género.
         // CRITICAL: v2.5.24 feature del spec Android — auto-generar playlists "Rock", "Pop", "Jazz", etc.
