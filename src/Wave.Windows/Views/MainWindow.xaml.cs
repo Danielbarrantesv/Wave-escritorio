@@ -264,6 +264,38 @@ public partial class MainWindow : Window
         _equalizerWindow.Activate();
     }
 
+    /// <summary>
+    /// Llamado por TrayService cuando el usuario hace doble-click en el icono
+    /// o elige "Mostrar ventana" del menú contextual.
+    /// Restaura la ventana desde minimizado/tray y la activa.
+    /// </summary>
+    public void ShowFromTray()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+        Activate();
+        Topmost = true;  // Traer al frente
+        Topmost = false; // Volver a normal
+    }
+
+    /// <summary>
+    /// Al cerrar la ventana, ocultar al tray en lugar de salir
+    /// (si la app está corriendo con tray icon).
+    /// El cierre real se hace desde "Salir" del menú tray.
+    /// </summary>
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        // Si el tray está activo, ocultar al tray en lugar de cerrar
+        if (App.Services.GetService<TrayService>() is not null)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+        base.OnClosing(e);
+    }
+
     // === Sort chip ===
     private void Sort_Click(object sender, RoutedEventArgs e)
     {

@@ -8,6 +8,8 @@ using Wave.Windows.External;
 using Wave.Windows.Services;
 using Wave.Windows.ViewModels;
 using Wave.Windows.Views;
+// Alias para desambiguar Application entre WPF y WinForms (UseWindowsForms=true en csproj)
+using Application = System.Windows.Application;
 
 namespace Wave.Windows;
 
@@ -18,6 +20,7 @@ namespace Wave.Windows;
 public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
+    private HotkeyService? _hotkeyService;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -45,10 +48,10 @@ public partial class App : Application
         services.AddSingleton<LyricsViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<EqualizerViewModel>();
-        // Los servicios restantes se registran en versiones posteriores
-        // cuando se implementen:
-        //   BackupService, TrayService, SmtcService,
-        //   HotkeyService, MiniPlayerWindow
+        // v0.8.0: Tray + SMTC + Hotkeys
+        services.AddSingleton<TrayService>();
+        services.AddSingleton<SmtcService>();
+        // HotkeyService se registra después de crear MainWindow (necesita HWND)
         Services = services.BuildServiceProvider();
 
         // 3. Capturar excepciones no controladas
@@ -63,10 +66,31 @@ public partial class App : Application
         var playback = Services.GetRequiredService<PlaybackController>();
         playback.RestoreSavedQueue();
 
-        // 5. Crear y mostrar MainWindow
+        // 5. Inicializar SmtcService (puede fallar en CI/sin WinRT — defensivo)
+        try
+        {
+            Services.GetRequiredService<SmtcService>();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Wave] SmtcService no inicializado: {ex.Message}");
+        }
+
+        // 6. Crear y mostrar MainWindow
         var mainWindow = new MainWindow();
         MainWindow = mainWindow;
         mainWindow.Show();
+
+        // 7. Inicializar TrayService y HotkeyService (requieren MainWindow cargado)
+        var tray = Services.GetRequiredService<TrayService>();
+        tray.ShowMainWindowRequested += (s, args) => mainWindow.ShowFromTray();
+        tray.ExitRequested += (s, args) => Shutdown();
+
+        // HotkeyService requiere el HWND de MainWindow
+        var helper = new System.Windows.Interop.WindowInteropHelper(mainWindow);
+        var hotkeyService = new HotkeyService(helper.Handle, playback, Services.GetRequiredService<AudioEngine>());
+        // Store para dispose
+        _hotkeyService = hotkeyService;
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -95,7 +119,17 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Dispose ordenado: ViewModels → PlaybackController → LrcLibClient → SqliteDatabase
+        // Dispose ordenado: HotkeyService → TrayService → SmtcService → ViewModels
+        // → PlaybackController → LrcLibClient → SqliteDatabase
+        _hotkeyService?.Dispose();
+        if (Services.GetService<SmtcService>() is { } smtc)
+        {
+            smtc.Dispose();
+        }
+        if (Services.GetService<TrayService>() is { } tray)
+        {
+            tray.Dispose();
+        }
         if (Services.GetService<EqualizerViewModel>() is { } eqVm)
         {
             eqVm.Dispose();
