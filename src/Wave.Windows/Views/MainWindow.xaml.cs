@@ -31,7 +31,8 @@ public partial class MainWindow : Window
             await WebView.EnsureCoreWebView2Async(null);
 
             // Bloquear menú contextual nativo (Atrás/Actualizar/Guardar como/Imprimir/...)
-            WebView.CoreWebView2.Settings.AreDefaultContextMenuEnabled = false;
+            // Nota: la propiedad es AreDefaultContextMenusEnabled (plural "Menus")
+            WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             // Bloquear aceleradores del navegador (F5 actualizar, Ctrl+S guardar, etc.)
             WebView.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
 
