@@ -168,14 +168,48 @@ async function loadPlaylists() {
         const el = document.createElement('div');
         el.className = 'playlist-item';
         el.dataset.playlistId = pl.id;
-        // Get covers for this playlist
         const covers = await getPlaylistCovers(pl.id);
         const coverHtml = covers.length > 0
             ? covers.map(c => `<div style="background-image:url('file:///${c.replace(/\\/g,'/')}')"></div>`).join('')
             : '<div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>';
         el.innerHTML = `<div class="playlist-cover-grid">${coverHtml}</div><span>${escapeHtml(pl.name)}</span>`;
         el.onclick = () => selectPlaylist(pl);
+        el.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showPlaylistContextMenu(e, pl); };
         container.appendChild(el);
+    }
+}
+
+function showPlaylistContextMenu(e, pl) {
+    const menu = document.getElementById('playlist-context-menu');
+    let items = '';
+    if (pl.name !== 'Favoritos') {
+        items += `<div class="ctx-item" onclick="renamePlaylist(${pl.id}, '${escapeHtml(pl.name)}')">Editar nombre</div>`;
+        items += `<div class="ctx-separator"></div>`;
+        items += `<div class="ctx-item" onclick="deletePlaylist(${pl.id})">Eliminar lista</div>`;
+    } else {
+        items += `<div class="ctx-item" style="opacity:0.5;cursor:default">No se puede eliminar Favoritos</div>`;
+    }
+    menu.innerHTML = items;
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.classList.remove('hidden');
+}
+
+async function renamePlaylist(id, oldName) {
+    hideContextMenu();
+    const newName = prompt('Nuevo nombre:', oldName);
+    if (newName && newName.trim() && newName !== oldName) {
+        await WaveAPI.call('playlists.rename', { playlistId: id, newName: newName.trim() });
+        await loadPlaylists();
+    }
+}
+
+async function deletePlaylist(id) {
+    hideContextMenu();
+    if (confirm('¿Eliminar esta playlist?')) {
+        await WaveAPI.call('playlists.delete', { playlistId: id });
+        selectAllSongs();
+        await loadPlaylists();
     }
 }
 
@@ -345,16 +379,63 @@ function showContextMenu(e, songId) {
     const menu = document.getElementById('context-menu');
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
-
     let items = '';
+    // Agregar a playlist submenu
+    items += `<div class="ctx-item" onclick="showAddToPlaylist(${songId})">Agregar a playlist...</div>`;
     if (currentPlaylist) {
-        items += `<div class="ctx-item" onclick="removeFromPlaylist(${songId})">Eliminar de playlist</div><div class="ctx-separator"></div>`;
+        items += `<div class="ctx-item" onclick="removeFromPlaylist(${songId})">Eliminar de playlist</div>`;
     }
+    items += `<div class="ctx-separator"></div>`;
     items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${song.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}</div>`;
+    items += `<div class="ctx-separator"></div>`;
+    items += `<div class="ctx-item" onclick="editSong(${songId})">Editar información</div>`;
+    items += `<div class="ctx-separator"></div>`;
+    items += `<div class="ctx-item" onclick="deleteSong(${songId})" style="color:#ff4444">Eliminar canción</div>`;
     menu.innerHTML = items;
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
     menu.classList.remove('hidden');
+}
+
+async function showAddToPlaylist(songId) {
+    hideContextMenu();
+    const playlists = await WaveAPI.call('playlists.getAll') || [];
+    const playableLists = playlists.filter(p => p.name !== 'Favoritos');
+    if (playableLists.length === 0) {
+        alert('No hay playlists. Crea una primero con el botón +');
+        return;
+    }
+    let options = playableLists.map((p, i) => `${i+1}. ${p.name}`).join('\n');
+    const choice = prompt(`Selecciona playlist:\n${options}\n\nEscribe el número:`);
+    if (!choice) return;
+    const idx = parseInt(choice) - 1;
+    if (idx < 0 || idx >= playableLists.length) return;
+    await WaveAPI.call('playlists.addSongs', { playlistId: playableLists[idx].id, songIds: [songId] });
+    alert(`Agregada a "${playableLists[idx].name}"`);
+    await loadPlaylists();
+}
+
+async function deleteSong(songId) {
+    hideContextMenu();
+    if (!confirm('¿Eliminar esta canción de la biblioteca?')) return;
+    await WaveAPI.call('library.deleteSong', { songId });
+    await loadSongs();
+}
+
+async function editSong(songId) {
+    hideContextMenu();
+    const song = allSongs.find(s => s.id === songId);
+    if (!song) return;
+    const title = prompt('Título:', song.displayTitle || song.title || '');
+    const artist = prompt('Artista:', song.displayArtist || song.artist || '');
+    const album = prompt('Álbum:', song.displayAlbum || song.album || '');
+    const genre = prompt('Género:', song.genre || '');
+    if (title !== null) song.title = title;
+    if (artist !== null) song.artist = artist;
+    if (album !== null) song.album = album;
+    if (genre !== null) song.genre = genre;
+    await WaveAPI.call('library.editSong', { songId, title, artist, album, genre });
+    await loadSongs();
 }
 
 function hideContextMenu() { document.getElementById('context-menu').classList.add('hidden'); }

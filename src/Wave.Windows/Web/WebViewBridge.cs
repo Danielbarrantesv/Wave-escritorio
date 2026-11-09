@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Windows;
+using Dapper;
 using Microsoft.Web.WebView2.Core;
 using Wave.Windows.Models;
 using Wave.Windows.Services;
@@ -68,6 +69,8 @@ public class WebViewBridge
             "library.getSongCount" => _library.SongCount,
             "library.importFromFolder" => await ImportFromFolder(p),
             "library.importFiles" => await ImportFiles(p),
+            "library.deleteSong" => DeleteSong(p),
+            "library.editSong" => EditSong(p),
 
             // Playback
             "playback.play" => Invoke(() => _playback.Play()),
@@ -88,6 +91,9 @@ public class WebViewBridge
             "playlists.getSongs" => _playlistService.GetSongs(p.GetProperty("playlistId").GetInt64()),
             "playlists.toggleFavorite" => Invoke(() => _playlistService.ToggleFavorite(p.Deserialize<Song>(JsonOpts)!)),
             "playlists.create" => _playlistService.CreatePlaylist(p.GetProperty("name").GetString()!),
+            "playlists.delete" => Invoke(() => _playlistService.Delete(p.GetProperty("playlistId").GetInt64())),
+            "playlists.rename" => RenamePlaylist(p),
+            "playlists.addSongs" => AddSongsToPlaylist(p),
             "playlists.removeSong" => Invoke(() => _playlistService.RemoveSong(p.GetProperty("playlistId").GetInt64(), p.GetProperty("songId").GetInt64())),
 
             // Lyrics
@@ -218,6 +224,72 @@ public class WebViewBridge
             _equalizer.Closed += (s, e) => _equalizer = null;
             _equalizer.Show();
         });
+        return null;
+    }
+
+    private object? RenamePlaylist(JsonElement p)
+    {
+        var id = p.GetProperty("playlistId").GetInt64();
+        var newName = p.GetProperty("newName").GetString()!;
+        var repo = _playlistService.GetAll().FirstOrDefault(pl => pl.Id == id);
+        if (repo != null)
+        {
+            repo.Name = newName;
+            // Use repository update via reflection or direct DB
+            Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+                "UPDATE playlists SET name = @name, updated_at = @ts WHERE id = @id",
+                new { name = newName, ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), id });
+        }
+        return null;
+    }
+
+    private object? AddSongsToPlaylist(JsonElement p)
+    {
+        var playlistId = p.GetProperty("playlistId").GetInt64();
+        var songIds = p.GetProperty("songIds").Deserialize<List<long>>()!;
+        _playlistService.AddSongs(playlistId, songIds);
+        return null;
+    }
+
+    private object? DeleteSong(JsonElement p)
+    {
+        var songId = p.GetProperty("songId").GetInt64();
+        Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+            "DELETE FROM songs WHERE id = @songId", new { songId });
+        return null;
+    }
+
+    private object? EditSong(JsonElement p)
+    {
+        var songId = p.GetProperty("songId").GetInt64();
+        var title = p.TryGetProperty("title", out var t) ? t.GetString() : null;
+        var artist = p.TryGetProperty("artist", out var a) ? a.GetString() : null;
+        var album = p.TryGetProperty("album", out var al) ? al.GetString() : null;
+        var genre = p.TryGetProperty("genre", out var g) ? g.GetString() : null;
+
+        // Update DB
+        Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+            "UPDATE songs SET title = @title, artist = @artist, album = @album, genre = @genre WHERE id = @songId",
+            new { title, artist, album, genre, songId });
+
+        // Also update the actual file tags using TagLib#
+        try
+        {
+            var song = _library.GetAllSongs().FirstOrDefault(s => s.Id == songId);
+            if (song != null && System.IO.File.Exists(song.FilePath))
+            {
+                var tagFile = TagLib.File.Create(song.FilePath);
+                if (title != null) tagFile.Tag.Title = title;
+                if (artist != null) tagFile.Tag.Performers = new[] { artist };
+                if (album != null) tagFile.Tag.Album = album;
+                if (genre != null) tagFile.Tag.Genres = new[] { genre };
+                tagFile.Save();
+            }
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Error("Error saving tags to file", ex);
+        }
         return null;
     }
 

@@ -109,7 +109,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .time-label { font-size: 11px; color: var(--text-dim); min-width: 36px; text-align: center; }
 #seek-bar { flex: 1; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
 #seek-bar::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }
-.player-right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.player-right { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.player-right .ctrl-btn { min-width: 32px; min-height: 32px; padding: 4px; }
 .vol-icon { color: var(--text-dim); flex-shrink: 0; }
 .volume-slider { width: 80px; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
 .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }

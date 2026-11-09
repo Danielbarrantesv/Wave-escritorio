@@ -28,8 +28,8 @@ public partial class MiniPlayerWindow : Window
                     // Play: M8 5v14l11-7z  (triángulo)
                     // Pause: M6 19h4V5H6v14zm8-14v14h4V5h-4z  (dos barras)
                     PlayPauseIcon.Data = _playback.IsPlaying
-                        ? System.Windows.Media.Geometry.Parse("M6 19h4V5H6v14zm8-14v14h4V5h-4z")
-                        : System.Windows.Media.Geometry.Parse("M8 5v14l11-7z");
+                        ? System.Windows.Media.Geometry.Parse("M6,19h4V5H6v14zm8-14v14h4V5h-4z")
+                        : System.Windows.Media.Geometry.Parse("M8,19V5l11,7L8,19Zm2-7Zm0,3.35L15.25,12L10,8.65v6.7Z");
                 });
             }
         };
