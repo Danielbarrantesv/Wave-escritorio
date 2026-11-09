@@ -16,6 +16,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSongs();
     await loadPlaylists();
     await initVolume();
+    // Consultar estado inicial de playback para sincronizar el ícono play/pausa
+    // (sin esto, el botón muestra "play" aunque ya esté reproduciendo desde la sesión anterior)
+    try {
+        const state = await WaveAPI.call('playback.getState');
+        if (state) onPlaybackChanged(state);
+    } catch (e) { /* ignore */ }
 });
 
 function bindEvents() {
@@ -214,6 +220,56 @@ async function initVolume() {
     }
 }
 
+// === Side panel (lyrics / equalizer) ===
+// Panel lateral derecho que se desliza desde la derecha.
+// No oculta la lista de canciones; muestra la portada actual como fondo difuminado.
+function openSidePanel(mode) {
+    const panel = document.getElementById('side-panel');
+    const lyricsContent = document.getElementById('lyrics-content');
+    const eqContent = document.getElementById('eq-content');
+
+    // Forzar reflow para reiniciar la animación si ya está abierto en otro modo
+    const wasClosed = panel.classList.contains('closed');
+    if (!wasClosed && panel.dataset.mode === mode) {
+        // Click en el mismo botón: cerrar
+        closeSidePanel();
+        return;
+    }
+
+    if (mode === 'lyrics') {
+        lyricsContent.style.display = '';
+        eqContent.style.display = 'none';
+    } else if (mode === 'eq') {
+        lyricsContent.style.display = 'none';
+        eqContent.style.display = '';
+        initEqualizerBands();
+    }
+    panel.dataset.mode = mode;
+    panel.classList.remove('closed');
+    panel.classList.add('open');
+    // Actualizar fondo con la portada actual
+    updateSidePanelBackground();
+}
+
+function closeSidePanel() {
+    const panel = document.getElementById('side-panel');
+    panel.classList.remove('open');
+    panel.classList.add('closed');
+    delete panel.dataset.mode;
+}
+
+function updateSidePanelBackground() {
+    const bg = document.getElementById('side-panel-bg');
+    if (!bg) return;
+    // Leer la portada del player-cover actual
+    const coverImg = document.querySelector('#player-cover img');
+    if (coverImg && coverImg.src) {
+        bg.style.backgroundImage = `url('${coverImg.src}')`;
+    } else {
+        bg.style.backgroundImage = 'none';
+    }
+}
+
 // === Mini player toggle ===
 function onMiniPlayer() {
     WaveAPI.call('window.toggleMiniPlayer');
@@ -221,18 +277,7 @@ function onMiniPlayer() {
 
 // === Equalizer inline ===
 function onEqualizer() {
-    const eqPanel = document.getElementById('eq-panel');
-    const songsList = document.getElementById('songs-container');
-    const lyricsPanel = document.getElementById('lyrics-panel');
-    if (eqPanel.classList.contains('hidden')) {
-        songsList.classList.add('hidden');
-        lyricsPanel.classList.add('hidden');
-        eqPanel.classList.remove('hidden');
-        initEqualizerBands();
-    } else {
-        eqPanel.classList.add('hidden');
-        songsList.classList.remove('hidden');
-    }
+    openSidePanel('eq');
 }
 
 let eqBands = [];
@@ -283,39 +328,26 @@ function onEqReset() {
 
 // === Lyrics ===
 async function onLyrics() {
-    const panel = document.getElementById('lyrics-panel');
-    const content = document.getElementById('lyrics-content');
-    const songsList = document.getElementById('songs-container');
-    const eqPanel = document.getElementById('eq-panel');
-    if (panel.classList.contains('hidden')) {
-        const state = await WaveAPI.call('playback.getState');
-        if (state && state.currentSong) {
-            const lyrics = await WaveAPI.call('lyrics.get', state.currentSong);
-            currentLyrics = lyrics;
-            if (lyrics && lyrics.isSynced && lyrics.lines && lyrics.lines.length > 0) {
-                content.innerHTML = lyrics.lines.map((l, i) =>
-                    `<div class="lyric-line" data-idx="${i}" data-ts="${l.timestampMs}">${escapeHtml(l.text)}</div>`
-                ).join('');
-            } else if (lyrics && lyrics.plainLyrics) {
-                content.innerHTML = lyrics.plainLyrics.split('\n').map(l =>
-                    `<div class="lyric-line">${escapeHtml(l)}</div>`).join('');
-            } else {
-                content.innerHTML = '<div class="empty-state"><div class="empty-icon">♪</div><p>Letra no disponible</p></div>';
-            }
-            eqPanel.classList.add('hidden');
-            songsList.classList.add('hidden');
-            panel.classList.remove('hidden');
-        }
+    const panel = document.getElementById('side-panel');
+    // Si ya está abierto en modo lyrics, cerrar
+    if (panel.dataset.mode === 'lyrics' && !panel.classList.contains('closed')) {
+        closeSidePanel();
+        return;
+    }
+    openSidePanel('lyrics');
+    // Cargar letra de la canción actual
+    const state = await WaveAPI.call('playback.getState');
+    if (state && state.currentSong) {
+        await reloadLyrics(state.currentSong);
     } else {
-        panel.classList.add('hidden');
-        songsList.classList.remove('hidden');
+        document.getElementById('lyrics-content').innerHTML =
+            '<div class="empty-state"><div class="empty-icon">♪</div><p>No hay canción reproduciéndose</p></div>';
     }
 }
 
 function showSongsView() {
-    document.getElementById('lyrics-panel').classList.add('hidden');
-    document.getElementById('eq-panel').classList.add('hidden');
-    document.getElementById('songs-container').classList.remove('hidden');
+    // Cerrar side panel al cambiar de vista
+    closeSidePanel();
 }
 
 // === Library ===
@@ -687,6 +719,22 @@ async function playSong(songId) {
     await WaveAPI.call('playback.playSong', { songId, songIds });
 }
 
+async function onPlayPause() {
+    // Optimistic UI: cambiar el ícono inmediatamente antes del round-trip a C#
+    const playIcon = document.getElementById('play-icon');
+    const currentlyPlaying = playIcon.dataset.playing === 'true';
+    if (currentlyPlaying) {
+        // Va a pausar: mostrar play
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        playIcon.dataset.playing = 'false';
+    } else {
+        // Va a reproducir: mostrar pausa
+        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+        playIcon.dataset.playing = 'true';
+    }
+    await WaveAPI.call('playback.togglePlayPause');
+}
+
 async function toggleFavorite(songId) {
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
@@ -697,8 +745,13 @@ async function toggleFavorite(songId) {
 function onPlaybackChanged(state) {
     if (!state) return;
     const playIcon = document.getElementById('play-icon');
-    if (state.isPlaying) playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-    else playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    if (state.isPlaying) {
+        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+        playIcon.dataset.playing = 'true';
+    } else {
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        playIcon.dataset.playing = 'false';
+    }
 
     if (state.currentSong) {
         const title = state.currentSong.displayTitle || state.currentSong.title || 'Sin título';
@@ -733,13 +786,14 @@ function onPlaybackChanged(state) {
         updateVolumeIcon(Math.round((state.volume || 1) * 100));
     }
 
-    // Lyrics - recargar si la canción cambió y el panel está visible
+    // Lyrics - recargar si la canción cambió y el panel está visible en modo lyrics
     if (state.currentSong) {
         const songId = state.currentSong.id;
-        const lyricsPanel = document.getElementById('lyrics-panel');
-        if (!lyricsPanel.classList.contains('hidden') && songId !== currentLyricsSongId) {
+        const sidePanel = document.getElementById('side-panel');
+        if (sidePanel && sidePanel.dataset.mode === 'lyrics' && songId !== currentLyricsSongId) {
             currentLyricsSongId = songId;
-            // Usar setTimeout para no bloquear el hilo principal
+            // Actualizar fondo con la nueva portada
+            updateSidePanelBackground();
             setTimeout(() => reloadLyrics(state.currentSong), 0);
         }
     }

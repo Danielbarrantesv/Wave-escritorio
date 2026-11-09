@@ -48,8 +48,17 @@
                         <div id="songs-list"></div>
                         <div id="empty-state" class="empty-state hidden"><div class="empty-icon">♪</div><h2>Aún no hay música</h2><p>Arrastra archivos aquí o usa "Agregar música"</p><button class="btn-primary" onclick="document.getElementById('btn-add').click()">Seleccionar carpeta</button></div>
                     </div>
-                    <div id="lyrics-panel" class="hidden"><div id="lyrics-content"></div></div>
-                    <div id="eq-panel" class="hidden"><div class="eq-header"><h2>Ecualizador</h2><div class="eq-controls"><button id="eq-toggle" class="btn-primary small">ON</button><button id="eq-reset" class="btn-icon">Reset</button></div></div><div id="eq-bands" class="eq-bands"></div></div>
+                    <aside id="side-panel" class="side-panel closed">
+                        <div class="side-panel-bg" id="side-panel-bg"></div>
+                        <button class="side-panel-close" onclick="closeSidePanel()" title="Cerrar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.4,17L7,15.6L10.6,12L7,8.42l1.4-1.4l3.6,3.6l3.58-3.6l1.4,1.4L15.58,17L12,13.4L8.4,17Z"/></svg>
+                        </button>
+                        <div class="side-panel-content" id="lyrics-content"></div>
+                        <div class="side-panel-content" id="eq-content" style="display:none;">
+                            <div class="eq-header"><h2>Ecualizador</h2><div class="eq-controls"><button id="eq-toggle" class="btn-primary small">ON</button><button id="eq-reset" class="btn-icon">Reset</button></div></div>
+                            <div id="eq-bands" class="eq-bands"></div>
+                        </div>
+                    </aside>
                 </div>
             </main>
         </div>
