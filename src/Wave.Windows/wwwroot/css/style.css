@@ -42,6 +42,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .playlist-cover-grid > div { background-size: cover; background-position: center; }
 .playlist-cover-grid > div.empty { background: var(--accent-dim); }
 
+/* Favoritos big heart icon */
+.playlist-item .fav-heart { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.playlist-item .fav-heart svg { width: 24px; height: 24px; }
+
 /* Main */
 #main { display: flex; flex-direction: column; overflow: hidden; }
 #topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
@@ -114,6 +118,27 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .vol-icon { color: var(--text-dim); flex-shrink: 0; }
 .volume-slider { width: 80px; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
 .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+
+/* Volume icon */
+.vol-icon-container { cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px; transition: all 0.15s; }
+.vol-icon-container:hover { background: var(--surface-light); }
+.vol-icon-container svg { color: var(--text-dim); transition: color 0.15s; }
+.vol-icon-container:hover svg { color: var(--text); }
+.vol-icon-container.muted svg { color: #ff4444 !important; }
+
+/* Modal dialog */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+.modal-dialog { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; min-width: 360px; max-width: 480px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+.modal-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+.modal-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px; outline: none; margin-bottom: 16px; }
+.modal-input:focus { border-color: var(--accent); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.modal-btn { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; border: none; transition: all 0.15s; }
+.modal-btn-cancel { background: var(--surface-light); color: var(--text-dim); }
+.modal-btn-cancel:hover { background: var(--border); color: var(--text); }
+.modal-btn-primary { background: var(--accent); color: #000; font-weight: 600; }
+.modal-btn-primary:hover { background: var(--accent-dim); }
+.modal-message { color: var(--text-dim); font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
 
 /* Lyrics */
 #lyrics-panel { padding: 32px; overflow-y: auto; height: 100%; }
