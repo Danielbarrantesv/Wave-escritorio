@@ -11,68 +11,46 @@
                 <ResourceDictionary Source="Themes/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Plantilla de ProgressBar (solo el relleno verde, sin track ni borde) -->
-            <ControlTemplate x:Key="MiniProgressTemplate" TargetType="ProgressBar">
-                <Grid ClipToBounds="True">
-                    <!-- Track de fondo: bar blanca semi-transparente -->
-                    <Border Background="#33FFFFFF" CornerRadius="2"/>
-                    <!-- Relleno verde que se ensancha con el Value (PART_Indicator) -->
-                    <Border x:Name="PART_Indicator"
-                            Background="{TemplateBinding Foreground}"
-                            CornerRadius="2"
-                            HorizontalAlignment="Left"/>
-                    <!-- PART_Tracker es opcional, no necesario para esta plantilla -->
-                </Grid>
-            </ControlTemplate>
-
-            <!-- Plantilla de Slider con thumb circular (bolita) para el mini player -->
+            <!-- Plantilla de Slider custom para el mini player:
+                 track blanco semi-transparente + relleno verde + bolita circular -->
             <ControlTemplate x:Key="MiniSliderTemplate" TargetType="Slider">
-                <Grid>
-                    <Track x:Name="PART_Track" Grid.Row="1">
+                <Grid Height="14" VerticalAlignment="Center">
+                    <!-- Track completo: borde blanco semi-transparente -->
+                    <Border Height="4" VerticalAlignment="Center"
+                            Background="#33FFFFFF" CornerRadius="2"/>
+                    <!-- Relleno verde que crece a la izquierda del thumb -->
+                    <Track x:Name="PART_Track">
                         <Track.DecreaseRepeatButton>
-                            <RepeatButton Command="{x:Static Slider.DecreaseLarge}"/>
+                            <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                <RepeatButton.Template>
+                                    <ControlTemplate TargetType="RepeatButton">
+                                        <Border Background="#32C98B" CornerRadius="2"/>
+                                    </ControlTemplate>
+                                </RepeatButton.Template>
+                            </RepeatButton>
                         </Track.DecreaseRepeatButton>
                         <Track.Thumb>
                             <Thumb>
                                 <Thumb.Template>
                                     <ControlTemplate TargetType="Thumb">
-                                        <Ellipse Width="14" Height="14" Fill="#32C98B"
-                                                 Stroke="White" StrokeThickness="1.5"
-                                                 RenderTransformOrigin="0.5,0.5">
-                                            <Ellipse.RenderTransform>
-                                                <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1"/>
-                                            </Ellipse.RenderTransform>
-                                            <Ellipse.Effect>
-                                                <DropShadowEffect Color="#32C98B" BlurRadius="8" ShadowDepth="0" Opacity="0.8"/>
-                                            </Ellipse.Effect>
-                                            <VisualStateManager.VisualStateGroups>
-                                                <VisualStateGroup x:Name="CommonStates">
-                                                    <VisualState x:Name="Normal"/>
-                                                    <VisualState x:Name="MouseOver">
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
-                                                                             Storyboard.TargetProperty="ScaleX" To="1.2" Duration="0:0:0.1"/>
-                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
-                                                                             Storyboard.TargetProperty="ScaleY" To="1.2" Duration="0:0:0.1"/>
-                                                        </Storyboard>
-                                                    </VisualState>
-                                                    <VisualState x:Name="Dragging">
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
-                                                                             Storyboard.TargetProperty="ScaleX" To="1.4" Duration="0:0:0.1"/>
-                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
-                                                                             Storyboard.TargetProperty="ScaleY" To="1.4" Duration="0:0:0.1"/>
-                                                        </Storyboard>
-                                                    </VisualState>
-                                                </VisualStateGroup>
-                                            </VisualStateManager.VisualStateGroups>
-                                        </Ellipse>
+                                        <Grid Width="14" Height="14">
+                                            <!-- Glow verde detrás -->
+                                            <Ellipse Fill="#32C98B" Opacity="0.3" Width="20" Height="20"/>
+                                            <!-- Bolita principal -->
+                                            <Ellipse Fill="#32C98B" Stroke="White" StrokeThickness="1.5"/>
+                                        </Grid>
                                     </ControlTemplate>
                                 </Thumb.Template>
                             </Thumb>
                         </Track.Thumb>
                         <Track.IncreaseRepeatButton>
-                            <RepeatButton Command="{x:Static Slider.IncreaseLarge}"/>
+                            <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                <RepeatButton.Template>
+                                    <ControlTemplate TargetType="RepeatButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </RepeatButton.Template>
+                            </RepeatButton>
                         </Track.IncreaseRepeatButton>
                     </Track>
                 </Grid>

@@ -47,25 +47,14 @@
                 </Button>
             </Grid>
 
-            <!-- Barra de progreso: ProgressBar (relleno verde) + Slider (bolita arrastrable)
-                 El Slider se declara DESPUÉS del ProgressBar para que la bolita quede al frente. -->
-            <Grid Grid.Row="1" Margin="0,2,0,0" Height="12" VerticalAlignment="Center">
-                <!-- Relleno verde que se llena según el progreso (track + indicator) -->
-                <ProgressBar x:Name="ProgressFill" Minimum="0" Maximum="100" Value="0"
-                             Foreground="#32C98B"
-                             BorderThickness="0"
-                             Template="{StaticResource MiniProgressTemplate}"/>
-                <!-- Slider con bolita circular transparente encima (ZIndex alto) -->
-                <Slider x:Name="ProgressBar" Minimum="0" Maximum="100" Value="0"
-                        Background="Transparent" Foreground="Transparent"
-                        BorderThickness="0"
-                        TickFrequency="1" IsSnapToTickEnabled="False"
-                        Thumb.DragStarted="ProgressBar_DragStarted"
-                        Thumb.DragCompleted="ProgressBar_DragCompleted"
-                        ValueChanged="ProgressBar_ValueChanged"
-                        Template="{StaticResource MiniSliderTemplate}"
-                        Grid.ZIndex="10"/>
-            </Grid>
+            <!-- Barra de progreso con bolita arrastrable y relleno verde combinados en un solo Slider -->
+            <Slider x:Name="ProgressBar" Grid.Row="1" Margin="0,2,0,0"
+                    Minimum="0" Maximum="100" Value="0"
+                    TickFrequency="1" IsSnapToTickEnabled="False"
+                    Thumb.DragStarted="ProgressBar_DragStarted"
+                    Thumb.DragCompleted="ProgressBar_DragCompleted"
+                    ValueChanged="ProgressBar_ValueChanged"
+                    Template="{StaticResource MiniSliderTemplate}"/>
         </Grid>
     </Border>
 </Window>
