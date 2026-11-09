@@ -481,23 +481,30 @@ function onPlaybackChanged(state) {
         const lyricsPanel = document.getElementById('lyrics-panel');
         if (!lyricsPanel.classList.contains('hidden') && songId !== currentLyricsSongId) {
             currentLyricsSongId = songId;
-            const lyrics = await WaveAPI.call('lyrics.get', state.currentSong);
-            currentLyrics = lyrics;
-            const content = document.getElementById('lyrics-content');
-            if (lyrics && lyrics.isSynced && lyrics.lines && lyrics.lines.length > 0) {
-                content.innerHTML = lyrics.lines.map((l, i) =>
-                    `<div class="lyric-line" data-idx="${i}" data-ts="${l.timestampMs}">${escapeHtml(l.text)}</div>`
-                ).join('');
-            } else if (lyrics && lyrics.plainLyrics) {
-                content.innerHTML = lyrics.plainLyrics.split('\n').map(l =>
-                    `<div class="lyric-line">${escapeHtml(l)}</div>`).join('');
-            } else {
-                content.innerHTML = '<div class="empty-state"><div class="empty-icon">♪</div><p>Letra no disponible</p></div>';
-            }
-            currentLyricIndex = -1;
+            // Usar setTimeout para no bloquear el hilo principal
+            setTimeout(() => reloadLyrics(state.currentSong), 0);
         }
     }
     if (currentLyrics && currentLyrics.isSynced) updateLyricsHighlight(state.positionMs);
+}
+
+async function reloadLyrics(song) {
+    try {
+        const lyrics = await WaveAPI.call('lyrics.get', song);
+        currentLyrics = lyrics;
+        const content = document.getElementById('lyrics-content');
+        if (lyrics && lyrics.isSynced && lyrics.lines && lyrics.lines.length > 0) {
+            content.innerHTML = lyrics.lines.map((l, i) =>
+                `<div class="lyric-line" data-idx="${i}" data-ts="${l.timestampMs}">${escapeHtml(l.text)}</div>`
+            ).join('');
+        } else if (lyrics && lyrics.plainLyrics) {
+            content.innerHTML = lyrics.plainLyrics.split('\n').map(l =>
+                `<div class="lyric-line">${escapeHtml(l)}</div>`).join('');
+        } else {
+            content.innerHTML = '<div class="empty-state"><div class="empty-icon">♪</div><p>Letra no disponible</p></div>';
+        }
+        currentLyricIndex = -1;
+    } catch (e) { /* ignore lyrics errors */ }
 }
 
 function updateLyricsHighlight(positionMs) {
