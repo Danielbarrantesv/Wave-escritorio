@@ -114,15 +114,15 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 @keyframes selection-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .selection-actions { display: flex; gap: 6px; align-items: center; }
 
-/* Recent songs slider — últimas 30 reproducidas, scroll horizontal */
-#sticky-section {
+/* Recent songs slider — últimas 30 reproducidas, scroll horizontal, STICKY en top */
+#recent-section {
     position: sticky; top: 0; z-index: 5;
     background: var(--bg);
-    padding: 8px 0;
+    padding: 6px 0 4px;
     margin-bottom: 4px;
-    /* Backdrop blur para que la lista se vea difuminada detrás al hacer scroll */
     backdrop-filter: blur(10px);
 }
+#artists-section { margin-bottom: 4px; }
 #recent-slider, #artists-slider { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; scroll-behavior: smooth; }
 #recent-slider::-webkit-scrollbar, #artists-slider::-webkit-scrollbar { height: 6px; }
 #recent-slider::-webkit-scrollbar-track, #artists-slider::-webkit-scrollbar-track { background: var(--surface); border-radius: 3px; }
