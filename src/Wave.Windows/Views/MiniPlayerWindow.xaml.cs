@@ -59,8 +59,7 @@ public partial class MiniPlayerWindow : Window
     /// <summary>Abre la ventana principal y cierra el mini player.</summary>
     private void GoToMain()
     {
-        // Buscar la MainWindow abierta
-        foreach (Window w in Application.Windows)
+        foreach (Window w in System.Windows.Application.Current.Windows)
         {
             if (w is MainWindow main)
             {
