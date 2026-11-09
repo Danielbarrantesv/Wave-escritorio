@@ -49,6 +49,18 @@ public partial class MiniPlayerWindow : Window
     private void Next_Click(object sender, RoutedEventArgs e) => _playback.SkipToNext();
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>Click en cover o info → abrir reproductor principal.</summary>
+    private void GoToMain_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true; // Evitar DragMove
+        var main = App.Services.GetService(typeof(System.Windows.Window)) as MainWindow;
+        if (main != null)
+        {
+            main.ShowFromTray();
+            Close();
+        }
+    }
+
     /// <summary>Botón derecho → cerrar mini player (volver a ventana principal).</summary>
     protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
     {
