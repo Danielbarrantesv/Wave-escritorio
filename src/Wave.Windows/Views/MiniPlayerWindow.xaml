@@ -47,11 +47,15 @@
                 </Button>
             </Grid>
 
-            <!-- Barra de progreso fina debajo de info y botones -->
-            <ProgressBar x:Name="ProgressBar" Grid.Row="1" Margin="0,2,0,0"
-                         Minimum="0" Maximum="100" Value="0"
-                         Background="#33FFFFFF" Foreground="#32C98B"
-                         BorderThickness="0" Height="3"/>
+            <!-- Barra de progreso con bolita para adelantar/retroceder -->
+            <Slider x:Name="ProgressBar" Grid.Row="1" Margin="0,0,0,-2"
+                    Minimum="0" Maximum="100" Value="0"
+                    Background="#33FFFFFF" Foreground="#32C98B"
+                    BorderThickness="0" Height="8"
+                    TickFrequency="1" IsSnapToTickEnabled="False"
+                    Thumb.DragStarted="ProgressBar_DragStarted"
+                    Thumb.DragCompleted="ProgressBar_DragCompleted"
+                    ValueChanged="ProgressBar_ValueChanged"/>
         </Grid>
     </Border>
 </Window>

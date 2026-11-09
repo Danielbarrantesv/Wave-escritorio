@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using Wave.Windows.Services;
 
@@ -12,6 +13,8 @@ namespace Wave.Windows.Views;
 public partial class MiniPlayerWindow : Window
 {
     private readonly PlaybackController _playback;
+    private bool _isDraggingProgress = false;
+    private long _seekTargetMs = 0;
 
     public MiniPlayerWindow(PlaybackController playback)
     {
@@ -35,6 +38,7 @@ public partial class MiniPlayerWindow : Window
             {
                 Dispatcher.Invoke(() =>
                 {
+                    if (_isDraggingProgress) return;  // No actualizar mientras el usuario arrastra
                     var dur = _playback.DurationMs;
                     var pos = _playback.PositionMs;
                     if (dur > 0)
@@ -44,6 +48,30 @@ public partial class MiniPlayerWindow : Window
                 });
             }
         };
+    }
+
+    /// <summary>El usuario empezó a arrastrar la bolita del slider.</summary>
+    private void ProgressBar_DragStarted(object sender, DragStartedEventArgs e)
+    {
+        _isDraggingProgress = true;
+    }
+
+    /// <summary>El usuario soltó la bolita del slider — hacer seek a la posición final.</summary>
+    private void ProgressBar_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _isDraggingProgress = false;
+        var dur = _playback.DurationMs;
+        var target = (long)(dur * ProgressBar.Value / 100.0);
+        _playback.Seek(target);
+    }
+
+    /// <summary>Cambio el valor del slider mientras se arrastra — actualizar seekTarget.</summary>
+    private void ProgressBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isDraggingProgress && _playback.DurationMs > 0)
+        {
+            _seekTargetMs = (long)(_playback.DurationMs * ProgressBar.Value / 100.0);
+        }
     }
 
     /// <summary>Arrastrar ventana desde cualquier punto (excepto botones y cover).</summary>

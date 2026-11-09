@@ -47,6 +47,7 @@ function bindEvents() {
     document.getElementById('btn-prev').onclick = onPrev;
     document.getElementById('btn-shuffle').onclick = onShuffle;
     document.getElementById('btn-repeat').onclick = onRepeat;
+    document.getElementById('btn-fav').onclick = onToggleCurrentFavorite;
     document.getElementById('btn-mini').onclick = onMiniPlayer;
     document.getElementById('btn-lyrics').onclick = onLyrics;
     document.getElementById('btn-eq').onclick = onEqualizer;
@@ -475,6 +476,8 @@ function selectAllSongs() {
     document.querySelector('[data-view="all"]').classList.add('active');
     document.querySelectorAll('.playlist-item').forEach(el => el.classList.remove('active'));
     currentPlaylist = null;
+    // Limpiar el buscador para no filtrar las canciones de la nueva vista
+    document.getElementById('search').value = '';
     showSongsView();
     loadSongs();
 }
@@ -485,6 +488,8 @@ async function selectPlaylist(pl) {
     const plEl = document.querySelector(`[data-playlist-id="${pl.id}"]`);
     if (plEl) plEl.classList.add('active');
     currentPlaylist = pl;
+    // Limpiar el buscador para no filtrar las canciones de la playlist con el artista anterior
+    document.getElementById('search').value = '';
     showSongsView();
     // Cargar canciones desde la DB cada vez
     const songs = await WaveAPI.call('playlists.getSongs', { playlistId: pl.id }) || [];
@@ -799,6 +804,22 @@ async function toggleFavorite(songId) {
     await loadSongs();
 }
 
+// Toggle favorito de la canción ACTUAL (botón corazón en la playerbar)
+async function onToggleCurrentFavorite() {
+    const state = window._lastPlaybackState;
+    if (!state || !state.currentSong) {
+        await modalAlert('Sin canción', 'No hay ninguna canción reproduciéndose.');
+        return;
+    }
+    await WaveAPI.call('playlists.toggleFavorite', state.currentSong);
+    // Actualizar el estado visual del botón inmediatamente (optimistic)
+    const btn = document.getElementById('btn-fav');
+    const isFav = btn.classList.contains('active');
+    btn.classList.toggle('active', !isFav);
+    // Recargar la biblioteca para actualizar el corazón en la fila
+    await loadSongs();
+}
+
 // === Recent songs slider (últimas 30 reproducidas, persistente) ===
 const RECENT_KEY = 'recent_songs_v1';
 const RECENT_MAX = 30;
@@ -981,8 +1002,9 @@ function updatePlayerSongInfo(state) {
     const artistEl = document.getElementById('player-artist');
     titleEl.textContent = title;
     artistEl.textContent = artist;
-    titleEl.classList.toggle('marquee', title.length > 25);
-    artistEl.classList.toggle('marquee', artist.length > 30);
+    // Marquee con JS: solo activa si el texto no cabe en el contenedor
+    setupMarquee(titleEl, title);
+    setupMarquee(artistEl, artist);
     const cover = document.getElementById('player-cover');
     if (state.currentSong.artUri)
         cover.innerHTML = `<img src="file:///${state.currentSong.artUri.replace(/\\/g,'/')}" />`;
@@ -991,6 +1013,30 @@ function updatePlayerSongInfo(state) {
     const row = document.querySelector(`[data-id="${state.currentSong.id}"]`);
     if (row) row.classList.add('playing');
     updateRecentPlaying(state.currentSong.id);
+    // Actualizar estado del botón corazón en la playerbar
+    const favBtn = document.getElementById('btn-fav');
+    if (favBtn) favBtn.classList.toggle('active', !!state.currentSong.isFavorite);
+}
+
+// Configura el efecto marquee en un elemento si el texto no cabe en su contenedor padre.
+// Mide scrollWidth vs clientWidth del padre y setea un CSS variable --marquee-distance
+// que usa la animación para desplazar lo justo.
+function setupMarquee(el, text) {
+    if (!el || !el.parentElement) return;
+    // Quitar marquee primero para medir
+    el.classList.remove('marquee');
+    el.style.transform = '';
+    // Forzar reflow para medir bien
+    void el.offsetWidth;
+    const parent = el.parentElement;
+    const textWidth = el.scrollWidth;
+    const containerWidth = parent.clientWidth;
+    if (textWidth > containerWidth + 2) {
+        // El texto no cabe: activar marquee con distancia dinámica
+        const distance = textWidth - containerWidth + 30; // +30px de margen
+        el.style.setProperty('--marquee-distance', `-${distance}px`);
+        el.classList.add('marquee');
+    }
 }
 
 function updateSeekBar(state) {

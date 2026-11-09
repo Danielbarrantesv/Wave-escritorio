@@ -204,10 +204,30 @@ body.has-selection #selection-bar { top: 0; }
 .player-cover .placeholder-icon svg { width: 28px; height: 28px; }
 .player-text { min-width: 0; overflow: hidden; flex: 1; }
 .player-title { display: block; font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.player-title.marquee { text-overflow: clip; animation: marquee-rtl 12s linear infinite; }
+.player-title.marquee {
+    text-overflow: clip;
+    /* Padding-right para que el texto tenga espacio al final antes de reaparecer */
+    padding-right: 60px;
+    /* Mostrar inline-block para que respete el ancho real del texto */
+    display: inline-block;
+    animation: marquee-rtl 14s linear infinite;
+}
 .player-artist { display: block; font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.player-artist.marquee { text-overflow: clip; animation: marquee-rtl 14s linear infinite; }
-@keyframes marquee-rtl { 0% { transform: translateX(0); } 10%, 90% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+.player-artist.marquee {
+    text-overflow: clip;
+    padding-right: 60px;
+    display: inline-block;
+    animation: marquee-rtl 16s linear infinite;
+}
+/* Marquee: desplaza el texto a la izquierda mostrándolo completo.
+   La distancia la setea JS vía CSS variable --marquee-distance (negativo).
+   Pausa 10% al inicio, desplaza hasta 90%, pausa, vuelve. */
+@keyframes marquee-rtl {
+    0% { transform: translateX(0); }
+    10% { transform: translateX(0); }
+    85% { transform: translateX(var(--marquee-distance, -100%)); }
+    100% { transform: translateX(0); }
+}
 .player-center { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .player-controls { display: flex; align-items: center; gap: 4px; }
 .ctrl-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 8px; border-radius: 50%; transition: all 0.2s ease; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
@@ -427,8 +447,15 @@ body.has-selection #selection-bar { top: 0; }
     to { opacity: 1; transform: scale(1); }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+/* Scrollbar — pintada en la parte que se arrastra (thumb) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--surface); border-radius: 5px; }
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 5px;
+    border: 2px solid var(--surface);
+    transition: background 0.2s ease;
+}
 ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+::-webkit-scrollbar-thumb:active { background: var(--accent); }
+::-webkit-scrollbar-corner { background: var(--surface); }
