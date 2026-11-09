@@ -2,6 +2,7 @@
 let allSongs = []; let filteredSongs = []; let currentPlaylist = null;
 let currentSort = 'recentlyAdded'; let isSeeking = false;
 let isVolumeDragging = false;
+let lastVolumeChange = 0; // timestamp del último cambio de volumen del usuario
 let currentLyrics = null; let currentLyricIndex = -1;
 let currentLyricsSongId = null;
 
@@ -134,6 +135,7 @@ async function onShuffle() { await WaveAPI.call('playback.toggleShuffle'); }
 async function onRepeat() { await WaveAPI.call('playback.toggleRepeat'); }
 
 async function onVolumeChange(e) {
+    lastVolumeChange = Date.now();
     const vol = parseInt(e.target.value) / 100;
     await WaveAPI.call('playback.setVolume', { volume: vol });
     updateVolumeIcon(parseInt(e.target.value));
@@ -156,6 +158,7 @@ function updateVolumeIcon(volPercent) {
 
 let lastVolume = 100;
 function toggleMute() {
+    lastVolumeChange = Date.now();
     const bar = document.getElementById('volume-bar');
     if (parseInt(bar.value) > 0) {
         lastVolume = parseInt(bar.value);
@@ -469,8 +472,9 @@ function onPlaybackChanged(state) {
     document.getElementById('btn-shuffle').classList.toggle('active', state.isShuffle);
     document.getElementById('btn-repeat').classList.toggle('active', state.repeatOne);
 
-    // Volume - solo actualizar si el usuario no está interactuando
-    if (!isVolumeDragging) {
+    // Volume - solo actualizar si el usuario NO cambió el volumen en los últimos 3s
+    const now = Date.now();
+    if (!isVolumeDragging && (now - lastVolumeChange > 3000)) {
         document.getElementById('volume-bar').value = Math.round((state.volume || 1) * 100);
         updateVolumeIcon(Math.round((state.volume || 1) * 100));
     }
