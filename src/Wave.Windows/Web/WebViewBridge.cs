@@ -68,6 +68,7 @@ public class WebViewBridge
             "library.getSongs" => _library.GetAllSongs(),
             "library.getSongCount" => _library.SongCount,
             "library.importFromFolder" => await ImportFromFolder(p),
+            "library.importFromFolderToPlaylist" => await ImportFromFolderToPlaylist(p),
             "library.importFiles" => await ImportFiles(p),
             "library.deleteSong" => DeleteSong(p),
             "library.editSong" => EditSong(p),
@@ -114,6 +115,7 @@ public class WebViewBridge
             "window.toggleMiniPlayer" => ToggleMiniPlayer(),
             "window.openEqualizer" => OpenEqualizer(),
             "window.exportLogs" => ExportLogs(),
+            "window.selectFolder" => SelectFolder(),
 
             _ => throw new NotImplementedException($"Method '{method}' not found")
         };
@@ -323,6 +325,29 @@ public class WebViewBridge
             WaveLogger.Error("Error exporting logs", ex);
             return new { success = false, error = ex.Message };
         }
+    }
+
+    private object? SelectFolder()
+    {
+        string? path = null;
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Selecciona una carpeta de música"
+            };
+            if (dialog.ShowDialog() == true) path = dialog.FolderName;
+        });
+        if (string.IsNullOrEmpty(path)) return new { cancelled = true };
+        return new { cancelled = false, path };
+    }
+
+    private async Task<object?> ImportFromFolderToPlaylist(JsonElement p)
+    {
+        var folderPath = p.GetProperty("folderPath").GetString()!;
+        var playlistId = p.GetProperty("playlistId").GetInt64();
+        var result = await _library.ImportFromFolderAsync(folderPath, playlistId);
+        return result;
     }
 
     private static object? Invoke(Action a) { a(); return null; }

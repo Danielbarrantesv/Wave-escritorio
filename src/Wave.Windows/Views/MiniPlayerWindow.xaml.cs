@@ -67,7 +67,7 @@ public partial class MiniPlayerWindow : Window
                 break;
             }
         }
-        Close();
+        // No cerrar el mini player, solo mostrar el grande
     }
 
     private void PlayPause_Click(object sender, RoutedEventArgs e) => _playback.TogglePlayPause();

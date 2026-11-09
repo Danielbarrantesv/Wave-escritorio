@@ -65,6 +65,9 @@ function showModal(title, bodyHtml, actions) {
     const overlay = document.getElementById('modal-overlay');
     const dialog = document.getElementById('modal-dialog');
     document.getElementById('modal-body').innerHTML = `
+        <button class="modal-close" onclick="closeModal();">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.4,17L7,15.6L10.6,12L7,8.42l1.4-1.4l3.6,3.6l3.58-3.6l1.4,1.4L15.58,17L12,13.4L8.4,17Z"/></svg>
+        </button>
         <div class="modal-title">${title}</div>
         ${bodyHtml}
         <div class="modal-actions">${actions}</div>`;
@@ -121,10 +124,35 @@ function modalAlert(title, message) {
     });
 }
 
+function modalConfirmCustom(title, message, btn1Text, btn2Text) {
+    return new Promise(resolve => {
+        const id = 'modal-confirm-' + Date.now();
+        showModal(title, `<div class="modal-message">${escapeHtml(message)}</div>`,
+            `<button class="modal-btn modal-btn-cancel" onclick="window._modalChoice='cancel';closeModal();">Cancelar</button>
+             <button class="modal-btn modal-btn-cancel" onclick="window._modalChoice='minimize';closeModal();">${escapeHtml(btn1Text)}</button>
+             <button class="modal-btn modal-btn-primary" onclick="window._modalChoice='exit';closeModal();">${escapeHtml(btn2Text)}</button>`);
+        window._modalChoice = 'cancel';
+        const check = setInterval(() => {
+            if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+                clearInterval(check);
+                resolve(window._modalChoice);
+            }
+        }, 50);
+    });
+}
+
 // === Window controls ===
 function minimizeWindow() { WaveAPI.call('window.minimize'); }
 function maximizeWindow() { WaveAPI.call('window.maximize'); }
-function closeWindow() { WaveAPI.call('window.close'); }
+async function closeWindow() {
+    const choice = await modalConfirmCustom('Cerrar Wave', '¿Qué quieres hacer?',
+        'Minimizar a bandeja', 'Salir');
+    if (choice === 'minimize') {
+        WaveAPI.call('window.minimize');
+    } else if (choice === 'exit') {
+        WaveAPI.call('window.close');
+    }
+}
 function dragWindow() { /* handled by -webkit-app-region: drag in CSS */ }
 
 // === Playback ===
@@ -374,10 +402,71 @@ async function selectPlaylist(pl) {
 }
 
 async function createPlaylist() {
-    const name = await modalPrompt('Crear playlist', '');
-    if (!name || !name.trim()) return;
-    await WaveAPI.call('playlists.create', { name: name.trim() });
-    await loadPlaylists();
+    // Modal con nombre + botón de seleccionar carpeta
+    const nameId = 'pl-name-' + Date.now();
+    const folderId = 'pl-folder-' + Date.now();
+
+    showModal('Crear playlist',
+        `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <input type="text" class="modal-input" id="${nameId}" placeholder="Nombre de la playlist" style="flex:1;margin:0;" />
+            <button class="modal-btn modal-btn-cancel" onclick="window._selectFolder=true;" style="white-space:nowrap;display:flex;align-items:center;gap:6px;padding:10px 12px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4,20q-0.82,0-1.41-0.59T2,18V6Q2,5.18 2.59,4.59T4,4h6l2,2h8q0.83,0 1.41,0.59Q22,7.18 22,8H11.18l-2-2H4V18l2.4-8H23.5l-2.57,8.57q-0.2,0.65-0.74,1.04T19,20H4Z"/></svg>
+                <span>Folder</span>
+            </button>
+        </div>
+        <div id="${folderId}" style="color:var(--text-dim);font-size:13px;margin-bottom:16px;"></div>`,
+        `<button class="modal-btn modal-btn-cancel" onclick="window._modalChoice='cancel';closeModal();">Cancelar</button>
+         <button class="modal-btn modal-btn-primary" onclick="window._modalChoice='create';closeModal();">Crear</button>`);
+
+    window._modalChoice = null;
+    window._selectFolder = false;
+    window._selectedFolder = null;
+
+    const checkFolder = setInterval(() => {
+        if (window._selectFolder) {
+            window._selectFolder = false;
+            WaveAPI.call('window.selectFolder', {}).then(path => {
+                if (path && !path.cancelled) {
+                    window._selectedFolder = path;
+                    const nameInput = document.getElementById(nameId);
+                    if (nameInput && !nameInput.value) {
+                        const folderName = path.split('\\').pop().split('/').pop();
+                        nameInput.value = folderName;
+                    }
+                    document.getElementById(folderId).textContent = '📁 ' + path;
+                }
+            });
+        }
+    }, 100);
+
+    const check = setInterval(() => {
+        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+            clearInterval(check);
+            clearInterval(checkFolder);
+            if (window._modalChoice === 'create') {
+                const name = document.getElementById(nameId)?.value || '';
+                if (name.trim()) {
+                    await WaveAPI.call('playlists.create', { name: name.trim() });
+                    // Si hay carpeta, importar música a esa playlist
+                    if (window._selectedFolder) {
+                        // Primero crear la playlist, luego importar
+                        const playlists = await WaveAPI.call('playlists.getAll') || [];
+                        const created = playlists.find(p => p.name === name.trim());
+                        if (created) {
+                            const result = await WaveAPI.call('library.importFromFolderToPlaylist', {
+                                folderPath: window._selectedFolder,
+                                playlistId: created.id
+                            });
+                            if (result) {
+                                await modalAlert('Playlist creada', `"${name}" creada con ${result.added} canciones.`);
+                            }
+                        }
+                    }
+                    await loadPlaylists();
+                }
+            }
+        }
+    }, 50);
 }
 
 // === Search & Sort ===
