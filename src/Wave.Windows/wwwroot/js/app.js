@@ -406,15 +406,20 @@ async function loadPlaylists() {
 
 function showPlaylistContextMenu(e, pl) {
     const menu = document.getElementById('playlist-context-menu');
+    // Iconos SVG (path data del usuario)
+    const iconImport = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.25,16.62h1.5V12.17l1.86,1.86l1.05-1.05L12,9.31L8.36,12.95l1.05,1.05l1.84-1.84v4.45ZM4.31,19.5q-0.76,0-1.28-0.52T2.5,17.69V6.31q0-0.76 0.52-1.28T4.31,4.5H9.8l2,2h7.89q0.76,0 1.28,0.52T21.5,8.31v9.38q0,0.76-0.52,1.28T19.69,19.5H4.31Zm0-1.5H19.69q0.13,0 0.22-0.09T20,17.69V8.31q0-0.13-0.09-0.22T19.69,8H11.18l-2-2H4.31Q4.17,6 4.09,6.09T4,6.31V17.69q0,0.13 0.09,0.22T4.31,18ZM4,18q0,0 0-0.09t0-0.22V6.31Q4,6.17 4,6.09T4,6V8Q4,8 4,8.09T4,8.31v9.38q0,0.13 0,0.22T4,18Z"/></svg>';
+    const iconEdit = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.31,20.5q-0.76,0-1.28-0.52T3.5,18.69V5.31q0-0.76 0.52-1.28T5.31,3.5h8.66L12.46,5H5.31Q5.19,5 5.1,5.1T5,5.31V18.69q0,0.12 0.1,0.21T5.31,19H18.69q0.12,0 0.21-0.1T19,18.69V11.47l1.5-1.5v8.72q0,0.76-0.52,1.28T18.69,20.5H5.31ZM12,12ZM9.5,14.5V11.07l9.06-9.06q0.23-0.23 0.51-0.34t0.57-0.11T20.2,1.67T20.7,2l1.26,1.25q0.22,0.23 0.33,0.51T22.4,4.33T22.3,4.89T21.97,5.4l-9.09,9.1H9.5ZM20.92,4.34L19.66,3.06l1.26,1.28ZM11,13h1.25l6.23-6.23L17.86,6.14L17.19,5.5L11,11.69V13Zm6.86-6.86L17.19,5.5l0.67,0.64l0.62,0.62L17.86,6.14Z"/></svg>';
+    const iconDelete = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.45,21.65L13.39,20.6l2.6-2.6l-2.6-2.6l1.05-1.05l2.6,2.6l2.6-2.6L20.7,15.4L18.1,18l2.6,2.6l-1.05,1.05l-2.6-2.6l-2.6,2.6ZM3.3,15.75v-1.5h7v1.5h-7Zm0-4v-1.5h11v1.5H3.3Zm0-4V6.25h11v1.5H3.3Z"/></svg>';
+    const iconLock = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
     let items = '';
     if (pl.name !== 'Favoritos') {
-        items += `<div class="ctx-item" onclick="addFolderToPlaylist(${pl.id})">Importar carpeta a esta playlist</div>`;
+        items += `<div class="ctx-item" onclick="addFolderToPlaylist(${pl.id})">${iconImport}<span>Importar carpeta a esta playlist</span></div>`;
         items += `<div class="ctx-separator"></div>`;
-        items += `<div class="ctx-item" onclick="renamePlaylist(${pl.id}, '${escapeHtml(pl.name)}')">Editar nombre</div>`;
+        items += `<div class="ctx-item" onclick="renamePlaylist(${pl.id}, '${escapeHtml(pl.name)}')">${iconEdit}<span>Editar nombre</span></div>`;
         items += `<div class="ctx-separator"></div>`;
-        items += `<div class="ctx-item" onclick="deletePlaylist(${pl.id})">Eliminar lista</div>`;
+        items += `<div class="ctx-item danger" onclick="deletePlaylist(${pl.id})">${iconDelete}<span>Eliminar playlist</span></div>`;
     } else {
-        items += `<div class="ctx-item" style="opacity:0.5;cursor:default">No se puede eliminar Favoritos</div>`;
+        items += `<div class="ctx-item" style="opacity:0.5;cursor:default">${iconLock}<span>No se puede eliminar Favoritos</span></div>`;
     }
     menu.innerHTML = items;
     menu.style.left = e.clientX + 'px';
@@ -1161,18 +1166,30 @@ function showContextMenu(e, songId) {
         renderSongs();
     }
 
+    // Iconos SVG (path data del usuario)
+    const iconAddToPlaylist = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.25,15.75v-1.5h7v1.5h-7Zm0-4v-1.5h11v1.5h-11Zm0-4V6.25h11v1.5h-11Zm13,12v-4h-4v-1.5h4v-4h1.5v4h4v1.5h-4v4h-1.5Z"/></svg>';
+    const iconRemoveFav = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11,11.48Zm0,8.85L8.83,18.38q-2.04-1.86-3.44-3.25T3.12,12.6T1.88,10.43T1.5,8.35q0-2.13 1.44-3.56T6.5,3.37q1.31,0 2.47,0.61T11,5.73q0.86-1.14 2.03-1.76T15.5,3.37q1.94,0 3.49,1.36t1.55,3.62q0,0.4-0.07,0.83t-0.22,0.88q0,0-0.26,0t-0.55,0t-0.55,0t-0.26,0q0.17-0.5 0.26-0.94t0.09-0.83q0-1.82-1.22-2.62T15.5,4.87q-1.25,0-2.2,0.69T11.49,7.5H10.51Q9.67,6.23 8.68,5.55T6.5,4.87q-1.44,0-2.47,0.99T3,8.35q0,0.83 0.35,1.69T4.6,12.03t2.45,2.63T11,18.3q0.71-0.63 1.52-1.34t1.36-1.24q0,0 0.17,0.17t0.37,0.37t0.37,0.37t0.17,0.17q-0.57,0.53-1.36,1.22T12.1,19.33L11,20.33Zm3.87-6.58v-1.5h7.5v1.5h-7.5Z"/></svg>';
+    const iconAddFav = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35l-1.45-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78-3.4,6.86-8.55,11.54L12,21.35z"/></svg>';
+    const iconEditSong = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5,14V12.5h7V14h-7Zm0-4V8.5h11V10H4.5Zm0-4V4.5h11V6H4.5Zm8.62,13.5V16.86l5.43-5.4q0.19-0.19 0.4-0.26t0.43-0.08q0.24,0 0.46,0.09t0.4,0.27l0.93,0.93q0.16,0.19 0.25,0.4t0.09,0.43t-0.08,0.44T21.16,14.1l-5.4,5.4H13.12Zm7.19-6.26l-0.92-0.93l0.92,0.93Zm-6,5.07h0.95l3.25-3.26l-0.46-0.47L17.58,14.1l-3.27,3.26v0.95Zm3.74-3.74L17.58,14.1l0.92,0.94l-0.46-0.47Z"/></svg>';
+    const iconDeleteSong = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.65,13.14l2.1-2.1l2.1,2.1l1.04-1.04L14.79,10l2.1-2.1L15.85,6.86l-2.1,2.1l-2.1-2.1L10.61,7.9l2.1,2.1l-2.1,2.1l1.04,1.04ZM8.06,17.5q-0.76,0-1.28-0.52T6.25,15.69V4.31q0-0.76 0.52-1.28T8.06,2.5H19.44q0.76,0 1.28,0.52t0.52,1.28V15.69q0,0.76-0.52,1.28T19.44,17.5H8.06Zm0-1.5H19.44q0.12,0 0.21-0.1t0.1-0.21V4.31q0-0.12-0.1-0.21T19.44,4H8.06Q7.94,4 7.85,4.1T7.75,4.31V15.69q0,0.12 0.1,0.21T8.06,16Zm-3.5,5Q3.8,21 3.28,20.47T2.75,19.19V6.31h1.5V19.19q0,0.12 0.1,0.21t0.21,0.1H17.44V21H4.56ZM7.75,4q0,0 0,0.09t0,0.22V15.69q0,0.13 0,0.22t0,0.09q0,0 0-0.09t0-0.22V4.31q0-0.13 0-0.22T7.75,4Z"/></svg>';
+    const iconRemoveFromPlaylist = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.65,13.14l2.1-2.1l2.1,2.1l1.04-1.04L14.79,10l2.1-2.1L15.85,6.86l-2.1,2.1l-2.1-2.1L10.61,7.9l2.1,2.1l-2.1,2.1l1.04,1.04ZM8.06,17.5q-0.76,0-1.28-0.52T6.25,15.69V4.31q0-0.76 0.52-1.28T8.06,2.5H19.44q0.76,0 1.28,0.52t0.52,1.28V15.69q0,0.76-0.52,1.28T19.44,17.5H8.06Z"/></svg>';
+
     const n = selectedSongIds.size;
     const plural = n > 1 ? ` (${n} canciones)` : '';
     let items = '';
-    items += `<div class="ctx-item" onclick="addSelectionToPlaylist()">Agregar a playlist...${plural}</div>`;
+    items += `<div class="ctx-item" onclick="addSelectionToPlaylist()">${iconAddToPlaylist}<span>Agregar a playlist...${plural}</span></div>`;
     if (currentPlaylist) {
-        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">Quitar de "${escapeHtml(currentPlaylist.name)}"${plural}</div>`;
+        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">${iconRemoveFromPlaylist}<span>Quitar de "${escapeHtml(currentPlaylist.name)}"${plural}</span></div>`;
     }
     items += `<div class="ctx-separator"></div>`;
     if (n === 1) {
-        items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${song.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}</div>`;
+        if (song.isFavorite) {
+            items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${iconRemoveFav}<span>Quitar de favoritos</span></div>`;
+        } else {
+            items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${iconAddFav}<span>Agregar a favoritos</span></div>`;
+        }
         items += `<div class="ctx-separator"></div>`;
-        items += `<div class="ctx-item" onclick="editSong(${songId})">Editar información</div>`;
+        items += `<div class="ctx-item" onclick="editSong(${songId})">${iconEditSong}<span>Editar información</span></div>`;
         items += `<div class="ctx-separator"></div>`;
     }
     // Texto dinámico según contexto:
@@ -1181,8 +1198,8 @@ function showContextMenu(e, songId) {
     const deleteLabel = currentPlaylist
         ? `Quitar de la playlist${plural}`
         : `Eliminar${plural} canción${n>1?'es':''} de la biblioteca`;
-    const deleteColor = currentPlaylist ? 'var(--text-dim)' : '#ff4444';
-    items += `<div class="ctx-item" onclick="deleteSelection()" style="color:${deleteColor}">${deleteLabel}</div>`;
+    const isDanger = !currentPlaylist;
+    items += `<div class="ctx-item${isDanger ? ' danger' : ''}" onclick="deleteSelection()">${iconDeleteSong}<span>${deleteLabel}</span></div>`;
     menu.innerHTML = items;
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
@@ -1283,20 +1300,34 @@ async function removeSelectedFromPlaylist() {
 
 // === Import ===
 async function onAddMusic() {
-    const choice = await modalConfirm('Agregar música', '¿Importar carpeta (Aceptar) o archivos individuales (Cancelar)?');
-    if (choice) {
-        const result = await WaveAPI.call('library.importFromFolder', '');
-        if (result && !result.cancelled) {
-            await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
-            await loadSongs(); await loadPlaylists();
+    // Modal con 2 opciones: Canciones o Carpeta
+    const iconFolder = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M4.25,19.5q-0.73,0-1.24-0.51T2.5,17.75V6.31q0-0.73 0.54-1.27T4.31,4.5H9.8l2,2h7.89q0.67,0 1.16,0.43T21.41,8H11.18l-2-2H4.31Q4.17,6 4.09,6.09T4,6.31V17.69q0,0.11 0.05,0.17t0.14,0.12l2.33-7.79H23.18l-2.42,8.07q-0.17,0.56-0.64,0.9T19.08,19.5H4.25ZM5.76,18H19.27l1.89-6.31H7.65L5.76,18Zm0,0l1.89-6.31L5.76,18ZM4,8V6.31Q4,6.17 4,6.09T4,6V8Z"/></svg>';
+    const iconSong = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M10.75,18.85q0.88,0 1.49-0.61t0.61-1.49V12.88h2.87V11.12H11.96V15.1q-0.26-0.23-0.56-0.34t-0.65-0.11q-0.88,0-1.49,0.61T8.65,16.75t0.61,1.49t1.49,0.61ZM6.31,21.5q-0.76,0-1.28-0.52T4.5,19.69V4.31q0-0.76 0.52-1.28T6.31,2.5h7.94L19.5,7.75V19.69q0,0.76-0.52,1.28T17.69,21.5H6.31Zm7.19-13V4H6.31Q6.19,4 6.1,4.1T6,4.31V19.69q0,0.12 0.1,0.21T6.31,20H17.69q0.12,0 0.21-0.1T18,19.69V8.5H13.5ZM6,4V8.5V4V8.5V19.69q0,0.12 0,0.21T6,20q0,0 0-0.1t0-0.21V4.31Q6,4.19 6,4.1T6,4Z"/></svg>';
+
+    let bodyHtml = '<div class="add-music-options">';
+    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='folder';closeModal();">${iconFolder}<div class="add-music-label"><div class="add-music-title">Carpeta</div><div class="add-music-desc">Importar todos los archivos de audio de una carpeta</div></div></button>`;
+    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='files';closeModal();">${iconSong}<div class="add-music-label"><div class="add-music-title">Canciones</div><div class="add-music-desc">Seleccionar archivos individuales de audio</div></div></button>`;
+    bodyHtml += '</div>';
+
+    showModal('Agregar música', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._addChoice='cancel';closeModal();">Cerrar</button>`);
+    window._addChoice = null;
+    const check = setInterval(async () => {
+        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+            clearInterval(check);
+            const choice = window._addChoice;
+            if (choice === 'cancel' || !choice) return;
+            let result;
+            if (choice === 'folder') {
+                result = await WaveAPI.call('library.importFromFolder', '');
+            } else if (choice === 'files') {
+                result = await WaveAPI.call('library.importFiles', {});
+            }
+            if (result && !result.cancelled) {
+                await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
+                await loadSongs(); await loadPlaylists();
+            }
         }
-    } else {
-        const result = await WaveAPI.call('library.importFiles', {});
-        if (result && !result.cancelled) {
-            await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
-            await loadSongs(); await loadPlaylists();
-        }
-    }
+    }, 50);
 }
 
 async function onBackup() {
@@ -1304,10 +1335,43 @@ async function onBackup() {
 }
 
 async function onSettings() {
-    const choice = await modalConfirm('Configuración', '¿Exportar archivo de logs (wave.log)?\n\nAceptar: Exportar logs\nCancelar: Cerrar');
-    if (choice) {
-        await WaveAPI.call('window.exportLogs', {});
-    }
+    // Modal de Configuración con secciones
+    const iconLogs = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+    const iconBackup = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>';
+    const iconTrash = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+    const iconInfo = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>';
+
+    let bodyHtml = '<div class="settings-list">';
+    bodyHtml += `<div class="settings-section-title">Datos</div>`;
+    bodyHtml += `<button class="settings-item" onclick="window._settingsChoice='backup';closeModal();">${iconBackup}<span>Exportar biblioteca (JSON)</span></button>`;
+    bodyHtml += `<button class="settings-item" onclick="window._settingsChoice='logs';closeModal();">${iconLogs}<span>Exportar logs (wave.log)</span></button>`;
+    bodyHtml += `<button class="settings-item danger" onclick="window._settingsChoice='clear';closeModal();">${iconTrash}<span>Borrar toda la biblioteca</span></button>`;
+    bodyHtml += `<div class="settings-section-title">Acerca de</div>`;
+    bodyHtml += `<button class="settings-item" onclick="window._settingsChoice='about';closeModal();">${iconInfo}<span>Acerca de Wave v1.7.11</span></button>`;
+    bodyHtml += '</div>';
+
+    showModal('Configuración', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._settingsChoice='cancel';closeModal();">Cerrar</button>`);
+    window._settingsChoice = null;
+    const check = setInterval(async () => {
+        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+            clearInterval(check);
+            const choice = window._settingsChoice;
+            if (choice === 'cancel' || !choice) return;
+            if (choice === 'logs') {
+                await WaveAPI.call('window.exportLogs', {});
+            } else if (choice === 'backup') {
+                await onBackup();
+            } else if (choice === 'about') {
+                await modalAlert('Acerca de Wave', 'Wave for Windows\nVersión 1.7.11\n\nReproductor de música offline con soporte para MP3, FLAC, AAC, M4A, OGG, WAV y WMA.\n\nHecho con .NET 8 + WebView2 + NAudio.');
+            } else if (choice === 'clear') {
+                if (await modalConfirm('Borrar biblioteca', '¿Borrar TODAS las canciones de la biblioteca?\n\nEsta acción no se puede deshacer.')) {
+                    await WaveAPI.call('library.deleteAll', {});
+                    await loadSongs(); await loadPlaylists();
+                    await modalAlert('Biblioteca borrada', 'Todas las canciones han sido eliminadas.');
+                }
+            }
+        }
+    }, 50);
 }
 
 // === Drag & drop ===

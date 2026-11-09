@@ -71,6 +71,7 @@ public class WebViewBridge
             "library.importFromFolderToPlaylist" => await ImportFromFolderToPlaylist(p),
             "library.importFiles" => await ImportFiles(p),
             "library.deleteSong" => DeleteSong(p),
+            "library.deleteAll" => Invoke(() => _library.DeleteAll()),
             "library.editSong" => EditSong(p),
 
             // Playback
@@ -252,7 +253,17 @@ public class WebViewBridge
         Application.Current.Dispatcher.Invoke(() =>
         {
             if (_miniPlayer != null && _miniPlayer.IsLoaded) { _miniPlayer.Close(); _miniPlayer = null; }
-            else { _miniPlayer = new MiniPlayerWindow(_playback); _miniPlayer.Closed += (s, e) => _miniPlayer = null; _miniPlayer.Show(); }
+            else
+            {
+                _miniPlayer = new MiniPlayerWindow(_playback);
+                _miniPlayer.Closed += (s, e) => _miniPlayer = null;
+                // Posicionar a 100px del fondo de la pantalla, centrado horizontalmente
+                _miniPlayer.WindowStartupLocation = WindowStartupLocation.Manual;
+                var screen = SystemParameters.WorkArea;
+                _miniPlayer.Left = (screen.Width - _miniPlayer.Width) / 2;
+                _miniPlayer.Top = screen.Height - _miniPlayer.Height - 100;
+                _miniPlayer.Show();
+            }
         });
         return null;
     }
