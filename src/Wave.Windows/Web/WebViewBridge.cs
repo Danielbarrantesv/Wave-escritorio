@@ -92,7 +92,9 @@ public class WebViewBridge
             "playlists.getAll" => _playlistService.GetAllSorted(),
             "playlists.getSongs" => _playlistService.GetSongs(p.GetProperty("playlistId").GetInt64()),
             "playlists.toggleFavorite" => Invoke(() => _playlistService.ToggleFavorite(p.Deserialize<Song>(JsonOpts)!)),
-            "playlists.create" => _playlistService.CreatePlaylist(p.GetProperty("name").GetString()!),
+            "playlists.create" => _playlistService.CreatePlaylist(
+                p.GetProperty("name").GetString()!,
+                p.TryGetProperty("songIds", out var sIdsEl) ? sIdsEl.Deserialize<List<long>>() : null),
             "playlists.delete" => Invoke(() => _playlistService.Delete(p.GetProperty("playlistId").GetInt64())),
             "playlists.rename" => RenamePlaylist(p),
             "playlists.addSongs" => AddSongsToPlaylist(p),
@@ -207,7 +209,13 @@ public class WebViewBridge
             throw new ArgumentException($"Song {songId} not found in queue context");
 
         if (startIndex < 0) startIndex = 0;
-        _playback.SetQueue(queue, startIndex, autoPlay: true);
+
+        // autoPlay opcional (default true). Si el JS lo setea en false, carga sin reproducir.
+        bool autoPlay = true;
+        if (p.TryGetProperty("autoPlay", out var apEl) && apEl.ValueKind == JsonValueKind.False)
+            autoPlay = false;
+
+        _playback.SetQueue(queue, startIndex, autoPlay: autoPlay);
         return null;
     }
 

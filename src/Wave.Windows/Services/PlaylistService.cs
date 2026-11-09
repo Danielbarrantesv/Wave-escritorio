@@ -169,11 +169,34 @@ public sealed class PlaylistService : IPlaylistService
     /// </summary>
     public void Delete(long playlistId) => _repo.DeleteById(playlistId);
 
-    /// <summary>Agrega canciones a una playlist existente (deduplica automáticamente).</summary>
-    public void AddSongs(long playlistId, List<long> songIds) =>
+    /// <summary>
+    /// Agrega canciones a una playlist existente (deduplica automáticamente).
+    /// Caso especial: si la playlist es "Favoritos", también marca IsFavorite=true
+    /// en cada canción (sincroniza estado en tabla songs).
+    /// </summary>
+    public void AddSongs(long playlistId, List<long> songIds)
+    {
         _repo.AddSongsToPlaylist(playlistId, songIds);
 
-    /// <summary>Quita una canción de una playlist.</summary>
-    public void RemoveSong(long playlistId, long songId) =>
+        // Si es Favoritos, marcar canciones como favoritas en DB
+        var fav = _repo.GetByName(Playlist.FavoritesName);
+        if (fav != null && fav.Id == playlistId)
+        {
+            foreach (var id in songIds)
+                _songRepo.UpdateFavorite(id, true);
+        }
+    }
+
+    /// <summary>
+    /// Quita una canción de una playlist.
+    /// Caso especial: si la playlist es "Favoritos", también desmarca IsFavorite en DB.
+    /// </summary>
+    public void RemoveSong(long playlistId, long songId)
+    {
         _repo.RemoveSong(playlistId, songId);
+
+        var fav = _repo.GetByName(Playlist.FavoritesName);
+        if (fav != null && fav.Id == playlistId)
+            _songRepo.UpdateFavorite(songId, false);
+    }
 }

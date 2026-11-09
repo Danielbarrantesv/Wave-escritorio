@@ -16,11 +16,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSongs();
     await loadPlaylists();
     await initVolume();
+    // Render slider de recientes al arrancar (localStorage)
+    renderRecentSlider();
     // Consultar estado inicial de playback para sincronizar el ícono play/pausa
-    // (sin esto, el botón muestra "play" aunque ya esté reproduciendo desde la sesión anterior)
     try {
         const state = await WaveAPI.call('playback.getState');
-        if (state) onPlaybackChanged(state);
+        if (state && state.currentSong) {
+            // Hay canción reproduciéndose/pausada: sincronizar UI
+            onPlaybackChanged(state);
+        } else if (allSongs.length > 0) {
+            // Primera vez o no hay nada cargado: poner la primera canción en pausa
+            // para que el usuario vea info al abrir la app
+            const first = allSongs[0];
+            try {
+                const songIds = allSongs.map(s => s.id);
+                // SetQueue con autoPlay=false: carga la canción sin reproducir
+                await WaveAPI.call('playback.playSong', { songId: first.id, songIds, autoPlay: false });
+                const newState = await WaveAPI.call('playback.getState');
+                if (newState) onPlaybackChanged(newState);
+            } catch (e) { /* ignore */ }
+        }
     } catch (e) { /* ignore */ }
 });
 
@@ -58,7 +73,9 @@ function bindEvents() {
         el.onclick = () => {
             currentSort = el.dataset.sort;
             document.getElementById('sort-label').textContent = el.textContent;
-            sortMenu.classList.add('hidden'); applySort();
+            sortMenu.classList.add('hidden');
+            applySort();
+            renderSongs();  // ← CRITICAL: antes faltaba esta llamada, el sort no se veía
         };
     });
 
@@ -82,7 +99,7 @@ function showModal(title, bodyHtml, actions) {
     const dialog = document.getElementById('modal-dialog');
     document.getElementById('modal-body').innerHTML = `
         <button class="modal-close" onclick="closeModal();">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.4,17L7,15.6L10.6,12L7,8.42l1.4-1.4l3.6,3.6l3.58-3.6l1.4,1.4L15.58,17L12,13.4L8.4,17Z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.4,19L5,17.6L10.6,12L5,6.4L6.4,5L12,10.6L17.6,5L19,6.4L13.4,12L19,17.6L17.6,19L12,13.4L6.4,19Z"/></svg>
         </button>
         <div class="modal-title">${title}</div>
         ${bodyHtml}
@@ -587,20 +604,22 @@ function renderSongs() {
         const title = s.displayTitle || s.title || s.fileName || 'Sin título';
         const artist = s.displayArtist || s.artist || 'Artista desconocido';
         const album = s.displayAlbum || s.album || '';
-        const cover = s.artUri ? `<img src="file:///${(s.artUri||'').replace(/\\/g,'/')}" />` : '♪';
-        const fav = s.isFavorite ? '♥' : '♡';
-        const favClass = s.isFavorite ? 'fav-btn active' : 'fav-btn';
+        const cover = s.artUri ? `<img src="file:///${(s.artUri||'').replace(/\\/g,'/')}" />` :
+            `<div class="recent-placeholder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
         const isSelected = selectedSongIds.has(s.id);
         const selClass = isSelected ? ' selected' : '';
         const checkIcon = isSelected
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
+        // Corazón verde, mismo ícono que la lista de Favoritos del sidebar
+        const favSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35l-1.45-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78-3.4,6.86-8.55,11.54L12,21.35z"/></svg>';
+        const favClass = s.isFavorite ? 'fav-btn active' : 'fav-btn';
         return `<div class="song-row${selClass}" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
             <div class="song-check" onclick="event.stopPropagation(); toggleRowSelection(${s.id}, event)">${checkIcon}</div>
             <div class="song-cover">${cover}</div>
             <div class="song-info"><div class="song-title">${escapeHtml(title)}</div><div class="song-artist">${escapeHtml(artist)}</div></div>
             <div class="song-album">${escapeHtml(album)}</div>
-            <button class="${favClass}" onclick="event.stopPropagation(); toggleFavorite(${s.id})">${fav}</button>
+            <button class="${favClass}" onclick="event.stopPropagation(); toggleFavorite(${s.id})">${favSvg}</button>
             <div class="song-duration">${formatDuration(s.durationMs)}</div>
         </div>`;
     }).join('');
@@ -669,28 +688,44 @@ async function addSelectionToPlaylist() {
     if (ids.length === 0) return;
     const playlists = await WaveAPI.call('playlists.getAll') || [];
     const playableLists = playlists.filter(p => p.name !== 'Favoritos');
-    if (playableLists.length === 0) {
-        await modalAlert('Sin playlists', 'No hay playlists. Crea una primero con el botón +');
-        return;
+
+    let bodyHtml = '<div class="playlist-picker">';
+    // Opción crear nueva playlist con las canciones seleccionadas
+    bodyHtml += `<button class="modal-btn modal-btn-cancel playlist-picker-create" onclick="window._modalSelect='create';closeModal();">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px;vertical-align:middle"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+        Crear nueva playlist con ${ids.length} canción${ids.length>1?'es':''}
+    </button>`;
+    if (playableLists.length > 0) {
+        playableLists.forEach((p, i) => {
+            bodyHtml += `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=${i};closeModal();">${escapeHtml(p.name)}</button>`;
+        });
+    } else {
+        bodyHtml += '<div style="color:var(--text-faint);font-size:13px;padding:8px;text-align:center">No hay playlists. Crea una nueva arriba ↑</div>';
     }
-    let bodyHtml = '<div style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;">';
-    playableLists.forEach((p, i) => {
-        bodyHtml += `<button class="modal-btn modal-btn-cancel" style="text-align:left;justify-content:flex-start" onclick="window._modalSelect=${i};closeModal();">${escapeHtml(p.name)}</button>`;
-    });
     bodyHtml += '</div>';
-    showModal(`Agregar ${ids.length} canciones a playlist`, bodyHtml,
+
+    showModal(`Agregar ${ids.length} canción${ids.length>1?'es':''} a playlist`, bodyHtml,
         `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">Cancelar</button>`);
+
     window._modalSelect = -1;
-    const check = setInterval(() => {
+    const check = setInterval(async () => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
             clearInterval(check);
-            const idx = window._modalSelect;
-            if (idx >= 0 && idx < playableLists.length) {
-                WaveAPI.call('playlists.addSongs', { playlistId: playableLists[idx].id, songIds: ids }).then(() => {
-                    loadPlaylists();
+            const sel = window._modalSelect;
+            if (sel === 'create') {
+                // Crear nueva playlist + agregar canciones
+                const name = await modalPrompt('Nombre de la nueva playlist', '');
+                if (name && name.trim()) {
+                    await WaveAPI.call('playlists.create', { name: name.trim(), songIds: ids });
+                    await loadPlaylists();
                     clearSelection();
-                    modalAlert('Agregado', `${ids.length} canciones agregadas a "${playableLists[idx].name}"`);
-                });
+                    await modalAlert('Playlist creada', `"${name}" creada con ${ids.length} canciones.`);
+                }
+            } else if (typeof sel === 'number' && sel >= 0 && sel < playableLists.length) {
+                await WaveAPI.call('playlists.addSongs', { playlistId: playableLists[sel].id, songIds: ids });
+                await loadPlaylists();
+                clearSelection();
+                await modalAlert('Agregado', `${ids.length} canciones agregadas a "${playableLists[sel].name}"`);
             }
         }
     }, 50);
@@ -699,10 +734,24 @@ async function addSelectionToPlaylist() {
 async function deleteSelection() {
     const ids = Array.from(selectedSongIds);
     if (ids.length === 0) return;
-    if (await modalConfirm('Eliminar canciones', `¿Eliminar ${ids.length} canciones de la biblioteca?`)) {
-        for (const id of ids) await WaveAPI.call('library.deleteSong', { songId: id });
-        clearSelection();
-        await loadSongs();
+    // Si estamos en una playlist (no en "Todas las canciones"):
+    // - Eliminar SOLO de la playlist, NO de la biblioteca
+    // Si estamos en "Todas las canciones":
+    // - Eliminar de la biblioteca (afecta a todas las playlists)
+    if (currentPlaylist) {
+        if (await modalConfirm('Quitar de playlist', `¿Quitar ${ids.length} canción${ids.length>1?'es':''} de "${currentPlaylist.name}"?\n\nNo se borrarán de la biblioteca.`)) {
+            for (const id of ids) {
+                await WaveAPI.call('playlists.removeSong', { playlistId: currentPlaylist.id, songId: id });
+            }
+            clearSelection();
+            await selectPlaylist(currentPlaylist);
+        }
+    } else {
+        if (await modalConfirm('Eliminar canciones', `¿Eliminar ${ids.length} canciones de la biblioteca?\n\nSe borrarán de TODAS las playlists.`)) {
+            for (const id of ids) await WaveAPI.call('library.deleteSong', { songId: id });
+            clearSelection();
+            await loadSongs();
+        }
     }
 }
 
@@ -742,7 +791,72 @@ async function toggleFavorite(songId) {
     await loadSongs();
 }
 
+// === Recent songs slider (últimas 20 reproducidas, persistente) ===
+const RECENT_KEY = 'recent_songs_v1';
+const RECENT_MAX = 20;
+
+function loadRecentSongs() {
+    try {
+        const raw = localStorage.getItem(RECENT_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+}
+
+function saveRecentSongs(arr) {
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr.slice(0, RECENT_MAX))); } catch {}
+}
+
+async function pushRecentSong(song) {
+    if (!song || !song.id) return;
+    let recents = loadRecentSongs();
+    // Quitar si ya existe (para moverlo al frente)
+    recents = recents.filter(r => r.id !== song.id);
+    recents.unshift({ id: song.id, title: song.displayTitle || song.title, artist: song.displayArtist || song.artist, artUri: song.artUri });
+    recents = recents.slice(0, RECENT_MAX);
+    saveRecentSongs(recents);
+    renderRecentSlider();
+}
+
+function renderRecentSlider() {
+    const section = document.getElementById('recent-section');
+    const slider = document.getElementById('recent-slider');
+    if (!slider) return;
+    const recents = loadRecentSongs();
+    if (recents.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+    const placeholderSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg>';
+    slider.innerHTML = recents.map(r => {
+        const cover = r.artUri
+            ? `<img src="file:///${(r.artUri||'').replace(/\\/g,'/')}" />`
+            : `<div class="recent-placeholder">${placeholderSvg}</div>`;
+        const tooltip = `${r.title || 'Sin título'} — ${r.artist || 'Artista desconocido'}`;
+        return `<div class="recent-card" data-id="${r.id}" title="${escapeHtml(tooltip)}">${cover}</div>`;
+    }).join('');
+    // Click en card → reproducir
+    slider.querySelectorAll('.recent-card').forEach(card => {
+        card.onclick = () => {
+            const id = parseInt(card.dataset.id);
+            if (id) playSong(id);
+        };
+    });
+    // Resaltar la que está sonando
+    const state = window._lastPlaybackState;
+    if (state && state.currentSong) updateRecentPlaying(state.currentSong.id);
+}
+
+function updateRecentPlaying(songId) {
+    document.querySelectorAll('.recent-card').forEach(c => {
+        c.classList.toggle('playing', parseInt(c.dataset.id) === songId);
+    });
+}
+
 function onPlaybackChanged(state) {
+    window._lastPlaybackState = state;
     if (!state) return;
     const playIcon = document.getElementById('play-icon');
     if (state.isPlaying) {
@@ -756,15 +870,22 @@ function onPlaybackChanged(state) {
     if (state.currentSong) {
         const title = state.currentSong.displayTitle || state.currentSong.title || 'Sin título';
         const artist = state.currentSong.displayArtist || state.currentSong.artist || '—';
-        document.getElementById('player-title').textContent = title;
-        document.getElementById('player-artist').textContent = artist;
+        const titleEl = document.getElementById('player-title');
+        const artistEl = document.getElementById('player-artist');
+        titleEl.textContent = title;
+        artistEl.textContent = artist;
+        // Marquee si el texto es muy largo para caber (aprox >25 chars)
+        titleEl.classList.toggle('marquee', title.length > 25);
+        artistEl.classList.toggle('marquee', artist.length > 30);
         const cover = document.getElementById('player-cover');
         if (state.currentSong.artUri)
             cover.innerHTML = `<img src="file:///${state.currentSong.artUri.replace(/\\/g,'/')}" />`;
-        else cover.innerHTML = '<span style="color:#0f0f0f;font-size:24px;">♪</span>';
+        else cover.innerHTML = `<div class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24px" width="24px" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
         document.querySelectorAll('.song-row').forEach(el => el.classList.remove('playing'));
         const row = document.querySelector(`[data-id="${state.currentSong.id}"]`);
         if (row) row.classList.add('playing');
+        // Actualizar highlight en el slider de recientes
+        updateRecentPlaying(state.currentSong.id);
     }
 
     if (!isSeeking) {
@@ -786,7 +907,7 @@ function onPlaybackChanged(state) {
         updateVolumeIcon(Math.round((state.volume || 1) * 100));
     }
 
-    // Lyrics - recargar si la canción cambió y el panel está visible en modo lyrics
+    // Lyrics + recientes - recargar si la canción cambió
     if (state.currentSong) {
         const songId = state.currentSong.id;
         const sidePanel = document.getElementById('side-panel');
@@ -795,6 +916,11 @@ function onPlaybackChanged(state) {
             // Actualizar fondo con la nueva portada
             updateSidePanelBackground();
             setTimeout(() => reloadLyrics(state.currentSong), 0);
+        }
+        // Solo agregar a recientes si la canción cambia (no en cada tick de posición)
+        if (songId !== window._lastRecentPushedId) {
+            window._lastRecentPushedId = songId;
+            pushRecentSong(state.currentSong);
         }
     }
     if (currentLyrics && currentLyrics.isSynced) updateLyricsHighlight(state.positionMs);
@@ -866,7 +992,7 @@ function showContextMenu(e, songId) {
     let items = '';
     items += `<div class="ctx-item" onclick="addSelectionToPlaylist()">Agregar a playlist...${plural}</div>`;
     if (currentPlaylist) {
-        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">Eliminar de playlist${plural}</div>`;
+        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">Quitar de "${escapeHtml(currentPlaylist.name)}"${plural}</div>`;
     }
     items += `<div class="ctx-separator"></div>`;
     if (n === 1) {
@@ -875,7 +1001,14 @@ function showContextMenu(e, songId) {
         items += `<div class="ctx-item" onclick="editSong(${songId})">Editar información</div>`;
         items += `<div class="ctx-separator"></div>`;
     }
-    items += `<div class="ctx-item" onclick="deleteSelection()" style="color:#ff4444">Eliminar${plural} canción${n>1?'es':''}</div>`;
+    // Texto dinámico según contexto:
+    // - En playlist: "Quitar de la playlist" (NO borra de biblioteca)
+    // - En "Todas las canciones": "Eliminar canción" (borra de biblioteca)
+    const deleteLabel = currentPlaylist
+        ? `Quitar de la playlist${plural}`
+        : `Eliminar${plural} canción${n>1?'es':''} de la biblioteca`;
+    const deleteColor = currentPlaylist ? 'var(--text-dim)' : '#ff4444';
+    items += `<div class="ctx-item" onclick="deleteSelection()" style="color:${deleteColor}">${deleteLabel}</div>`;
     menu.innerHTML = items;
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
@@ -886,25 +1019,35 @@ async function showAddToPlaylist(songId) {
     hideContextMenu();
     const playlists = await WaveAPI.call('playlists.getAll') || [];
     const playableLists = playlists.filter(p => p.name !== 'Favoritos');
-    if (playableLists.length === 0) {
-        await modalAlert('Sin playlists', 'No hay playlists. Crea una primero con el botón +');
-        return;
+
+    let bodyHtml = '<div class="playlist-picker">';
+    bodyHtml += `<button class="modal-btn modal-btn-cancel playlist-picker-create" onclick="window._modalSelect='create';closeModal();">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px;vertical-align:middle"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+        Crear nueva playlist
+    </button>`;
+    if (playableLists.length > 0) {
+        playableLists.forEach((p, i) => {
+            bodyHtml += `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=${i};closeModal();">${escapeHtml(p.name)}</button>`;
+        });
     }
-    let bodyHtml = '<div style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;">';
-    playableLists.forEach((p, i) => {
-        bodyHtml += `<button class="modal-btn modal-btn-cancel" style="text-align:left;justify-content:flex-start" onclick="window._modalSelect=${i};closeModal();">${escapeHtml(p.name)}</button>`;
-    });
     bodyHtml += '</div>';
+
     showModal('Agregar a playlist', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">Cancelar</button>`);
     window._modalSelect = -1;
-    const check = setInterval(() => {
+    const check = setInterval(async () => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
             clearInterval(check);
-            const idx = window._modalSelect;
-            if (idx >= 0 && idx < playableLists.length) {
-                WaveAPI.call('playlists.addSongs', { playlistId: playableLists[idx].id, songIds: [songId] }).then(() => {
-                    loadPlaylists();
-                });
+            const sel = window._modalSelect;
+            if (sel === 'create') {
+                const name = await modalPrompt('Nombre de la nueva playlist', '');
+                if (name && name.trim()) {
+                    await WaveAPI.call('playlists.create', { name: name.trim(), songIds: [songId] });
+                    await loadPlaylists();
+                    await modalAlert('Playlist creada', `"${name}" creada con la canción.`);
+                }
+            } else if (typeof sel === 'number' && sel >= 0 && sel < playableLists.length) {
+                await WaveAPI.call('playlists.addSongs', { playlistId: playableLists[sel].id, songIds: [songId] });
+                await loadPlaylists();
             }
         }
     }, 50);
@@ -912,9 +1055,18 @@ async function showAddToPlaylist(songId) {
 
 async function deleteSong(songId) {
     hideContextMenu();
-    if (await modalConfirm('Eliminar canción', '¿Eliminar esta canción de la biblioteca?')) {
-        await WaveAPI.call('library.deleteSong', { songId });
-        await loadSongs();
+    if (currentPlaylist) {
+        // En playlist: quitar SOLO de la playlist
+        if (await modalConfirm('Quitar de playlist', `¿Quitar esta canción de "${currentPlaylist.name}"?\n\nNo se borrará de la biblioteca.`)) {
+            await WaveAPI.call('playlists.removeSong', { playlistId: currentPlaylist.id, songId });
+            await selectPlaylist(currentPlaylist);
+        }
+    } else {
+        // En "Todas las canciones": borrar de la biblioteca
+        if (await modalConfirm('Eliminar canción', '¿Eliminar esta canción de la biblioteca?\n\nSe borrará de TODAS las playlists.')) {
+            await WaveAPI.call('library.deleteSong', { songId });
+            await loadSongs();
+        }
     }
 }
 
