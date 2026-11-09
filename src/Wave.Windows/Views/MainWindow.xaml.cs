@@ -15,6 +15,8 @@ public partial class MainWindow : Window
 {
     private WebViewBridge? _bridge;
     private bool _isExiting = false;
+    /// <summary>Seteado por JS cuando el usuario ya confirmó salir vía modal HTML.</summary>
+    public bool JsConfirmedExit = false;
 
     public MainWindow()
     {
@@ -73,19 +75,25 @@ public partial class MainWindow : Window
     {
         if (_isExiting) { base.OnClosing(e); return; }
 
-        if (App.Services.GetService<TrayService>() is not null)
+        // Si JS ya confirmó la salida (modal HTML), salir sin pedir de nuevo
+        if (JsConfirmedExit)
         {
-            var result = MessageBox.Show(
-                "¿Minimizar a bandeja (Sí) o cerrar (No)?",
-                "Wave — Cerrar",
-                MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes) { e.Cancel = true; Hide(); return; }
-            if (result == MessageBoxResult.No) { _isExiting = true; base.OnClosing(e); Environment.Exit(0); return; }
-            e.Cancel = true; return;
+            _isExiting = true;
+            base.OnClosing(e);
+            Environment.Exit(0);
+            return;
         }
-        base.OnClosing(e);
-        Environment.Exit(0);
+
+        // Cierre no confirmado (Alt+F4, taskbar, etc): cancelar y disparar el modal HTML
+        e.Cancel = true;
+        try
+        {
+            if (WebView?.CoreWebView2 != null)
+            {
+                _ = WebView.CoreWebView2.ExecuteScriptAsync("if(typeof closeWindow==='function')closeWindow();");
+            }
+        }
+        catch { /* WebView no listo todavía */ }
     }
 
     private void Window_Drop(object sender, DragEventArgs e) { }

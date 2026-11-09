@@ -111,7 +111,11 @@ public class WebViewBridge
             // Window
             "window.minimize" => Invoke(() => Application.Current.MainWindow.WindowState = WindowState.Minimized),
             "window.maximize" => Invoke(() => Application.Current.MainWindow.WindowState = Application.Current.MainWindow.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized),
-            "window.close" => Invoke(() => Application.Current.MainWindow.Close()),
+            "window.close" => Invoke(() => {
+                // Marcar como confirmado por JS (el modal HTML ya se mostró) y cerrar
+                if (Application.Current.MainWindow is MainWindow mw) mw.JsConfirmedExit = true;
+                Application.Current.MainWindow.Close();
+            }),
             "window.toggleMiniPlayer" => ToggleMiniPlayer(),
             "window.openEqualizer" => OpenEqualizer(),
             "window.exportLogs" => ExportLogs(),
@@ -175,9 +179,35 @@ public class WebViewBridge
     private object? PlaySong(JsonElement p)
     {
         var songId = p.GetProperty("songId").GetInt64();
-        var all = _library.GetAllSongs();
-        var song = all.FirstOrDefault(s => s.Id == songId) ?? throw new ArgumentException($"Song {songId} not found");
-        _playback.SetQueue(all.ToList(), all.IndexOf(song), autoPlay: true);
+
+        List<Song> queue;
+        int startIndex;
+
+        // Si el JS envía songIds, usar SOLO esos (preserva contexto de playlist/vista actual)
+        // Esto es CRÍTICO para que shuffle/next/prev se mantengan dentro de la playlist actual.
+        if (p.TryGetProperty("songIds", out var idsEl) && idsEl.ValueKind == JsonValueKind.Array)
+        {
+            var ids = idsEl.Deserialize<List<long>>() ?? new List<long>();
+            var all = _library.GetAllSongs();
+            var byId = all.ToDictionary(s => s.Id);
+            queue = ids
+                .Where(id => byId.ContainsKey(id))
+                .Select(id => byId[id])
+                .ToList();
+            startIndex = queue.FindIndex(s => s.Id == songId);
+        }
+        else
+        {
+            // Sin contexto: usar toda la biblioteca (comportamiento legacy)
+            queue = _library.GetAllSongs().ToList();
+            startIndex = queue.FindIndex(s => s.Id == songId);
+        }
+
+        if (queue.Count == 0)
+            throw new ArgumentException($"Song {songId} not found in queue context");
+
+        if (startIndex < 0) startIndex = 0;
+        _playback.SetQueue(queue, startIndex, autoPlay: true);
         return null;
     }
 
@@ -346,6 +376,13 @@ public class WebViewBridge
     {
         var folderPath = p.GetProperty("folderPath").GetString()!;
         var playlistId = p.GetProperty("playlistId").GetInt64();
+
+        if (string.IsNullOrWhiteSpace(folderPath))
+            return new { added = 0, duplicates = 0, total = 0, cancelled = true, error = "Ruta vacía" };
+
+        if (!System.IO.Directory.Exists(folderPath))
+            return new { added = 0, duplicates = 0, total = 0, cancelled = true, error = "La carpeta no existe: " + folderPath };
+
         var result = await _library.ImportFromFolderAsync(folderPath, playlistId);
         return result;
     }

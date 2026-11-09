@@ -5,6 +5,9 @@ let isVolumeDragging = false;
 let lastVolumeChange = 0; // timestamp del último cambio de volumen del usuario
 let currentLyrics = null; let currentLyricIndex = -1;
 let currentLyricsSongId = null;
+// Multi-selección (Ctrl+click, Shift+click)
+let selectedSongIds = new Set();
+let lastClickedId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     WaveAPI.init();
@@ -57,6 +60,13 @@ function bindEvents() {
     document.addEventListener('click', () => {
         document.getElementById('context-menu').classList.add('hidden');
         document.getElementById('playlist-context-menu').classList.add('hidden');
+    });
+
+    // Esc limpia la selección
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && selectedSongIds.size > 0) {
+            clearSelection();
+        }
     });
 }
 
@@ -342,6 +352,8 @@ function showPlaylistContextMenu(e, pl) {
     const menu = document.getElementById('playlist-context-menu');
     let items = '';
     if (pl.name !== 'Favoritos') {
+        items += `<div class="ctx-item" onclick="addFolderToPlaylist(${pl.id})">Importar carpeta a esta playlist</div>`;
+        items += `<div class="ctx-separator"></div>`;
         items += `<div class="ctx-item" onclick="renamePlaylist(${pl.id}, '${escapeHtml(pl.name)}')">Editar nombre</div>`;
         items += `<div class="ctx-separator"></div>`;
         items += `<div class="ctx-item" onclick="deletePlaylist(${pl.id})">Eliminar lista</div>`;
@@ -352,6 +364,27 @@ function showPlaylistContextMenu(e, pl) {
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
     menu.classList.remove('hidden');
+}
+
+async function addFolderToPlaylist(playlistId) {
+    hideContextMenu();
+    const res = await WaveAPI.call('window.selectFolder', {});
+    if (!res || res.cancelled || !res.path) return;
+    const result = await WaveAPI.call('library.importFromFolderToPlaylist', {
+        folderPath: res.path,
+        playlistId
+    });
+    if (result && !result.cancelled) {
+        await loadPlaylists();
+        // Recargar vista si estamos en esa playlist
+        if (currentPlaylist && currentPlaylist.id === playlistId) {
+            await selectPlaylist(currentPlaylist);
+        }
+        await modalAlert('Importación completa',
+            `${result.added} canciones nuevas, ${result.duplicates} ya en biblioteca.`);
+    } else if (result && result.error) {
+        await modalAlert('Error', result.error);
+    }
 }
 
 async function renamePlaylist(id, oldName) {
@@ -428,16 +461,23 @@ async function createPlaylist() {
     const checkFolder = setInterval(() => {
         if (window._selectFolder) {
             window._selectFolder = false;
-            WaveAPI.call('window.selectFolder', {}).then(path => {
-                if (path && !path.cancelled) {
-                    window._selectedFolder = path;
+            WaveAPI.call('window.selectFolder', {}).then(res => {
+                // res = { cancelled: false, path: "C:\\..." }
+                if (res && !res.cancelled && res.path) {
+                    const folderStr = res.path;
+                    window._selectedFolder = folderStr;
                     const nameInput = document.getElementById(nameId);
                     if (nameInput && !nameInput.value) {
-                        const folderName = path.split('\\').pop().split('/').pop();
+                        const folderName = folderStr.split('\\').pop().split('/').pop();
                         nameInput.value = folderName;
                     }
-                    document.getElementById(folderId).textContent = '📁 ' + path;
+                    document.getElementById(folderId).innerHTML =
+                        `📁 <span style="color:var(--accent);word-break:break-all">${escapeHtml(folderStr)}</span>`;
+                } else {
+                    document.getElementById(folderId).textContent = 'No se seleccionó ninguna carpeta';
                 }
+            }).catch(err => {
+                document.getElementById(folderId).textContent = 'Error: ' + err;
             });
         }
     }, 100);
@@ -449,21 +489,34 @@ async function createPlaylist() {
             if (window._modalChoice === 'create') {
                 const name = document.getElementById(nameId)?.value || '';
                 if (name.trim()) {
-                    await WaveAPI.call('playlists.create', { name: name.trim() });
+                    const created = await WaveAPI.call('playlists.create', { name: name.trim() });
+                    let addedMsg = '';
                     if (window._selectedFolder) {
+                        // Buscar la playlist recién creada y cargar la carpeta
                         const playlists = await WaveAPI.call('playlists.getAll') || [];
-                        const created = playlists.find(p => p.name === name.trim());
-                        if (created) {
+                        const target = playlists.find(p => p.name === name.trim());
+                        if (target) {
                             const result = await WaveAPI.call('library.importFromFolderToPlaylist', {
                                 folderPath: window._selectedFolder,
-                                playlistId: created.id
+                                playlistId: target.id
                             });
-                            if (result) {
-                                await modalAlert('Playlist creada', `"${name}" creada con ${result.added} canciones.`);
+                            if (result && !result.cancelled) {
+                                addedMsg = `${result.added} canciones nuevas, ${result.duplicates} ya en biblioteca.`;
+                            } else {
+                                addedMsg = 'No se pudo importar la carpeta.';
                             }
+                        } else {
+                            addedMsg = 'No se encontró la playlist creada.';
                         }
+                    } else {
+                        addedMsg = 'Playlist vacía creada. Agrega canciones con clic derecho.';
                     }
                     await loadPlaylists();
+                    await modalAlert('Playlist creada', `"${name}" creada. ${addedMsg}`);
+                    // Seleccionar automáticamente la playlist recién creada
+                    const playlists = await WaveAPI.call('playlists.getAll') || [];
+                    const created2 = playlists.find(p => p.name === name.trim());
+                    if (created2) await selectPlaylist(created2);
                 }
             }
         }
@@ -496,7 +549,7 @@ function applySort() {
 function renderSongs() {
     const list = document.getElementById('songs-list');
     const empty = document.getElementById('empty-state');
-    if (filteredSongs.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    if (filteredSongs.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); updateSelectionBar(); return; }
     empty.classList.add('hidden');
     list.innerHTML = filteredSongs.map(s => {
         const title = s.displayTitle || s.title || s.fileName || 'Sin título';
@@ -505,7 +558,13 @@ function renderSongs() {
         const cover = s.artUri ? `<img src="file:///${(s.artUri||'').replace(/\\/g,'/')}" />` : '♪';
         const fav = s.isFavorite ? '♥' : '♡';
         const favClass = s.isFavorite ? 'fav-btn active' : 'fav-btn';
-        return `<div class="song-row" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
+        const isSelected = selectedSongIds.has(s.id);
+        const selClass = isSelected ? ' selected' : '';
+        const checkIcon = isSelected
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
+        return `<div class="song-row${selClass}" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
+            <div class="song-check" onclick="event.stopPropagation(); toggleRowSelection(${s.id}, event)">${checkIcon}</div>
             <div class="song-cover">${cover}</div>
             <div class="song-info"><div class="song-title">${escapeHtml(title)}</div><div class="song-artist">${escapeHtml(artist)}</div></div>
             <div class="song-album">${escapeHtml(album)}</div>
@@ -514,13 +573,105 @@ function renderSongs() {
         </div>`;
     }).join('');
 
-    // Event delegation: un solo click reproduce
+    // Click handler con soporte multi-selección (Ctrl/Shift)
     list.querySelectorAll('.song-row').forEach(row => {
-        row.onclick = () => {
+        row.onclick = (e) => {
             const id = parseInt(row.dataset.id);
-            playSong(id);
+            if (e.ctrlKey || e.metaKey) {
+                toggleRowSelection(id, e);
+            } else if (e.shiftKey && lastClickedId !== null) {
+                selectRange(lastClickedId, id);
+            } else {
+                // Click normal: limpiar selección y reproducir
+                clearSelection();
+                playSong(id);
+                lastClickedId = id;
+            }
         };
     });
+    updateSelectionBar();
+}
+
+function toggleRowSelection(id, e) {
+    if (selectedSongIds.has(id)) selectedSongIds.delete(id);
+    else selectedSongIds.add(id);
+    lastClickedId = id;
+    renderSongs();
+}
+
+function selectRange(fromId, toId) {
+    const fromIdx = filteredSongs.findIndex(s => s.id === fromId);
+    const toIdx = filteredSongs.findIndex(s => s.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const lo = Math.min(fromIdx, toIdx);
+    const hi = Math.max(fromIdx, toIdx);
+    for (let i = lo; i <= hi; i++) selectedSongIds.add(filteredSongs[i].id);
+    renderSongs();
+}
+
+function clearSelection() {
+    selectedSongIds.clear();
+    renderSongs();
+}
+
+function selectAll() {
+    filteredSongs.forEach(s => selectedSongIds.add(s.id));
+    renderSongs();
+}
+
+function updateSelectionBar() {
+    const bar = document.getElementById('selection-bar');
+    const count = document.getElementById('selection-count');
+    if (!bar || !count) return;
+    const n = selectedSongIds.size;
+    if (n > 0) {
+        bar.classList.remove('hidden');
+        count.textContent = `${n} seleccionada${n > 1 ? 's' : ''}`;
+    } else {
+        bar.classList.add('hidden');
+    }
+}
+
+async function addSelectionToPlaylist() {
+    const ids = Array.from(selectedSongIds);
+    if (ids.length === 0) return;
+    const playlists = await WaveAPI.call('playlists.getAll') || [];
+    const playableLists = playlists.filter(p => p.name !== 'Favoritos');
+    if (playableLists.length === 0) {
+        await modalAlert('Sin playlists', 'No hay playlists. Crea una primero con el botón +');
+        return;
+    }
+    let bodyHtml = '<div style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;">';
+    playableLists.forEach((p, i) => {
+        bodyHtml += `<button class="modal-btn modal-btn-cancel" style="text-align:left;justify-content:flex-start" onclick="window._modalSelect=${i};closeModal();">${escapeHtml(p.name)}</button>`;
+    });
+    bodyHtml += '</div>';
+    showModal(`Agregar ${ids.length} canciones a playlist`, bodyHtml,
+        `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">Cancelar</button>`);
+    window._modalSelect = -1;
+    const check = setInterval(() => {
+        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+            clearInterval(check);
+            const idx = window._modalSelect;
+            if (idx >= 0 && idx < playableLists.length) {
+                WaveAPI.call('playlists.addSongs', { playlistId: playableLists[idx].id, songIds: ids }).then(() => {
+                    loadPlaylists();
+                    clearSelection();
+                    modalAlert('Agregado', `${ids.length} canciones agregadas a "${playableLists[idx].name}"`);
+                });
+            }
+        }
+    }, 50);
+}
+
+async function deleteSelection() {
+    const ids = Array.from(selectedSongIds);
+    if (ids.length === 0) return;
+    if (await modalConfirm('Eliminar canciones', `¿Eliminar ${ids.length} canciones de la biblioteca?`)) {
+        for (const id of ids) await WaveAPI.call('library.deleteSong', { songId: id });
+        clearSelection();
+        await loadSongs();
+    }
 }
 
 function updateCount() {
@@ -529,7 +680,12 @@ function updateCount() {
 }
 
 // === Playback ===
-async function playSong(songId) { await WaveAPI.call('playback.playSong', { songId }); }
+// El contexto (IDs visibles actualmente) se envía para que shuffle/next/prev
+// se mantengan DENTRO de la playlist/vista activa y NO mezclen con toda la biblioteca.
+async function playSong(songId) {
+    const songIds = filteredSongs.map(s => s.id);
+    await WaveAPI.call('playback.playSong', { songId, songIds });
+}
 
 async function toggleFavorite(songId) {
     const song = allSongs.find(s => s.id === songId);
@@ -640,18 +796,32 @@ function showContextMenu(e, songId) {
     const menu = document.getElementById('context-menu');
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
+
+    // Si la canción no está seleccionada y hay otras seleccionadas, resetear selección a esta
+    if (!selectedSongIds.has(songId) && selectedSongIds.size > 0) {
+        clearSelection();
+    }
+    // Asegurar que al menos esta canción esté seleccionada
+    if (selectedSongIds.size === 0) {
+        selectedSongIds.add(songId);
+        renderSongs();
+    }
+
+    const n = selectedSongIds.size;
+    const plural = n > 1 ? ` (${n} canciones)` : '';
     let items = '';
-    // Agregar a playlist submenu
-    items += `<div class="ctx-item" onclick="showAddToPlaylist(${songId})">Agregar a playlist...</div>`;
+    items += `<div class="ctx-item" onclick="addSelectionToPlaylist()">Agregar a playlist...${plural}</div>`;
     if (currentPlaylist) {
-        items += `<div class="ctx-item" onclick="removeFromPlaylist(${songId})">Eliminar de playlist</div>`;
+        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">Eliminar de playlist${plural}</div>`;
     }
     items += `<div class="ctx-separator"></div>`;
-    items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${song.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}</div>`;
-    items += `<div class="ctx-separator"></div>`;
-    items += `<div class="ctx-item" onclick="editSong(${songId})">Editar información</div>`;
-    items += `<div class="ctx-separator"></div>`;
-    items += `<div class="ctx-item" onclick="deleteSong(${songId})" style="color:#ff4444">Eliminar canción</div>`;
+    if (n === 1) {
+        items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${song.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}</div>`;
+        items += `<div class="ctx-separator"></div>`;
+        items += `<div class="ctx-item" onclick="editSong(${songId})">Editar información</div>`;
+        items += `<div class="ctx-separator"></div>`;
+    }
+    items += `<div class="ctx-item" onclick="deleteSelection()" style="color:#ff4444">Eliminar${plural} canción${n>1?'es':''}</div>`;
     menu.innerHTML = items;
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
@@ -716,6 +886,18 @@ async function removeFromPlaylist(songId) {
     hideContextMenu();
     if (!currentPlaylist) return;
     await WaveAPI.call('playlists.removeSong', { playlistId: currentPlaylist.id, songId });
+    await selectPlaylist(currentPlaylist);
+}
+
+async function removeSelectedFromPlaylist() {
+    hideContextMenu();
+    if (!currentPlaylist) return;
+    const ids = Array.from(selectedSongIds);
+    if (ids.length === 0) return;
+    for (const id of ids) {
+        await WaveAPI.call('playlists.removeSong', { playlistId: currentPlaylist.id, songId: id });
+    }
+    clearSelection();
     await selectPlaylist(currentPlaylist);
 }
 

@@ -72,10 +72,15 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 
 /* Song list */
 #songs-list { display: flex; flex-direction: column; gap: 2px; }
-.song-row { display: grid; grid-template-columns: 48px 1fr auto 32px 60px; gap: 12px; align-items: center; padding: 8px 12px; border-radius: var(--radius); cursor: pointer; transition: background 0.1s; }
+.song-row { display: grid; grid-template-columns: 24px 48px 1fr auto 32px 60px; gap: 10px; align-items: center; padding: 8px 12px; border-radius: var(--radius); cursor: pointer; transition: background 0.1s; }
 .song-row:hover { background: var(--surface); }
+.song-row.selected { background: rgba(50, 201, 139, 0.12); }
+.song-row.selected:hover { background: rgba(50, 201, 139, 0.18); }
 .song-row.playing { background: var(--surface-light); }
 .song-row.playing .song-title { color: var(--accent); }
+.song-check { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); opacity: 0.4; transition: opacity 0.1s; cursor: default; }
+.song-row:hover .song-check { opacity: 0.8; }
+.song-row.selected .song-check { opacity: 1; color: var(--accent); }
 .song-cover { width: 48px; height: 48px; border-radius: 4px; background: var(--accent-dim); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 20px; color: rgba(0,0,0,0.3); }
 .song-cover img { width: 100%; height: 100%; object-fit: cover; }
 .song-info { min-width: 0; }
@@ -86,6 +91,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .fav-btn:hover { opacity: 1; color: var(--text-dim); }
 .fav-btn.active { opacity: 1; color: #ff4444; }
 .song-duration { font-size: 12px; color: var(--text-dim); text-align: right; }
+
+/* Selection bar (multi-selección) */
+.selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; margin-bottom: 6px; background: rgba(50, 201, 139, 0.08); border: 1px solid rgba(50, 201, 139, 0.25); border-radius: var(--radius); font-size: 13px; color: var(--accent); }
+.selection-actions { display: flex; gap: 6px; align-items: center; }
+.btn-primary.small { padding: 6px 12px; font-size: 12px; }
 
 /* Empty state */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text-dim); }
