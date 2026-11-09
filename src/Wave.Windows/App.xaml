@@ -11,6 +11,20 @@
                 <ResourceDictionary Source="Themes/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Plantilla de ProgressBar (solo el relleno verde, sin track ni borde) -->
+            <ControlTemplate x:Key="MiniProgressTemplate" TargetType="ProgressBar">
+                <Grid ClipToBounds="True">
+                    <!-- Track de fondo: bar blanca semi-transparente -->
+                    <Border Background="#33FFFFFF" CornerRadius="2"/>
+                    <!-- Relleno verde que se ensancha con el Value (PART_Indicator) -->
+                    <Border x:Name="PART_Indicator"
+                            Background="{TemplateBinding Foreground}"
+                            CornerRadius="2"
+                            HorizontalAlignment="Left"/>
+                    <!-- PART_Tracker es opcional, no necesario para esta plantilla -->
+                </Grid>
+            </ControlTemplate>
+
             <!-- Plantilla de Slider con thumb circular (bolita) para el mini player -->
             <ControlTemplate x:Key="MiniSliderTemplate" TargetType="Slider">
                 <Grid>
