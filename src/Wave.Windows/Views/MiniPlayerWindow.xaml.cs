@@ -42,34 +42,6 @@ public partial class MiniPlayerWindow : Window
         }
     }
 
-    /// <summary>Click en cover → abrir reproductor principal.</summary>
-    private void Cover_Click(object sender, MouseButtonEventArgs e)
-    {
-        e.Handled = true;
-        GoToMain();
-    }
-
-    /// <summary>Click en info (título/artista) → abrir reproductor principal.</summary>
-    private void Info_Click(object sender, MouseButtonEventArgs e)
-    {
-        e.Handled = true;
-        GoToMain();
-    }
-
-    /// <summary>Abre la ventana principal y cierra el mini player.</summary>
-    private void GoToMain()
-    {
-        foreach (Window w in System.Windows.Application.Current.Windows)
-        {
-            if (w is MainWindow main)
-            {
-                main.ShowFromTray();
-                break;
-            }
-        }
-        // No cerrar el mini player, solo mostrar el grande
-    }
-
     private void PlayPause_Click(object sender, RoutedEventArgs e) => _playback.TogglePlayPause();
     private void Prev_Click(object sender, RoutedEventArgs e) => _playback.SkipToPrevious();
     private void Next_Click(object sender, RoutedEventArgs e) => _playback.SkipToNext();

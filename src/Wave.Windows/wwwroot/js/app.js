@@ -439,7 +439,7 @@ async function createPlaylist() {
         }
     }, 100);
 
-    const check = setInterval(() => {
+    const check = setInterval(async () => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
             clearInterval(check);
             clearInterval(checkFolder);
@@ -447,9 +447,7 @@ async function createPlaylist() {
                 const name = document.getElementById(nameId)?.value || '';
                 if (name.trim()) {
                     await WaveAPI.call('playlists.create', { name: name.trim() });
-                    // Si hay carpeta, importar música a esa playlist
                     if (window._selectedFolder) {
-                        // Primero crear la playlist, luego importar
                         const playlists = await WaveAPI.call('playlists.getAll') || [];
                         const created = playlists.find(p => p.name === name.trim());
                         if (created) {
