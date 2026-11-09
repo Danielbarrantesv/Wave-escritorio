@@ -415,7 +415,7 @@ function renderSongs() {
         const cover = s.artUri ? `<img src="file:///${(s.artUri||'').replace(/\\/g,'/')}" />` : '♪';
         const fav = s.isFavorite ? '♥' : '♡';
         const favClass = s.isFavorite ? 'fav-btn active' : 'fav-btn';
-        return `<div class="song-row" data-id="${s.id}" onclick="playSong(${s.id})" oncontextmenu="showContextMenu(event, ${s.id})">
+        return `<div class="song-row" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
             <div class="song-cover">${cover}</div>
             <div class="song-info"><div class="song-title">${escapeHtml(title)}</div><div class="song-artist">${escapeHtml(artist)}</div></div>
             <div class="song-album">${escapeHtml(album)}</div>
@@ -423,6 +423,14 @@ function renderSongs() {
             <div class="song-duration">${formatDuration(s.durationMs)}</div>
         </div>`;
     }).join('');
+
+    // Event delegation: un solo click reproduce
+    list.querySelectorAll('.song-row').forEach(row => {
+        row.onclick = () => {
+            const id = parseInt(row.dataset.id);
+            playSong(id);
+        };
+    });
 }
 
 function updateCount() {
