@@ -16,8 +16,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSongs();
     await loadPlaylists();
     await initVolume();
-    // Render slider de recientes al arrancar (localStorage)
+    // Render sliders al arrancar
     renderRecentSlider();
+    renderArtistsSlider();
     // Consultar estado inicial de playback para sincronizar el ícono play/pausa
     try {
         const state = await WaveAPI.call('playback.getState');
@@ -371,6 +372,8 @@ function showSongsView() {
 async function loadSongs() {
     allSongs = await WaveAPI.call('library.getSongs') || [];
     applyFilter(); applySort(); renderSongs(); updateCount();
+    // Actualizar slider de artistas cuando cambia la biblioteca
+    renderArtistsSlider();
 }
 
 async function loadPlaylists() {
@@ -791,9 +794,9 @@ async function toggleFavorite(songId) {
     await loadSongs();
 }
 
-// === Recent songs slider (últimas 20 reproducidas, persistente) ===
+// === Recent songs slider (últimas 30 reproducidas, persistente) ===
 const RECENT_KEY = 'recent_songs_v1';
-const RECENT_MAX = 20;
+const RECENT_MAX = 30;
 
 function loadRecentSongs() {
     try {
@@ -852,6 +855,62 @@ function renderRecentSlider() {
 function updateRecentPlaying(songId) {
     document.querySelectorAll('.recent-card').forEach(c => {
         c.classList.toggle('playing', parseInt(c.dataset.id) === songId);
+    });
+}
+
+// === Artists slider ===
+// Agrupa canciones por artista, toma una portada por artista (la primera con cover),
+// y muestra el total de canciones del artista.
+function renderArtistsSlider() {
+    const section = document.getElementById('artists-section');
+    const slider = document.getElementById('artists-slider');
+    if (!slider) return;
+    if (allSongs.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    // Agrupar por artista (case-insensitive, sin empty)
+    const groups = {};
+    for (const s of allSongs) {
+        const name = (s.displayArtist || s.artist || '').trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (!groups[key]) {
+            groups[key] = { name, songs: [], coverUri: null };
+        }
+        groups[key].songs.push(s);
+        if (!groups[key].coverUri && s.artUri) groups[key].coverUri = s.artUri;
+    }
+
+    const artists = Object.values(groups).sort((a, b) => b.songs.length - a.songs.length);
+    if (artists.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+
+    const placeholderSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg>';
+
+    slider.innerHTML = artists.map(a => {
+        const cover = a.coverUri
+            ? `<img src="file:///${(a.coverUri||'').replace(/\\/g,'/')}" />`
+            : `<div class="recent-placeholder">${placeholderSvg}</div>`;
+        return `<div class="artist-card" data-artist="${escapeHtml(a.name)}" title="${escapeHtml(a.name)} — ${a.songs.length} canciones">
+            <div class="artist-cover">${cover}<span class="count-badge">${a.songs.length}</span></div>
+            <div class="artist-name">${escapeHtml(a.name)}</div>
+        </div>`;
+    }).join('');
+
+    // Click en card → filtrar la biblioteca por ese artista (usando el search)
+    slider.querySelectorAll('.artist-card').forEach(card => {
+        card.onclick = () => {
+            const artistName = card.dataset.artist;
+            if (!artistName) return;
+            const search = document.getElementById('search');
+            search.value = artistName;
+            onSearch();
+        };
     });
 }
 
