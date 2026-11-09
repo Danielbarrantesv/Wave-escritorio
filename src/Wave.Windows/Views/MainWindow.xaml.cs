@@ -30,6 +30,11 @@ public partial class MainWindow : Window
         {
             await WebView.EnsureCoreWebView2Async(null);
 
+            // Bloquear menú contextual nativo (Atrás/Actualizar/Guardar como/Imprimir/...)
+            WebView.CoreWebView2.Settings.AreDefaultContextMenuEnabled = false;
+            // Bloquear aceleradores del navegador (F5 actualizar, Ctrl+S guardar, etc.)
+            WebView.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
+
             // Navegar directamente al index.html via file:// protocol
             var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
             WaveLogger.Info($"Loading WebView2 from: {wwwrootPath}");

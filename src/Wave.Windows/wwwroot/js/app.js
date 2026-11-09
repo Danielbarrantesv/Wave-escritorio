@@ -201,6 +201,7 @@ async function onVolumeChange(e) {
     const vol = parseInt(e.target.value) / 100;
     await WaveAPI.call('playback.setVolume', { volume: vol });
     updateVolumeIcon(parseInt(e.target.value));
+    updateVolumeBarFill();
 }
 
 function updateVolumeIcon(volPercent) {
@@ -235,6 +236,8 @@ async function initVolume() {
     const state = await WaveAPI.call('playback.getState');
     if (state) {
         document.getElementById('volume-bar').value = Math.round((state.volume || 1) * 100);
+        updateVolumeBarFill();
+        updateVolumeIcon(Math.round((state.volume || 1) * 100));
     }
 }
 
@@ -681,8 +684,10 @@ function updateSelectionBar() {
     if (n > 0) {
         bar.classList.remove('hidden');
         count.textContent = `${n} seleccionada${n > 1 ? 's' : ''}`;
+        document.body.classList.add('has-selection');
     } else {
         bar.classList.add('hidden');
+        document.body.classList.remove('has-selection');
     }
 }
 
@@ -918,7 +923,40 @@ function onPlaybackChanged(state) {
     window._lastPlaybackState = state;
     if (!state) return;
     const playIcon = document.getElementById('play-icon');
+
+    // Si la canción cambió y llegó un evento de "pausa" muy rápido (probablemente
+    // porque el engine está cargando la siguiente), ignoramos esa pausa momentánea
+    // para que el icono NO salte a "play" y se mantenga en "pausa" como el usuario espera.
+    if (!state.isPlaying && state.currentSong) {
+        const songId = state.currentSong.id;
+        if (window._lastSongId !== songId) {
+            // Canción cambió. Si justo ahora llegó una pausa y antes estaba sonando,
+            // asumimos que es la transición entre canciones: mantener el icono actual.
+            if (playIcon.dataset.playing === 'true') {
+                // ignorar esta pausa momentánea — el engine terminará de cargar y disparará IsPlaying=true
+                // pero si en 500ms no llega un nuevo evento de playing, sí mostramos pausa
+                if (window._pendingPauseTimer) clearTimeout(window._pendingPauseTimer);
+                window._pendingPauseTimer = setTimeout(() => {
+                    if (!window._lastPlaybackState.isPlaying) {
+                        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                        playIcon.dataset.playing = 'false';
+                    }
+                }, 500);
+                window._lastSongId = songId;
+                // Actualizar info de canción sin tocar el icono
+                updatePlayerSongInfo(state);
+                updateSeekBar(state);
+                updateShuffleRepeat(state);
+                updateVolumeDisplay(state);
+                handleLyricsAndRecents(state);
+                return;
+            }
+        }
+        window._lastSongId = songId;
+    }
+
     if (state.isPlaying) {
+        if (window._pendingPauseTimer) { clearTimeout(window._pendingPauseTimer); window._pendingPauseTimer = null; }
         playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
         playIcon.dataset.playing = 'true';
     } else {
@@ -926,63 +964,93 @@ function onPlaybackChanged(state) {
         playIcon.dataset.playing = 'false';
     }
 
-    if (state.currentSong) {
-        const title = state.currentSong.displayTitle || state.currentSong.title || 'Sin título';
-        const artist = state.currentSong.displayArtist || state.currentSong.artist || '—';
-        const titleEl = document.getElementById('player-title');
-        const artistEl = document.getElementById('player-artist');
-        titleEl.textContent = title;
-        artistEl.textContent = artist;
-        // Marquee si el texto es muy largo para caber (aprox >25 chars)
-        titleEl.classList.toggle('marquee', title.length > 25);
-        artistEl.classList.toggle('marquee', artist.length > 30);
-        const cover = document.getElementById('player-cover');
-        if (state.currentSong.artUri)
-            cover.innerHTML = `<img src="file:///${state.currentSong.artUri.replace(/\\/g,'/')}" />`;
-        else cover.innerHTML = `<div class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24px" width="24px" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
-        document.querySelectorAll('.song-row').forEach(el => el.classList.remove('playing'));
-        const row = document.querySelector(`[data-id="${state.currentSong.id}"]`);
-        if (row) row.classList.add('playing');
-        // Actualizar highlight en el slider de recientes
-        updateRecentPlaying(state.currentSong.id);
-    }
+    updatePlayerSongInfo(state);
+    updateSeekBar(state);
+    updateShuffleRepeat(state);
+    updateVolumeDisplay(state);
+    handleLyricsAndRecents(state);
+    if (currentLyrics && currentLyrics.isSynced) updateLyricsHighlight(state.positionMs);
+}
 
+// Helpers extraídos de onPlaybackChanged para evitar duplicación
+function updatePlayerSongInfo(state) {
+    if (!state.currentSong) return;
+    const title = state.currentSong.displayTitle || state.currentSong.title || 'Sin título';
+    const artist = state.currentSong.displayArtist || state.currentSong.artist || '—';
+    const titleEl = document.getElementById('player-title');
+    const artistEl = document.getElementById('player-artist');
+    titleEl.textContent = title;
+    artistEl.textContent = artist;
+    titleEl.classList.toggle('marquee', title.length > 25);
+    artistEl.classList.toggle('marquee', artist.length > 30);
+    const cover = document.getElementById('player-cover');
+    if (state.currentSong.artUri)
+        cover.innerHTML = `<img src="file:///${state.currentSong.artUri.replace(/\\/g,'/')}" />`;
+    else cover.innerHTML = `<div class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24px" width="24px" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
+    document.querySelectorAll('.song-row').forEach(el => el.classList.remove('playing'));
+    const row = document.querySelector(`[data-id="${state.currentSong.id}"]`);
+    if (row) row.classList.add('playing');
+    updateRecentPlaying(state.currentSong.id);
+}
+
+function updateSeekBar(state) {
+    const seek = document.getElementById('seek-bar');
+    const dur = state.durationMs || 100, pos = state.positionMs || 0;
     if (!isSeeking) {
-        const seek = document.getElementById('seek-bar');
-        const dur = state.durationMs || 100, pos = state.positionMs || 0;
         seek.max = dur; seek.value = pos;
     }
     document.getElementById('time-current').textContent = formatDuration(state.positionMs);
     document.getElementById('time-total').textContent = formatDuration(state.durationMs);
+    updateSeekBarFill();
+}
 
-    // Shuffle/repeat visual state
+// Relleno visual del seek-bar con gradient verde-oscuro
+function updateSeekBarFill() {
+    const seek = document.getElementById('seek-bar');
+    if (!seek) return;
+    const max = parseFloat(seek.max) || 100;
+    const val = parseFloat(seek.value) || 0;
+    const pct = Math.max(0, Math.min(100, (val / max) * 100));
+    seek.style.backgroundImage = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+}
+
+// Relleno visual del volume-bar con gradient verde-oscuro
+function updateVolumeBarFill() {
+    const bar = document.getElementById('volume-bar');
+    if (!bar) return;
+    const max = parseFloat(bar.max) || 100;
+    const val = parseFloat(bar.value) || 0;
+    const pct = Math.max(0, Math.min(100, (val / max) * 100));
+    bar.style.backgroundImage = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+}
+
+function updateShuffleRepeat(state) {
     document.getElementById('btn-shuffle').classList.toggle('active', state.isShuffle);
     document.getElementById('btn-repeat').classList.toggle('active', state.repeatOne);
+}
 
-    // Volume - solo actualizar si el usuario NO cambió el volumen en los últimos 3s
+function updateVolumeDisplay(state) {
     const now = Date.now();
     if (!isVolumeDragging && (now - lastVolumeChange > 3000)) {
         document.getElementById('volume-bar').value = Math.round((state.volume || 1) * 100);
         updateVolumeIcon(Math.round((state.volume || 1) * 100));
     }
+    updateVolumeBarFill();
+}
 
-    // Lyrics + recientes - recargar si la canción cambió
-    if (state.currentSong) {
-        const songId = state.currentSong.id;
-        const sidePanel = document.getElementById('side-panel');
-        if (sidePanel && sidePanel.dataset.mode === 'lyrics' && songId !== currentLyricsSongId) {
-            currentLyricsSongId = songId;
-            // Actualizar fondo con la nueva portada
-            updateSidePanelBackground();
-            setTimeout(() => reloadLyrics(state.currentSong), 0);
-        }
-        // Solo agregar a recientes si la canción cambia (no en cada tick de posición)
-        if (songId !== window._lastRecentPushedId) {
-            window._lastRecentPushedId = songId;
-            pushRecentSong(state.currentSong);
-        }
+function handleLyricsAndRecents(state) {
+    if (!state.currentSong) return;
+    const songId = state.currentSong.id;
+    const sidePanel = document.getElementById('side-panel');
+    if (sidePanel && sidePanel.dataset.mode === 'lyrics' && songId !== currentLyricsSongId) {
+        currentLyricsSongId = songId;
+        updateSidePanelBackground();
+        setTimeout(() => reloadLyrics(state.currentSong), 0);
     }
-    if (currentLyrics && currentLyrics.isSynced) updateLyricsHighlight(state.positionMs);
+    if (songId !== window._lastRecentPushedId) {
+        window._lastRecentPushedId = songId;
+        pushRecentSong(state.currentSong);
+    }
 }
 
 async function reloadLyrics(song) {
@@ -1022,6 +1090,7 @@ function updateLyricsHighlight(positionMs) {
 function onSeek(e) {
     isSeeking = true;
     document.getElementById('time-current').textContent = formatDuration(parseInt(e.target.value));
+    updateSeekBarFill();
 }
 function onSeekEnd(e) {
     WaveAPI.call('playback.seek', { positionMs: parseInt(e.target.value) });

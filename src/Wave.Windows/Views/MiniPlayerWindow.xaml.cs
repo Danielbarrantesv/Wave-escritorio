@@ -30,6 +30,19 @@ public partial class MiniPlayerWindow : Window
                         : System.Windows.Media.Geometry.Parse("M8,19V5l11,7L8,19Zm2-7Zm0,3.35L15.25,12L10,8.65v6.7Z");
                 });
             }
+            else if (e.PropertyName == nameof(PlaybackController.PositionMs) ||
+                     e.PropertyName == nameof(PlaybackController.DurationMs))
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    var dur = _playback.DurationMs;
+                    var pos = _playback.PositionMs;
+                    if (dur > 0)
+                        ProgressBar.Value = Math.Min(100, (pos * 100.0) / dur);
+                    else
+                        ProgressBar.Value = 0;
+                });
+            }
         };
     }
 
@@ -61,13 +74,32 @@ public partial class MiniPlayerWindow : Window
         ShowMain();
     }
 
+    private DateTime _lastShowMainClick = DateTime.MinValue;
+
+    /// <summary>
+    /// Click en cover/info: alterna entre mostrar/ocultar el reproductor principal.
+    /// Si el principal ya está visible y activo (último click < 1.5s), lo minimiza.
+    /// Si no, lo muestra.
+    /// </summary>
     private void ShowMain()
     {
+        var now = DateTime.UtcNow;
+        var isDoubleClick = (now - _lastShowMainClick).TotalMilliseconds < 1500;
+        _lastShowMainClick = now;
+
         foreach (Window w in System.Windows.Application.Current.Windows)
         {
             if (w is MainWindow main)
             {
-                main.ShowFromTray();
+                if (isDoubleClick && main.WindowState != WindowState.Minimized && main.IsActive)
+                {
+                    // Ya estaba visible y activo: minimizar
+                    main.WindowState = WindowState.Minimized;
+                }
+                else
+                {
+                    main.ShowFromTray();
+                }
                 break;
             }
         }
