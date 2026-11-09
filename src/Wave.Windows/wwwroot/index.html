@@ -116,11 +116,31 @@
                                     <div class="settings-group-title">Interfaz</div>
                                     <div class="settings-row">
                                         <label>Tema</label>
-                                        <select id="set-theme" class="settings-select"><option value="dark">Oscuro</option><option value="light" disabled>Claro (próximamente)</option></select>
+                                        <select id="set-theme" class="settings-select"><option value="dark">Oscuro</option><option value="light">Claro</option></select>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Color de acento</label>
+                                        <div class="color-picker" id="set-accent-picker">
+                                            <span class="color-dot" data-color="green" style="background:#32c98b"></span>
+                                            <span class="color-dot" data-color="red" style="background:#e83838"></span>
+                                            <span class="color-dot" data-color="orange" style="background:#ff8c1a"></span>
+                                            <span class="color-dot" data-color="yellow" style="background:#ffcc00"></span>
+                                            <span class="color-dot" data-color="blue" style="background:#1a8cff"></span>
+                                            <span class="color-dot" data-color="cyan" style="background:#00d4ff"></span>
+                                            <span class="color-dot" data-color="magenta" style="background:#ff2da8"></span>
+                                            <span class="color-dot" data-color="purple" style="background:#9c27ff"></span>
+                                        </div>
                                     </div>
                                     <div class="settings-row">
                                         <label>Idioma</label>
-                                        <select id="set-language" class="settings-select"><option value="es">Español</option><option value="en" disabled>English (próximamente)</option></select>
+                                        <select id="set-language" class="settings-select">
+                                            <option value="es">Español</option>
+                                            <option value="en">English</option>
+                                            <option value="fr">Français</option>
+                                            <option value="de">Deutsch</option>
+                                            <option value="ja">日本語</option>
+                                            <option value="ko">한국어</option>
+                                        </select>
                                     </div>
                                     <div class="settings-row">
                                         <label>Animaciones</label>
@@ -142,7 +162,7 @@
                                     <div class="settings-group-title">Acerca de</div>
                                     <div class="about-card">
                                         <div class="about-author">Daniel Barrantes Villarevia</div>
-                                        <div class="about-version">Wave for Windows <span id="about-version">v1.8.0</span></div>
+                                        <div class="about-version">Wave for Windows <span id="about-version">v1.9.0</span></div>
                                         <div class="about-tech">.NET 8 + WebView2 + NAudio</div>
                                     </div>
                                     <button class="settings-btn" onclick="settingsReportBug()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-2.81a5.985 5.985 0 0 0-1.82-1.96L17 4.41 15.59 3l-2.34 2.34C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.24 3 6.83 4.41l1.62 1.63C7.26 6.46 6.46 7.13 5.81 8H3v2h2.09c-.05.33-.09.66-.09 1v1H3v2h2v1c0 .34.04.67.09 1H3v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H19v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20zm-6 8h-4v-2h4zm0-4h-4v-2h4z"/></svg>Reportar bug</button>

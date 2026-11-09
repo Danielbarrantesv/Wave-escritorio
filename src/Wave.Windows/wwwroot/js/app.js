@@ -14,9 +14,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     WaveAPI.onPlaybackChanged = onPlaybackChanged;
     bindEvents();
     // Cargar y aplicar settings guardadas al iniciar
-    const settings = loadSettings();
+    let settings = loadSettings();
     applySettings(settings);
     bindSettingsAutoSave();
+    // Primera vez: mostrar selector de idioma
+    if (settings.firstRun) {
+        const lang = await showFirstRunLanguagePicker();
+        settings.language = lang;
+        settings.firstRun = false;
+        saveSettings(settings);
+        applySettings(settings);
+    }
     await loadSongs();
     await loadPlaylists();
     await initVolume();
@@ -1383,9 +1391,11 @@ function defaultSettings() {
         confirmDelete: true,
         rescanTags: false,
         theme: 'dark',
+        accent: 'green',
         language: 'es',
         animations: true,
-        showSliders: true
+        showSliders: true,
+        firstRun: true
     };
 }
 
@@ -1416,9 +1426,14 @@ function loadSettingsToForm() {
     document.getElementById('set-language').value = s.language;
     document.getElementById('set-animations').checked = s.animations;
     document.getElementById('set-show-sliders').checked = s.showSliders;
+    // Marcar el color de accent seleccionado en el color picker
+    document.querySelectorAll('.color-dot').forEach(dot => {
+        dot.classList.toggle('selected', dot.dataset.color === s.accent);
+    });
 }
 
 function getSettingsFromForm() {
+    const accent = document.querySelector('.color-dot.selected')?.dataset.color || 'green';
     return {
         volumeInitial: parseInt(document.getElementById('set-volume-initial').value),
         repeatAll: document.getElementById('set-repeat-all').checked,
@@ -1429,9 +1444,11 @@ function getSettingsFromForm() {
         confirmDelete: document.getElementById('set-confirm-delete').checked,
         rescanTags: document.getElementById('set-rescan-tags').checked,
         theme: document.getElementById('set-theme').value,
+        accent: accent,
         language: document.getElementById('set-language').value,
         animations: document.getElementById('set-animations').checked,
-        showSliders: document.getElementById('set-show-sliders').checked
+        showSliders: document.getElementById('set-show-sliders').checked,
+        firstRun: false
     };
 }
 
@@ -1449,10 +1466,23 @@ function bindSettingsAutoSave() {
             setTimeout(() => { panel.style.background = ''; }, 200);
         });
     });
+    // Click en los colores de accent
+    document.querySelectorAll('.color-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+            dot.classList.add('selected');
+            const settings = getSettingsFromForm();
+            saveSettings(settings);
+            applySettings(settings);
+        });
+    });
 }
 
 // Aplicar settings al estado actual de la app
 function applySettings(settings) {
+    // Aplicar tema y accent al <html>
+    document.documentElement.setAttribute('data-theme', settings.theme || 'dark');
+    document.documentElement.setAttribute('data-accent', settings.accent || 'green');
     // Toggle animaciones
     document.body.classList.toggle('no-animations', !settings.animations);
     // Toggle sliders de recientes y artistas
@@ -1460,6 +1490,8 @@ function applySettings(settings) {
     const artists = document.getElementById('artists-section');
     if (recent) recent.style.display = settings.showSliders ? '' : 'none';
     if (artists) artists.style.display = settings.showSliders ? '' : 'none';
+    // Aplicar idioma
+    applyLanguage(settings.language || 'es');
 }
 
 // Acciones de los botones de settings
@@ -1500,5 +1532,225 @@ async function settingsReportBug() {
 }
 
 async function settingsShowChangelog() {
-    await modalAlert('Changelog', 'v1.8.0 — Sección Configuración completa como panel lateral\nv1.7.11 — Mini player slider con bolita visible\nv1.7.9 — Bolita mini player al frente\nv1.7.7 — Icono close del mini player arreglado\nv1.7.5 — Limpiar search al cambiar playlist + slider mini player + corazón playerbar + scrollbar pintada + fix marquee\nv1.7.4 — Bloquear context menu nativo + selection sticky + mini player toggle + icono play/pausa estable + barras con relleno\nv1.7.1 — Botón crear playlist visible + slider artistas + sticky + RECENT_MAX=30\nv1.7.0 — UI overhaul: side panel fixed, marquee, recientes, favoritos sync, delete contextual\nv1.6.1 — Side panel lyrics/EQ + UI play/pausa + animaciones\nv1.6.0 — Shuffle respeta playlist + multi-selección + fix diálogo doble\nv1.5.2 — Mini player click cover/info + playlist pierde canciones + más espacio iconos');
+    await modalAlert('Changelog', 'v1.9.0 — Tema claro + 8 colores de accent + 6 idiomas + i18n + fix toggle switch\nv1.8.1 — Sección Configuración completa como panel lateral\nv1.7.11 — Mini player slider con bolita visible\nv1.7.9 — Bolita mini player al frente\nv1.7.7 — Icono close del mini player arreglado\nv1.7.5 — Limpiar search al cambiar playlist + slider mini player + corazón playerbar + scrollbar pintada + fix marquee\nv1.7.4 — Bloquear context menu nativo + selection sticky + mini player toggle + icono play/pausa estable + barras con relleno\nv1.7.1 — Botón crear playlist visible + slider artistas + sticky + RECENT_MAX=30\nv1.7.0 — UI overhaul: side panel fixed, marquee, recientes, favoritos sync, delete contextual\nv1.6.1 — Side panel lyrics/EQ + UI play/pausa + animaciones\nv1.6.0 — Shuffle respeta playlist + multi-selección + fix diálogo doble\nv1.5.2 — Mini player click cover/info + playlist pierde canciones + más espacio iconos');
+}
+
+// === Internationalization (i18n) ===
+// Diccionario de traducciones para los textos principales de la UI.
+// Las claves son data-i18n attributes en el HTML; al cambiar el idioma se
+// buscan todos los [data-i18n] y se actualiza su texto.
+const I18N = {
+    es: {
+        app_title: 'Wave', add_music: '+ Agregar música', search_placeholder: 'Buscar canciones, artistas, álbumes...',
+        all_songs: 'Todas las canciones', playlists: 'Playlists', create_playlist: 'Crear playlist',
+        recent_label: 'Recientes', recent_played: 'Reproducidas', title: 'Título', artist: 'Artista', duration: 'Duración',
+        no_music: 'Aún no hay música', no_music_desc: 'Arrastra archivos aquí o usa "Agregar música"',
+        select_folder: 'Seleccionar carpeta', artists_section: 'Artistas',
+        recent_section_title: 'Reproducidas recientemente', cancel: 'Cancelar', accept: 'Aceptar', close: 'Cerrar',
+        add_to_playlist: 'Agregar a playlist...', remove_from_playlist: 'Quitar de', edit_info: 'Editar información',
+        add_to_favorites: 'Agregar a favoritos', remove_from_favorites: 'Quitar de favoritos',
+        delete_song: 'Eliminar canción de la biblioteca', delete_from_playlist: 'Quitar de la playlist',
+        create_new_playlist: 'Crear nueva playlist', import_folder_to_playlist: 'Importar carpeta a esta playlist',
+        edit_name: 'Editar nombre', delete_playlist: 'Eliminar playlist', cannot_delete_favorites: 'No se puede eliminar Favoritos',
+        settings: 'Configuración', playback: 'Reproducción', library: 'Biblioteca', interface: 'Interfaz', data: 'Datos', about: 'Acerca de',
+        volume_initial: 'Volumen inicial al abrir', repeat_all_default: 'Repetir todo por defecto',
+        shuffle_default: 'Shuffle por defecto al abrir', skip_zero: 'Saltar canciones con duración 0',
+        default_folder: 'Carpeta de música por defecto', import_on_open: 'Importar al abrir la app',
+        confirm_delete: 'Confirmar antes de eliminar canciones', rescan_tags: 'Re-escanear metadatos al iniciar',
+        theme: 'Tema', accent_color: 'Color de acento', language: 'Idioma', animations: 'Animaciones',
+        show_sliders: 'Mostrar sliders de recientes y artistas',
+        export_library: 'Exportar biblioteca (JSON)', import_library: 'Importar biblioteca (JSON)',
+        export_logs: 'Exportar logs (wave.log)', clear_library: 'Borrar toda la biblioteca',
+        report_bug: 'Reportar bug', view_changelog: 'Ver changelog',
+        first_run_title: 'Bienvenido a Wave', first_run_msg: 'Selecciona tu idioma para empezar:',
+        no_song: 'Canción', no_artist: 'Artista'
+    },
+    en: {
+        app_title: 'Wave', add_music: '+ Add music', search_placeholder: 'Search songs, artists, albums...',
+        all_songs: 'All songs', playlists: 'Playlists', create_playlist: 'Create playlist',
+        recent_label: 'Recent', recent_played: 'Recently played', title: 'Title', artist: 'Artist', duration: 'Duration',
+        no_music: 'No music yet', no_music_desc: 'Drag files here or use "Add music"',
+        select_folder: 'Select folder', artists_section: 'Artists',
+        recent_section_title: 'Recently played', cancel: 'Cancel', accept: 'OK', close: 'Close',
+        add_to_playlist: 'Add to playlist...', remove_from_playlist: 'Remove from', edit_info: 'Edit info',
+        add_to_favorites: 'Add to favorites', remove_from_favorites: 'Remove from favorites',
+        delete_song: 'Delete song from library', delete_from_playlist: 'Remove from playlist',
+        create_new_playlist: 'Create new playlist', import_folder_to_playlist: 'Import folder to this playlist',
+        edit_name: 'Edit name', delete_playlist: 'Delete playlist', cannot_delete_favorites: 'Cannot delete Favorites',
+        settings: 'Settings', playback: 'Playback', library: 'Library', interface: 'Interface', data: 'Data', about: 'About',
+        volume_initial: 'Initial volume on open', repeat_all_default: 'Repeat all by default',
+        shuffle_default: 'Shuffle by default on open', skip_zero: 'Skip songs with duration 0',
+        default_folder: 'Default music folder', import_on_open: 'Import on app open',
+        confirm_delete: 'Confirm before deleting songs', rescan_tags: 'Re-scan metadata on startup',
+        theme: 'Theme', accent_color: 'Accent color', language: 'Language', animations: 'Animations',
+        show_sliders: 'Show recent and artists sliders',
+        export_library: 'Export library (JSON)', import_library: 'Import library (JSON)',
+        export_logs: 'Export logs (wave.log)', clear_library: 'Clear entire library',
+        report_bug: 'Report bug', view_changelog: 'View changelog',
+        first_run_title: 'Welcome to Wave', first_run_msg: 'Select your language to start:',
+        no_song: 'Song', no_artist: 'Artist'
+    },
+    fr: {
+        app_title: 'Wave', add_music: '+ Ajouter musique', search_placeholder: 'Rechercher chansons, artistes, albums...',
+        all_songs: 'Toutes les chansons', playlists: 'Playlists', create_playlist: 'Créer playlist',
+        recent_label: 'Récents', recent_played: 'Récemment écoutées', title: 'Titre', artist: 'Artiste', duration: 'Durée',
+        no_music: 'Pas de musique', no_music_desc: 'Glissez des fichiers ici ou utilisez "Ajouter musique"',
+        select_folder: 'Sélectionner dossier', artists_section: 'Artistes',
+        recent_section_title: 'Récemment écoutées', cancel: 'Annuler', accept: 'OK', close: 'Fermer',
+        add_to_playlist: 'Ajouter à playlist...', remove_from_playlist: 'Retirer de', edit_info: 'Modifier infos',
+        add_to_favorites: 'Ajouter aux favoris', remove_from_favorites: 'Retirer des favoris',
+        delete_song: 'Supprimer la chanson de la bibliothèque', delete_from_playlist: 'Retirer de la playlist',
+        create_new_playlist: 'Créer nouvelle playlist', import_folder_to_playlist: 'Importer dossier dans cette playlist',
+        edit_name: 'Modifier nom', delete_playlist: 'Supprimer playlist', cannot_delete_favorites: 'Impossible de supprimer Favoris',
+        settings: 'Paramètres', playback: 'Lecture', library: 'Bibliothèque', interface: 'Interface', data: 'Données', about: 'À propos',
+        volume_initial: 'Volume initial à l\'ouverture', repeat_all_default: 'Répéter tout par défaut',
+        shuffle_default: 'Aléatoire par défaut à l\'ouverture', skip_zero: 'Passer les chansons de durée 0',
+        default_folder: 'Dossier de musique par défaut', import_on_open: 'Importer à l\'ouverture',
+        confirm_delete: 'Confirmer avant de supprimer', rescan_tags: 'Re-scanner métadonnées au démarrage',
+        theme: 'Thème', accent_color: 'Couleur d\'accent', language: 'Langue', animations: 'Animations',
+        show_sliders: 'Afficher sliders récents et artistes',
+        export_library: 'Exporter bibliothèque (JSON)', import_library: 'Importer bibliothèque (JSON)',
+        export_logs: 'Exporter logs (wave.log)', clear_library: 'Vider toute la bibliothèque',
+        report_bug: 'Signaler bug', view_changelog: 'Voir changelog',
+        first_run_title: 'Bienvenue dans Wave', first_run_msg: 'Sélectionnez votre langue pour commencer:',
+        no_song: 'Chanson', no_artist: 'Artiste'
+    },
+    de: {
+        app_title: 'Wave', add_music: '+ Musik hinzufügen', search_placeholder: 'Lieder, Künstler, Alben suchen...',
+        all_songs: 'Alle Lieder', playlists: 'Playlists', create_playlist: 'Playlist erstellen',
+        recent_label: 'Neueste', recent_played: 'Zuletzt gespielt', title: 'Titel', artist: 'Künstler', duration: 'Dauer',
+        no_music: 'Keine Musik', no_music_desc: 'Dateien hierher ziehen oder "Musik hinzufügen" verwenden',
+        select_folder: 'Ordner auswählen', artists_section: 'Künstler',
+        recent_section_title: 'Zuletzt gespielt', cancel: 'Abbrechen', accept: 'OK', close: 'Schließen',
+        add_to_playlist: 'Zur Playlist hinzufügen...', remove_from_playlist: 'Entfernen aus', edit_info: 'Infos bearbeiten',
+        add_to_favorites: 'Zu Favoriten hinzufügen', remove_from_favorites: 'Aus Favoriten entfernen',
+        delete_song: 'Lied aus Bibliothek löschen', delete_from_playlist: 'Aus Playlist entfernen',
+        create_new_playlist: 'Neue Playlist erstellen', import_folder_to_playlist: 'Ordner in diese Playlist importieren',
+        edit_name: 'Name bearbeiten', delete_playlist: 'Playlist löschen', cannot_delete_favorites: 'Favoriten können nicht gelöscht werden',
+        settings: 'Einstellungen', playback: 'Wiedergabe', library: 'Bibliothek', interface: 'Oberfläche', data: 'Daten', about: 'Über',
+        volume_initial: 'Anfangslautstärke beim Öffnen', repeat_all_default: 'Standardmäßig alles wiederholen',
+        shuffle_default: 'Zufallswiedergabe beim Öffnen', skip_zero: 'Lieder mit Dauer 0 überspringen',
+        default_folder: 'Standard-Musikordner', import_on_open: 'Beim Öffnen importieren',
+        confirm_delete: 'Vor dem Löschen bestätigen', rescan_tags: 'Metadaten beim Start neu scannen',
+        theme: 'Design', accent_color: 'Akzentfarbe', language: 'Sprache', animations: 'Animationen',
+        show_sliders: 'Slider für Neueste und Künstler anzeigen',
+        export_library: 'Bibliothek exportieren (JSON)', import_library: 'Bibliothek importieren (JSON)',
+        export_logs: 'Logs exportieren (wave.log)', clear_library: 'Gesamte Bibliothek löschen',
+        report_bug: 'Fehler melden', view_changelog: 'Changelog anzeigen',
+        first_run_title: 'Willkommen bei Wave', first_run_msg: 'Wählen Sie Ihre Sprache zum Starten:',
+        no_song: 'Lied', no_artist: 'Künstler'
+    },
+    ja: {
+        app_title: 'Wave', add_music: '+ 音楽を追加', search_placeholder: '曲、アーティスト、アルバムを検索...',
+        all_songs: 'すべての曲', playlists: 'プレイリスト', create_playlist: 'プレイリスト作成',
+        recent_label: '最近', recent_played: '最近再生', title: 'タイトル', artist: 'アーティスト', duration: '時間',
+        no_music: '曲がありません', no_music_desc: 'ファイルをドラッグするか「音楽を追加」を使用',
+        select_folder: 'フォルダーを選択', artists_section: 'アーティスト',
+        recent_section_title: '最近再生した曲', cancel: 'キャンセル', accept: 'OK', close: '閉じる',
+        add_to_playlist: 'プレイリストに追加...', remove_from_playlist: '削除', edit_info: '情報を編集',
+        add_to_favorites: 'お気に入りに追加', remove_from_favorites: 'お気に入りから削除',
+        delete_song: 'ライブラリから曲を削除', delete_from_playlist: 'プレイリストから削除',
+        create_new_playlist: '新しいプレイリストを作成', import_folder_to_playlist: 'このプレイリストにフォルダーをインポート',
+        edit_name: '名前を編集', delete_playlist: 'プレイリストを削除', cannot_delete_favorites: 'お気に入りは削除できません',
+        settings: '設定', playback: '再生', library: 'ライブラリ', interface: 'インターフェース', data: 'データ', about: '情報',
+        volume_initial: '起動時の音量', repeat_all_default: 'デフォルトで全曲リピート',
+        shuffle_default: '起動時にシャッフル', skip_zero: '長さ0の曲をスキップ',
+        default_folder: 'デフォルトの音楽フォルダー', import_on_open: '起動時にインポート',
+        confirm_delete: '削除前に確認', rescan_tags: '起動時にメタデータを再スキャン',
+        theme: 'テーマ', accent_color: 'アクセント色', language: '言語', animations: 'アニメーション',
+        show_sliders: '最近とアーティストのスライダーを表示',
+        export_library: 'ライブラリをエクスポート (JSON)', import_library: 'ライブラリをインポート (JSON)',
+        export_logs: 'ログをエクスポート (wave.log)', clear_library: 'ライブラリをすべて削除',
+        report_bug: 'バグを報告', view_changelog: '変更履歴を見る',
+        first_run_title: 'Waveへようこそ', first_run_msg: '開始する言語を選択してください:',
+        no_song: '曲', no_artist: 'アーティスト'
+    },
+    ko: {
+        app_title: 'Wave', add_music: '+ 음악 추가', search_placeholder: '곡, 아티스트, 앨범 검색...',
+        all_songs: '모든 곡', playlists: '재생목록', create_playlist: '재생목록 만들기',
+        recent_label: '최근', recent_played: '최근 재생', title: '제목', artist: '아티스트', duration: '길이',
+        no_music: '음악 없음', no_music_desc: '파일을 여기로 드래그하거나 "음악 추가" 사용',
+        select_folder: '폴더 선택', artists_section: '아티스트',
+        recent_section_title: '최근 재생한 곡', cancel: '취소', accept: '확인', close: '닫기',
+        add_to_playlist: '재생목록에 추가...', remove_from_playlist: '제거', edit_info: '정보 편집',
+        add_to_favorites: '즐겨찾기에 추가', remove_from_favorites: '즐겨찾기에서 제거',
+        delete_song: '라이브러리에서 곡 삭제', delete_from_playlist: '재생목록에서 제거',
+        create_new_playlist: '새 재생목록 만들기', import_folder_to_playlist: '이 재생목록에 폴더 가져오기',
+        edit_name: '이름 편집', delete_playlist: '재생목록 삭제', cannot_delete_favorites: '즐겨찾기는 삭제할 수 없습니다',
+        settings: '설정', playback: '재생', library: '라이브러리', interface: '인터페이스', data: '데이터', about: '정보',
+        volume_initial: '열 때 초기 볼륨', repeat_all_default: '기본적으로 모두 반복',
+        shuffle_default: '열 때 셔플', skip_zero: '길이가 0인 곡 건너뛰기',
+        default_folder: '기본 음악 폴더', import_on_open: '열 때 가져오기',
+        confirm_delete: '삭제 전 확인', rescan_tags: '시작 시 메타데이터 다시 스캔',
+        theme: '테마', accent_color: '강조 색상', language: '언어', animations: '애니메이션',
+        show_sliders: '최근 및 아티스트 슬라이더 표시',
+        export_library: '라이브러리 내보내기 (JSON)', import_library: '라이브러리 가져오기 (JSON)',
+        export_logs: '로그 내보내기 (wave.log)', clear_library: '전체 라이브러리 삭제',
+        report_bug: '버그 신고', view_changelog: '변경 로그 보기',
+        first_run_title: 'Wave에 오신 것을 환영합니다', first_run_msg: '시작하려면 언어를 선택하세요:',
+        no_song: '곡', no_artist: '아티스트'
+    }
+};
+
+function t(key) {
+    const lang = (loadSettings().language || 'es');
+    return (I18N[lang] && I18N[lang][key]) || I18N.es[key] || key;
+}
+
+function applyLanguage(lang) {
+    // Actualizar placeholders y textos hardcoded que no tienen data-i18n
+    const search = document.getElementById('search');
+    if (search) search.placeholder = t('search_placeholder');
+    const btnAdd = document.getElementById('btn-add');
+    if (btnAdd) btnAdd.textContent = t('add_music');
+    const btnAddPlaylist = document.querySelector('.btn-add-playlist span');
+    if (btnAddPlaylist) btnAddPlaylist.textContent = t('create_playlist');
+    const navAll = document.querySelector('[data-view="all"] span');
+    if (navAll) navAll.textContent = t('all_songs');
+    const plTitle = document.querySelector('.sidebar-title');
+    if (plTitle) plTitle.textContent = t('playlists');
+    const recentTitle = document.querySelector('#recent-section .recent-section-title');
+    if (recentTitle) recentTitle.textContent = t('recent_section_title');
+    const artistsTitle = document.querySelector('#artists-section .recent-section-title');
+    if (artistsTitle) artistsTitle.textContent = t('artists_section');
+    const playerTitle = document.getElementById('player-title');
+    if (playerTitle && playerTitle.textContent === 'Canción') playerTitle.textContent = t('no_song');
+    const playerArtist = document.getElementById('player-artist');
+    if (playerArtist && playerArtist.textContent === 'Artista') playerArtist.textContent = t('no_artist');
+    const emptyH2 = document.querySelector('#empty-state h2');
+    if (emptyH2) emptyH2.textContent = t('no_music');
+    const emptyP = document.querySelector('#empty-state p');
+    if (emptyP) emptyP.textContent = t('no_music_desc');
+    // Sort menu labels
+    const sortOptions = document.querySelectorAll('.sort-option');
+    const sortLabels = [t('recent_label'), t('recent_played'), t('title'), t('artist'), t('duration')];
+    sortOptions.forEach((opt, i) => { if (sortLabels[i]) opt.textContent = sortLabels[i]; });
+}
+
+// Mostrar modal de selección de idioma en la primera ejecución
+async function showFirstRunLanguagePicker() {
+    const langs = [
+        { code: 'es', name: 'Español', flag: '🇪🇸' },
+        { code: 'en', name: 'English', flag: '🇬🇧' },
+        { code: 'fr', name: 'Français', flag: '🇫🇷' },
+        { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+        { code: 'ja', name: '日本語', flag: '🇯🇵' },
+        { code: 'ko', name: '한국어', flag: '🇰🇷' }
+    ];
+    let bodyHtml = '<div class="lang-picker">';
+    for (const l of langs) {
+        bodyHtml += `<button class="lang-option" onclick="window._langChoice='${l.code}';closeModal();"><span class="lang-flag">${l.flag}</span><span>${l.name}</span></button>`;
+    }
+    bodyHtml += '</div>';
+    showModal(t('first_run_title'), `<p style="margin-bottom:12px;color:var(--text-dim);font-size:14px;">${t('first_run_msg')}</p>${bodyHtml}`,
+        `<button class="modal-btn modal-btn-primary" onclick="window._langChoice='es';closeModal();">OK</button>`);
+    window._langChoice = null;
+    return new Promise(resolve => {
+        const check = setInterval(() => {
+            if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+                clearInterval(check);
+                resolve(window._langChoice || 'es');
+            }
+        }, 50);
+    });
 }

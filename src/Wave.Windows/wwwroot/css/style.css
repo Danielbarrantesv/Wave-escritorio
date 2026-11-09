@@ -1,11 +1,31 @@
-/* Wave - Modern dark theme v1.3.0 */
+/* Wave - Modern theme v1.9.0 — soporte multi-tema y multi-accent */
 :root {
+    /* Tema oscuro por defecto */
     --bg: #0f0f0f; --surface: #1a1a1a; --surface-light: #2a2a2a;
-    --accent: #32c98b; --accent-dim: #28a373;
     --text: #ffffff; --text-dim: #b3b3b3; --text-faint: #666666;
-    --border: #333333; --radius: 8px;
+    --border: #333333;
+    /* Accent verde por defecto */
+    --accent: #32c98b; --accent-dim: #28a373;
+    --radius: 8px;
     --sidebar-width: 240px; --playerbar-height: 80px; --titlebar-height: 32px;
 }
+
+/* Tema claro */
+html[data-theme="light"] {
+    --bg: #f5f5f5; --surface: #ffffff; --surface-light: #e8e8e8;
+    --text: #1a1a1a; --text-dim: #555555; --text-faint: #999999;
+    --border: #d0d0d0;
+}
+
+/* Colores de accent disponibles */
+html[data-accent="green"]   { --accent: #32c98b; --accent-dim: #28a373; }
+html[data-accent="red"]     { --accent: #e83838; --accent-dim: #c12828; }
+html[data-accent="orange"]  { --accent: #ff8c1a; --accent-dim: #d97200; }
+html[data-accent="yellow"]  { --accent: #ffcc00; --accent-dim: #d9a800; }
+html[data-accent="blue"]    { --accent: #1a8cff; --accent-dim: #0066cc; }
+html[data-accent="cyan"]    { --accent: #00d4ff; --accent-dim: #00a0c8; }
+html[data-accent="magenta"] { --accent: #ff2da8; --accent-dim: #c80080; }
+html[data-accent="purple"]  { --accent: #9c27ff; --accent-dim: #7a1cc8; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; user-select: none; }
 .hidden { display: none !important; }
@@ -496,12 +516,12 @@ body.has-selection #selection-bar { top: 0; }
 .settings-btn.danger:hover { background: rgba(255, 68, 68, 0.08); border-color: rgba(255, 68, 68, 0.3); }
 
 /* Toggle switch (iOS style) */
-.switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; }
-.switch input { opacity: 0; width: 0; height: 0; }
+.switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 2; }
 .slider-toggle { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 22px; transition: all 0.25s ease; }
 .slider-toggle::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--text-dim); border-radius: 50%; transition: all 0.25s ease; }
-.switch input:checked + .slider-toggle { background: var(--accent); }
-.switch input:checked + .slider-toggle::before { transform: translateX(16px); background: #000; }
+.switch input:checked ~ .slider-toggle { background: var(--accent); }
+.switch input:checked ~ .slider-toggle::before { transform: translateX(16px); background: #000; }
 .switch-inline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer; padding: 4px 0; }
 .switch-inline input { margin: 0; cursor: pointer; }
 
@@ -511,11 +531,34 @@ body.has-selection #selection-bar { top: 0; }
 .about-version { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
 .about-tech { font-size: 11px; color: var(--text-faint); }
 
+/* Color picker (selector de color de acento) */
+.color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: all 0.2s ease; display: inline-block;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.color-dot:hover { transform: scale(1.2); }
+.color-dot.selected { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; transform: scale(1.15); }
+
 /* No animations (cuando settings.animations = false) */
 body.no-animations *, body.no-animations *::before, body.no-animations *::after {
     animation-duration: 0s !important;
     transition-duration: 0s !important;
 }
+
+/* Language picker (modal primera vez) */
+.lang-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.lang-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 8px;
+    background: var(--bg); border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.2s ease;
+    color: var(--text); font-size: 14px;
+}
+.lang-option:hover { background: var(--surface-light); border-color: var(--accent); transform: translateY(-2px); }
+.lang-flag { font-size: 22px; }
 
 /* Context menu */
 .context-menu { position: fixed; background: var(--surface-light); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999; min-width: 220px; padding: 4px 0; animation: ctx-pop 0.15s ease-out; }
