@@ -153,7 +153,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .eq-bands { display: flex; justify-content: center; gap: 32px; }
 .eq-band { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .eq-band-label { font-size: 11px; color: var(--text-dim); }
-.eq-slider { -webkit-appearance: none; width: 8px; height: 180px; background: var(--border); border-radius: 4px; outline: none; cursor: pointer; writing-mode: bt-lr; -webkit-appearance: slider-vertical; }
+.eq-slider { -webkit-appearance: none; width: 8px; height: 180px; background: var(--border); border-radius: 4px; outline: none; cursor: pointer; appearance: none; writing-mode: vertical-lr; direction: rtl; }
+.eq-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 8px; border-radius: 4px; background: var(--accent); cursor: pointer; }
+.eq-slider::-moz-range-thumb { width: 16px; height: 8px; border-radius: 4px; background: var(--accent); cursor: pointer; border: none; }
 .eq-value { font-size: 11px; color: var(--accent); }
 
 /* Context menu */

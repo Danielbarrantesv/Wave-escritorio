@@ -85,6 +85,7 @@ public class WebViewBridge
             "playback.playSong" => PlaySong(p),
             "playback.setVolume" => Invoke(() => _audioEngine.Volume = p.GetProperty("volume").GetSingle()),
             "playback.setEqBand" => SetEqBand(p),
+            "playback.setEqEnabled" => Invoke(() => _audioEngine.EqualizerEnabled = p.GetProperty("enabled").GetBoolean()),
 
             // Playlists
             "playlists.getAll" => _playlistService.GetAllSorted(),
@@ -112,6 +113,7 @@ public class WebViewBridge
             "window.close" => Invoke(() => Application.Current.MainWindow.Close()),
             "window.toggleMiniPlayer" => ToggleMiniPlayer(),
             "window.openEqualizer" => OpenEqualizer(),
+            "window.exportLogs" => ExportLogs(),
 
             _ => throw new NotImplementedException($"Method '{method}' not found")
         };
@@ -291,6 +293,36 @@ public class WebViewBridge
             WaveLogger.Error("Error saving tags to file", ex);
         }
         return null;
+    }
+
+    private object? ExportLogs()
+    {
+        string? path = null;
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Exportar logs de Wave",
+                Filter = "Log|*.log|Texto|*.txt|Todos|*.*",
+                FileName = "wave.log"
+            };
+            if (dialog.ShowDialog() == true) path = dialog.FileName;
+        });
+        if (string.IsNullOrEmpty(path)) return new { cancelled = true };
+        try
+        {
+            var logPath = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Wave", "wave.log");
+            if (System.IO.File.Exists(logPath))
+                System.IO.File.Copy(logPath, path, true);
+            return new { success = true, path };
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Error("Error exporting logs", ex);
+            return new { success = false, error = ex.Message };
+        }
     }
 
     private static object? Invoke(Action a) { a(); return null; }

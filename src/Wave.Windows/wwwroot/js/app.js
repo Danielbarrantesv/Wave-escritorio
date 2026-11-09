@@ -1,7 +1,9 @@
 // Wave App v1.3.0
 let allSongs = []; let filteredSongs = []; let currentPlaylist = null;
 let currentSort = 'recentlyAdded'; let isSeeking = false;
+let isVolumeDragging = false;
 let currentLyrics = null; let currentLyricIndex = -1;
+let currentLyricsSongId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     WaveAPI.init();
@@ -23,10 +25,20 @@ function bindEvents() {
     document.getElementById('btn-lyrics').onclick = onLyrics;
     document.getElementById('btn-eq').onclick = onEqualizer;
     document.getElementById('btn-backup').onclick = onBackup;
+    document.getElementById('btn-settings').onclick = onSettings;
     document.getElementById('search').oninput = onSearch;
     document.getElementById('seek-bar').oninput = onSeek;
     document.getElementById('seek-bar').onchange = onSeekEnd;
     document.getElementById('volume-bar').oninput = onVolumeChange;
+    document.getElementById('volume-bar').onmousedown = () => { isVolumeDragging = true; };
+    document.getElementById('volume-bar').onmouseup = () => { isVolumeDragging = false; };
+    document.getElementById('volume-bar').onchange = () => { isVolumeDragging = false; };
+
+    // EQ buttons
+    const eqToggle = document.getElementById('eq-toggle');
+    const eqReset = document.getElementById('eq-reset');
+    if (eqToggle) eqToggle.onclick = onEqToggle;
+    if (eqReset) eqReset.onclick = onEqReset;
 
     const sortChip = document.getElementById('sort-chip');
     const sortMenu = document.getElementById('sort-menu');
@@ -204,9 +216,28 @@ async function initEqualizerBands() {
 
 function onEqChange(idx, val) {
     eqBands[idx] = parseFloat(val);
-    const gainDb = (val - 0.5) * 24; // -12 to +12 dB
+    const gainDb = (val - 0.5) * 24;
     document.getElementById(`eq-val-${idx}`).textContent = `${gainDb >= 0 ? '+' : ''}${gainDb.toFixed(0)}dB`;
     WaveAPI.call('playback.setEqBand', { index: idx, gain: gainDb });
+}
+
+let eqEnabled = true;
+function onEqToggle() {
+    eqEnabled = !eqEnabled;
+    const btn = document.getElementById('eq-toggle');
+    btn.textContent = eqEnabled ? 'ON' : 'OFF';
+    btn.style.opacity = eqEnabled ? '1' : '0.5';
+    WaveAPI.call('playback.setEqEnabled', { enabled: eqEnabled });
+}
+
+function onEqReset() {
+    for (let i = 0; i < eqBands.length; i++) {
+        eqBands[i] = 0.5;
+        const slider = document.querySelectorAll('.eq-slider')[i];
+        if (slider) slider.value = 0.5;
+        document.getElementById(`eq-val-${i}`).textContent = '0dB';
+        WaveAPI.call('playback.setEqBand', { index: i, gain: 0 });
+    }
 }
 
 // === Lyrics ===
@@ -438,11 +469,34 @@ function onPlaybackChanged(state) {
     document.getElementById('btn-shuffle').classList.toggle('active', state.isShuffle);
     document.getElementById('btn-repeat').classList.toggle('active', state.repeatOne);
 
-    // Volume
-    document.getElementById('volume-bar').value = Math.round((state.volume || 1) * 100);
-    updateVolumeIcon(Math.round((state.volume || 1) * 100));
+    // Volume - solo actualizar si el usuario no está interactuando
+    if (!isVolumeDragging) {
+        document.getElementById('volume-bar').value = Math.round((state.volume || 1) * 100);
+        updateVolumeIcon(Math.round((state.volume || 1) * 100));
+    }
 
-    // Lyrics
+    // Lyrics - recargar si la canción cambió y el panel está visible
+    if (state.currentSong) {
+        const songId = state.currentSong.id;
+        const lyricsPanel = document.getElementById('lyrics-panel');
+        if (!lyricsPanel.classList.contains('hidden') && songId !== currentLyricsSongId) {
+            currentLyricsSongId = songId;
+            const lyrics = await WaveAPI.call('lyrics.get', state.currentSong);
+            currentLyrics = lyrics;
+            const content = document.getElementById('lyrics-content');
+            if (lyrics && lyrics.isSynced && lyrics.lines && lyrics.lines.length > 0) {
+                content.innerHTML = lyrics.lines.map((l, i) =>
+                    `<div class="lyric-line" data-idx="${i}" data-ts="${l.timestampMs}">${escapeHtml(l.text)}</div>`
+                ).join('');
+            } else if (lyrics && lyrics.plainLyrics) {
+                content.innerHTML = lyrics.plainLyrics.split('\n').map(l =>
+                    `<div class="lyric-line">${escapeHtml(l)}</div>`).join('');
+            } else {
+                content.innerHTML = '<div class="empty-state"><div class="empty-icon">♪</div><p>Letra no disponible</p></div>';
+            }
+            currentLyricIndex = -1;
+        }
+    }
     if (currentLyrics && currentLyrics.isSynced) updateLyricsHighlight(state.positionMs);
 }
 
@@ -576,6 +630,22 @@ async function onAddMusic() {
 
 async function onBackup() {
     await WaveAPI.call('backup.export', { path: '' });
+}
+
+async function onSettings() {
+    const choice = await modalConfirm('Configuración', '¿Exportar archivo de logs (wave.log)?\n\nAceptar: Exportar logs\nCancelar: Cerrar');
+    if (choice) {
+        await WaveAPI.call('window.exportLogs', {});
+    }
+}
+
+// === Drag & drop ===
+async function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    // En WebView2, no podemos acceder a File API paths directamente.
+    // Necesitamos que C# maneje el drop. Por ahora, mostrar modal.
+    await modalAlert('Arrastrar y soltar', 'Para importar música, usa el botón "+ Agregar música"');
 }
 
 // === Utils ===
