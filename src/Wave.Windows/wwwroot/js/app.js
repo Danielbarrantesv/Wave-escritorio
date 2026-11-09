@@ -394,11 +394,14 @@ function selectAllSongs() {
 async function selectPlaylist(pl) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.playlist-item').forEach(el => el.classList.remove('active'));
-    document.querySelector(`[data-playlist-id="${pl.id}"]`).classList.add('active');
+    const plEl = document.querySelector(`[data-playlist-id="${pl.id}"]`);
+    if (plEl) plEl.classList.add('active');
     currentPlaylist = pl;
     showSongsView();
+    // Cargar canciones desde la DB cada vez
     const songs = await WaveAPI.call('playlists.getSongs', { playlistId: pl.id }) || [];
-    allSongs = songs; applyFilter(); applySort(); renderSongs(); updateCount();
+    allSongs = songs;
+    applyFilter(); applySort(); renderSongs(); updateCount();
 }
 
 async function createPlaylist() {

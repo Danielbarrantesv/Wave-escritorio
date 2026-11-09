@@ -8,19 +8,19 @@
     <Border Background="#DD1A1A1A" CornerRadius="10" Padding="8">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="52"/>
+                <ColumnDefinition Width="48"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="40"/>
-                <ColumnDefinition Width="40"/>
-                <ColumnDefinition Width="40"/>
-                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="44"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Cover art -->
-            <Border Grid.Column="0" Background="#32C98B" CornerRadius="6">
+            <!-- Cover art: click abre reproductor principal -->
+            <Border Grid.Column="0" Background="#32C98B" CornerRadius="6" Cursor="Hand" MouseLeftButtonDown="Cover_Click">
                 <Image Source="{Binding CurrentSong.ArtUri}" Stretch="UniformToFill"/>
             </Border>
-            <StackPanel Grid.Column="1" Margin="8,0" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" Margin="6,0" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonDown="Info_Click">
                 <TextBlock Text="{Binding CurrentSong.DisplayTitle, FallbackValue='No hay canción'}"
                            Foreground="White" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="{Binding CurrentSong.DisplayArtist, FallbackValue='—'}"
