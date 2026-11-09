@@ -469,6 +469,54 @@ body.has-selection #selection-bar { top: 0; }
 }
 .eq-value { font-size: 11px; color: var(--accent); font-weight: 600; }
 
+/* Settings panel (dentro del side-panel) */
+.settings-header h2 { font-size: 22px; color: var(--text); margin-bottom: 16px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+.settings-scroll { padding: 4px 0 16px; }
+.settings-group { margin-bottom: 20px; }
+.settings-group-title { font-size: 11px; text-transform: uppercase; color: var(--accent); padding: 8px 0 12px; font-weight: 700; letter-spacing: 0.8px; border-bottom: 1px solid rgba(50, 201, 139, 0.2); margin-bottom: 12px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; font-size: 13px; color: var(--text-dim); }
+.settings-row label { flex: 1; }
+.settings-slider { width: 120px; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
+.settings-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 6px rgba(50, 201, 139, 0.6); }
+.settings-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text-dim); font-size: 12px; outline: none; }
+.settings-input:focus { border-color: var(--accent); }
+.settings-select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text); font-size: 12px; outline: none; cursor: pointer; }
+.settings-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-btn {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 12px 14px; margin: 6px 0;
+    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px; cursor: pointer; transition: all 0.15s ease;
+    color: var(--text); font-size: 13px; text-align: left;
+}
+.settings-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(50, 201, 139, 0.3); transform: translateX(2px); }
+.settings-btn svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.settings-btn.danger { color: #ff4444; }
+.settings-btn.danger svg { color: #ff4444; }
+.settings-btn.danger:hover { background: rgba(255, 68, 68, 0.08); border-color: rgba(255, 68, 68, 0.3); }
+
+/* Toggle switch (iOS style) */
+.switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider-toggle { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 22px; transition: all 0.25s ease; }
+.slider-toggle::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--text-dim); border-radius: 50%; transition: all 0.25s ease; }
+.switch input:checked + .slider-toggle { background: var(--accent); }
+.switch input:checked + .slider-toggle::before { transform: translateX(16px); background: #000; }
+.switch-inline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer; padding: 4px 0; }
+.switch-inline input { margin: 0; cursor: pointer; }
+
+/* About card */
+.about-card { padding: 16px; margin: 8px 0 16px; background: rgba(50, 201, 139, 0.06); border: 1px solid rgba(50, 201, 139, 0.2); border-radius: 12px; text-align: center; }
+.about-author { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.about-version { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+.about-tech { font-size: 11px; color: var(--text-faint); }
+
+/* No animations (cuando settings.animations = false) */
+body.no-animations *, body.no-animations *::before, body.no-animations *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+}
+
 /* Context menu */
 .context-menu { position: fixed; background: var(--surface-light); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999; min-width: 220px; padding: 4px 0; animation: ctx-pop 0.15s ease-out; }
 .ctx-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; color: var(--text-dim); font-size: 13px; transition: all 0.1s ease; }

@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     WaveAPI.init();
     WaveAPI.onPlaybackChanged = onPlaybackChanged;
     bindEvents();
+    // Cargar y aplicar settings guardadas al iniciar
+    const settings = loadSettings();
+    applySettings(settings);
+    bindSettingsAutoSave();
     await loadSongs();
     await loadPlaylists();
     await initVolume();
@@ -249,6 +253,7 @@ function openSidePanel(mode) {
     const panel = document.getElementById('side-panel');
     const lyricsContent = document.getElementById('lyrics-content');
     const eqContent = document.getElementById('eq-content');
+    const settingsContent = document.getElementById('settings-content');
 
     // Forzar reflow para reiniciar la animación si ya está abierto en otro modo
     const wasClosed = panel.classList.contains('closed');
@@ -261,16 +266,22 @@ function openSidePanel(mode) {
     if (mode === 'lyrics') {
         lyricsContent.style.display = '';
         eqContent.style.display = 'none';
+        settingsContent.style.display = 'none';
     } else if (mode === 'eq') {
         lyricsContent.style.display = 'none';
         eqContent.style.display = '';
+        settingsContent.style.display = 'none';
         initEqualizerBands();
+    } else if (mode === 'settings') {
+        lyricsContent.style.display = 'none';
+        eqContent.style.display = 'none';
+        settingsContent.style.display = '';
     }
     panel.dataset.mode = mode;
     panel.classList.remove('closed');
     panel.classList.add('open');
-    // Actualizar fondo con la portada actual
-    updateSidePanelBackground();
+    // Actualizar fondo con la portada actual (solo para lyrics)
+    if (mode === 'lyrics') updateSidePanelBackground();
 }
 
 function closeSidePanel() {
@@ -1335,43 +1346,9 @@ async function onBackup() {
 }
 
 async function onSettings() {
-    // Modal de Configuración con secciones
-    const iconLogs = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
-    const iconBackup = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>';
-    const iconTrash = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-    const iconInfo = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>';
-
-    let bodyHtml = '<div class="settings-list">';
-    bodyHtml += `<div class="settings-section-title">Datos</div>`;
-    bodyHtml += `<button class="settings-item" onclick="window._settingsChoice='backup';closeModal();">${iconBackup}<span>Exportar biblioteca (JSON)</span></button>`;
-    bodyHtml += `<button class="settings-item" onclick="window._settingsChoice='logs';closeModal();">${iconLogs}<span>Exportar logs (wave.log)</span></button>`;
-    bodyHtml += `<button class="settings-item danger" onclick="window._settingsChoice='clear';closeModal();">${iconTrash}<span>Borrar toda la biblioteca</span></button>`;
-    bodyHtml += `<div class="settings-section-title">Acerca de</div>`;
-    bodyHtml += `<button class="settings-item" onclick="window._settingsChoice='about';closeModal();">${iconInfo}<span>Acerca de Wave v1.7.11</span></button>`;
-    bodyHtml += '</div>';
-
-    showModal('Configuración', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._settingsChoice='cancel';closeModal();">Cerrar</button>`);
-    window._settingsChoice = null;
-    const check = setInterval(async () => {
-        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
-            clearInterval(check);
-            const choice = window._settingsChoice;
-            if (choice === 'cancel' || !choice) return;
-            if (choice === 'logs') {
-                await WaveAPI.call('window.exportLogs', {});
-            } else if (choice === 'backup') {
-                await onBackup();
-            } else if (choice === 'about') {
-                await modalAlert('Acerca de Wave', 'Wave for Windows\nVersión 1.7.11\n\nReproductor de música offline con soporte para MP3, FLAC, AAC, M4A, OGG, WAV y WMA.\n\nHecho con .NET 8 + WebView2 + NAudio.');
-            } else if (choice === 'clear') {
-                if (await modalConfirm('Borrar biblioteca', '¿Borrar TODAS las canciones de la biblioteca?\n\nEsta acción no se puede deshacer.')) {
-                    await WaveAPI.call('library.deleteAll', {});
-                    await loadSongs(); await loadPlaylists();
-                    await modalAlert('Biblioteca borrada', 'Todas las canciones han sido eliminadas.');
-                }
-            }
-        }
-    }, 50);
+    openSidePanel('settings');
+    // Cargar valores guardados en los inputs
+    loadSettingsToForm();
 }
 
 // === Drag & drop ===
@@ -1390,3 +1367,138 @@ function formatDuration(ms) {
     return h > 0 ? `${h}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` : `${m}:${String(s%60).padStart(2,'0')}`;
 }
 function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+// === Settings ===
+// Persistencia en localStorage. Las claves son set_<name>.
+const SETTINGS_KEY = 'wave_settings_v1';
+
+function defaultSettings() {
+    return {
+        volumeInitial: 100,
+        repeatAll: false,
+        shuffleDefault: false,
+        skipZero: true,
+        defaultFolder: '',
+        importOnOpen: false,
+        confirmDelete: true,
+        rescanTags: false,
+        theme: 'dark',
+        language: 'es',
+        animations: true,
+        showSliders: true
+    };
+}
+
+function loadSettings() {
+    try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (!raw) return defaultSettings();
+        const parsed = JSON.parse(raw);
+        return Object.assign(defaultSettings(), parsed);
+    } catch { return defaultSettings(); }
+}
+
+function saveSettings(settings) {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
+}
+
+function loadSettingsToForm() {
+    const s = loadSettings();
+    document.getElementById('set-volume-initial').value = s.volumeInitial;
+    document.getElementById('set-repeat-all').checked = s.repeatAll;
+    document.getElementById('set-shuffle-default').checked = s.shuffleDefault;
+    document.getElementById('set-skip-zero').checked = s.skipZero;
+    document.getElementById('set-default-folder').value = s.defaultFolder || '';
+    document.getElementById('set-import-on-open').checked = s.importOnOpen;
+    document.getElementById('set-confirm-delete').checked = s.confirmDelete;
+    document.getElementById('set-rescan-tags').checked = s.rescanTags;
+    document.getElementById('set-theme').value = s.theme;
+    document.getElementById('set-language').value = s.language;
+    document.getElementById('set-animations').checked = s.animations;
+    document.getElementById('set-show-sliders').checked = s.showSliders;
+}
+
+function getSettingsFromForm() {
+    return {
+        volumeInitial: parseInt(document.getElementById('set-volume-initial').value),
+        repeatAll: document.getElementById('set-repeat-all').checked,
+        shuffleDefault: document.getElementById('set-shuffle-default').checked,
+        skipZero: document.getElementById('set-skip-zero').checked,
+        defaultFolder: document.getElementById('set-default-folder').value,
+        importOnOpen: document.getElementById('set-import-on-open').checked,
+        confirmDelete: document.getElementById('set-confirm-delete').checked,
+        rescanTags: document.getElementById('set-rescan-tags').checked,
+        theme: document.getElementById('set-theme').value,
+        language: document.getElementById('set-language').value,
+        animations: document.getElementById('set-animations').checked,
+        showSliders: document.getElementById('set-show-sliders').checked
+    };
+}
+
+// Auto-guardar cuando cambia cualquier input del panel de settings
+function bindSettingsAutoSave() {
+    const inputs = document.querySelectorAll('#settings-content input, #settings-content select');
+    inputs.forEach(input => {
+        input.addEventListener('change', () => {
+            const settings = getSettingsFromForm();
+            saveSettings(settings);
+            applySettings(settings);
+            // Feedback visual sutil
+            const panel = document.getElementById('settings-content');
+            panel.style.background = 'rgba(50, 201, 139, 0.04)';
+            setTimeout(() => { panel.style.background = ''; }, 200);
+        });
+    });
+}
+
+// Aplicar settings al estado actual de la app
+function applySettings(settings) {
+    // Toggle animaciones
+    document.body.classList.toggle('no-animations', !settings.animations);
+    // Toggle sliders de recientes y artistas
+    const recent = document.getElementById('recent-section');
+    const artists = document.getElementById('artists-section');
+    if (recent) recent.style.display = settings.showSliders ? '' : 'none';
+    if (artists) artists.style.display = settings.showSliders ? '' : 'none';
+}
+
+// Acciones de los botones de settings
+async function settingsPickFolder() {
+    const res = await WaveAPI.call('window.selectFolder', {});
+    if (res && !res.cancelled && res.path) {
+        document.getElementById('set-default-folder').value = res.path;
+        // Trigger auto-save
+        document.getElementById('set-default-folder').dispatchEvent(new Event('change'));
+    }
+}
+
+async function settingsBackup() {
+    await WaveAPI.call('backup.export', { path: '' });
+}
+
+async function settingsRestore() {
+    if (await modalConfirm('Importar biblioteca', '¿Importar biblioteca desde un archivo JSON?\n\nEsto reemplazará la biblioteca actual.')) {
+        await WaveAPI.call('library.importBackup', {});
+        await loadSongs(); await loadPlaylists();
+    }
+}
+
+async function settingsExportLogs() {
+    await WaveAPI.call('window.exportLogs', {});
+}
+
+async function settingsClearLibrary() {
+    if (await modalConfirm('Borrar biblioteca', '¿Borrar TODAS las canciones de la biblioteca?\n\nEsta acción no se puede deshacer.')) {
+        await WaveAPI.call('library.deleteAll', {});
+        await loadSongs(); await loadPlaylists();
+        await modalAlert('Biblioteca borrada', 'Todas las canciones han sido eliminadas.');
+    }
+}
+
+async function settingsReportBug() {
+    await modalAlert('Reportar bug', 'Para reportar un bug:\n\n1. Exporta los logs desde Configuración → Exportar logs (wave.log)\n2. Ve a: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Crea un nuevo issue con:\n   - Descripción del bug\n   - Pasos para reproducirlo\n   - Archivo wave.log adjunto');
+}
+
+async function settingsShowChangelog() {
+    await modalAlert('Changelog', 'v1.8.0 — Sección Configuración completa como panel lateral\nv1.7.11 — Mini player slider con bolita visible\nv1.7.9 — Bolita mini player al frente\nv1.7.7 — Icono close del mini player arreglado\nv1.7.5 — Limpiar search al cambiar playlist + slider mini player + corazón playerbar + scrollbar pintada + fix marquee\nv1.7.4 — Bloquear context menu nativo + selection sticky + mini player toggle + icono play/pausa estable + barras con relleno\nv1.7.1 — Botón crear playlist visible + slider artistas + sticky + RECENT_MAX=30\nv1.7.0 — UI overhaul: side panel fixed, marquee, recientes, favoritos sync, delete contextual\nv1.6.1 — Side panel lyrics/EQ + UI play/pausa + animaciones\nv1.6.0 — Shuffle respeta playlist + multi-selección + fix diálogo doble\nv1.5.2 — Mini player click cover/info + playlist pierde canciones + más espacio iconos');
+}
