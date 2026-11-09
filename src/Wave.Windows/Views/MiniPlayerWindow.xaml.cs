@@ -42,9 +42,16 @@ public partial class MiniPlayerWindow : Window
                     var dur = _playback.DurationMs;
                     var pos = _playback.PositionMs;
                     if (dur > 0)
-                        ProgressBar.Value = Math.Min(100, (pos * 100.0) / dur);
+                    {
+                        var pct = Math.Min(100, (pos * 100.0) / dur);
+                        ProgressBar.Value = pct;
+                        ProgressFill.Value = pct;
+                    }
                     else
+                    {
                         ProgressBar.Value = 0;
+                        ProgressFill.Value = 0;
+                    }
                 });
             }
         };
@@ -65,12 +72,14 @@ public partial class MiniPlayerWindow : Window
         _playback.Seek(target);
     }
 
-    /// <summary>Cambio el valor del slider mientras se arrastra — actualizar seekTarget.</summary>
+    /// <summary>Cambio el valor del slider mientras se arrastra — actualizar seekTarget + ProgressFill.</summary>
     private void ProgressBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_isDraggingProgress && _playback.DurationMs > 0)
         {
             _seekTargetMs = (long)(_playback.DurationMs * ProgressBar.Value / 100.0);
+            // Sincronizar el ProgressFill visual con el slider mientras se arrastra
+            ProgressFill.Value = ProgressBar.Value;
         }
     }
 

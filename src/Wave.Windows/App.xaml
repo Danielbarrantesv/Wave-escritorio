@@ -10,6 +10,60 @@
                 <ResourceDictionary Source="Themes/AccentColors.xaml"/>
                 <ResourceDictionary Source="Themes/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Plantilla de Slider con thumb circular (bolita) para el mini player -->
+            <ControlTemplate x:Key="MiniSliderTemplate" TargetType="Slider">
+                <Grid>
+                    <Track x:Name="PART_Track" Grid.Row="1">
+                        <Track.DecreaseRepeatButton>
+                            <RepeatButton Command="{x:Static Slider.DecreaseLarge}"/>
+                        </Track.DecreaseRepeatButton>
+                        <Track.Thumb>
+                            <Thumb>
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Ellipse Width="14" Height="14" Fill="#32C98B"
+                                                 Stroke="White" StrokeThickness="1.5"
+                                                 RenderTransformOrigin="0.5,0.5">
+                                            <Ellipse.RenderTransform>
+                                                <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1"/>
+                                            </Ellipse.RenderTransform>
+                                            <Ellipse.Effect>
+                                                <DropShadowEffect Color="#32C98B" BlurRadius="8" ShadowDepth="0" Opacity="0.8"/>
+                                            </Ellipse.Effect>
+                                            <VisualStateManager.VisualStateGroups>
+                                                <VisualStateGroup x:Name="CommonStates">
+                                                    <VisualState x:Name="Normal"/>
+                                                    <VisualState x:Name="MouseOver">
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                                             Storyboard.TargetProperty="ScaleX" To="1.2" Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                                             Storyboard.TargetProperty="ScaleY" To="1.2" Duration="0:0:0.1"/>
+                                                        </Storyboard>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Dragging">
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                                             Storyboard.TargetProperty="ScaleX" To="1.4" Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="ThumbScale"
+                                                                             Storyboard.TargetProperty="ScaleY" To="1.4" Duration="0:0:0.1"/>
+                                                        </Storyboard>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateManager.VisualStateGroups>
+                                        </Ellipse>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Track.Thumb>
+                        <Track.IncreaseRepeatButton>
+                            <RepeatButton Command="{x:Static Slider.IncreaseLarge}"/>
+                        </Track.IncreaseRepeatButton>
+                    </Track>
+                </Grid>
+            </ControlTemplate>
+
             <!-- Converters globales disponibles en todos los XAML -->
             <conv:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter"/>
             <conv:BoolToVisibleConverter x:Key="BoolToVisibleConverter"/>

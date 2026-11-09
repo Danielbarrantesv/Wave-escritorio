@@ -47,15 +47,24 @@
                 </Button>
             </Grid>
 
-            <!-- Barra de progreso con bolita para adelantar/retroceder -->
-            <Slider x:Name="ProgressBar" Grid.Row="1" Margin="0,0,0,-2"
-                    Minimum="0" Maximum="100" Value="0"
-                    Background="#33FFFFFF" Foreground="#32C98B"
-                    BorderThickness="0" Height="8"
-                    TickFrequency="1" IsSnapToTickEnabled="False"
-                    Thumb.DragStarted="ProgressBar_DragStarted"
-                    Thumb.DragCompleted="ProgressBar_DragCompleted"
-                    ValueChanged="ProgressBar_ValueChanged"/>
+            <!-- Barra de progreso: ProgressBar (relleno verde) + Slider (bolita arrastrable) -->
+            <Grid Grid.Row="1" Margin="0,2,0,0" Height="10" VerticalAlignment="Center">
+                <!-- Relleno de fondo blanco semi-transparente -->
+                <Border Background="#33FFFFFF" CornerRadius="2"/>
+                <!-- Relleno verde que se llena según el progreso -->
+                <ProgressBar x:Name="ProgressFill" Minimum="0" Maximum="100" Value="0"
+                             Background="Transparent" Foreground="#32C98B"
+                             BorderThickness="0"/>
+                <!-- Slider con bolita circular encima, transparente para que se vea el relleno -->
+                <Slider x:Name="ProgressBar" Minimum="0" Maximum="100" Value="0"
+                        Background="Transparent" Foreground="Transparent"
+                        BorderThickness="0"
+                        TickFrequency="1" IsSnapToTickEnabled="False"
+                        Thumb.DragStarted="ProgressBar_DragStarted"
+                        Thumb.DragCompleted="ProgressBar_DragCompleted"
+                        ValueChanged="ProgressBar_ValueChanged"
+                        Template="{StaticResource MiniSliderTemplate}"/>
+            </Grid>
         </Grid>
     </Border>
 </Window>
