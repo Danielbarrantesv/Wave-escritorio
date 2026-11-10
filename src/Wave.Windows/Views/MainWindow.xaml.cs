@@ -35,6 +35,9 @@ public partial class MainWindow : Window
             WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             // Bloquear aceleradores del navegador (F5 actualizar, Ctrl+S guardar, etc.)
             WebView.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
+            // Habilitar soporte de regiones no-client: permite que -webkit-app-region: drag
+            // funcione para que el usuario pueda mover la ventana arrastrando la titlebar HTML
+            try { WebView.CoreWebView2.Settings.IsNonClientRegionSupportEnabled = true; } catch { /* ignore */ }
 
             // Navegar directamente al index.html via file:// protocol
             var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
@@ -107,5 +110,27 @@ public partial class MainWindow : Window
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Al maximizar, limita la ventana al WorkArea (sin barra de tareas).
+    /// Esto evita que la ventana cubra la barra de tareas de Windows.
+    /// </summary>
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            var workArea = SystemParameters.WorkArea;
+            MaxWidth = workArea.Width;
+            MaxHeight = workArea.Height;
+            Top = workArea.Top;
+            Left = workArea.Left;
+        }
+        else
+        {
+            // Al restaurar, quitar límites para poder redimensionar libremente
+            MaxWidth = double.PositiveInfinity;
+            MaxHeight = double.PositiveInfinity;
+        }
     }
 }
