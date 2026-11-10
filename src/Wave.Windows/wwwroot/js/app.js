@@ -214,7 +214,6 @@ async function closeWindow() {
 function dragWindow() { /* handled by -webkit-app-region: drag in CSS */ }
 
 // === Playback ===
-async function onPlayPause() { await WaveAPI.call('playback.togglePlayPause'); }
 async function onNext() { await WaveAPI.call('playback.next'); }
 async function onPrev() { await WaveAPI.call('playback.prev'); }
 async function onShuffle() { await WaveAPI.call('playback.toggleShuffle'); }
@@ -817,17 +816,20 @@ async function playSong(songId) {
 }
 
 async function onPlayPause() {
-    // Optimistic UI: cambiar el ícono inmediatamente antes del round-trip a C#
+    // Usar el estado REAL del playback (window._lastPlaybackState) en vez de dataset
+    // porque dataset puede desincronizarse si llegan eventos en orden inesperado
+    const state = window._lastPlaybackState;
+    const isPlaying = state?.isPlaying ?? false;
     const playIcon = document.getElementById('play-icon');
-    const currentlyPlaying = playIcon.dataset.playing === 'true';
-    if (currentlyPlaying) {
-        // Va a pausar: mostrar play
+    // Optimistic UI: cambiar el icono inmediatamente
+    if (isPlaying) {
         playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
         playIcon.dataset.playing = 'false';
+        window._lastPlaybackState = { ...state, isPlaying: false };
     } else {
-        // Va a reproducir: mostrar pausa
         playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
         playIcon.dataset.playing = 'true';
+        window._lastPlaybackState = { ...state, isPlaying: true };
     }
     await WaveAPI.call('playback.togglePlayPause');
 }
@@ -846,13 +848,20 @@ async function onToggleCurrentFavorite() {
         await modalAlert('Sin canción', 'No hay ninguna canción reproduciéndose.');
         return;
     }
+    // Toggle en C# (envía una copia del song, NO actualiza _playback.CurrentSong)
     await WaveAPI.call('playlists.toggleFavorite', state.currentSong);
-    // Actualizar el estado visual del botón inmediatamente (optimistic)
-    const btn = document.getElementById('btn-fav');
-    const isFav = btn.classList.contains('active');
-    btn.classList.toggle('active', !isFav);
     // Recargar la biblioteca para actualizar el corazón en la fila
     await loadSongs();
+    // Refrescar el estado del playback desde C# para que currentSong.IsFavorite
+    // se actualice correctamente (porque _playback.CurrentSong no se modificó
+    // al deserializar el JSON en el bridge)
+    const newState = await WaveAPI.call('playback.getState');
+    if (newState) {
+        window._lastPlaybackState = newState;
+        // Actualizar el botón corazón con el valor REAL
+        const favBtn = document.getElementById('btn-fav');
+        if (favBtn) favBtn.classList.toggle('active', !!newState.currentSong?.isFavorite);
+    }
 }
 
 // === Recent songs slider (últimas 30 reproducidas, persistente) ===

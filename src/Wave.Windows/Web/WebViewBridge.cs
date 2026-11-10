@@ -92,7 +92,17 @@ public class WebViewBridge
             // Playlists
             "playlists.getAll" => _playlistService.GetAllSorted(),
             "playlists.getSongs" => _playlistService.GetSongs(p.GetProperty("playlistId").GetInt64()),
-            "playlists.toggleFavorite" => Invoke(() => _playlistService.ToggleFavorite(p.Deserialize<Song>(JsonOpts)!)),
+            "playlists.toggleFavorite" => Invoke(() => {
+                var song = p.Deserialize<Song>(JsonOpts)!;
+                _playlistService.ToggleFavorite(song);
+                // Si la canción que se toggleó es la que está reproduciéndose ahora,
+                // actualizar _playback.CurrentSong.IsFavorite para que GetPlaybackState
+                // devuelva el valor correcto al JS (botón corazón de la playerbar)
+                if (_playback.CurrentSong != null && _playback.CurrentSong.Id == song.Id)
+                {
+                    _playback.CurrentSong.IsFavorite = song.IsFavorite;
+                }
+            }),
             "playlists.create" => _playlistService.CreatePlaylist(
                 p.GetProperty("name").GetString()!,
                 p.TryGetProperty("songIds", out var sIdsEl) ? sIdsEl.Deserialize<List<long>>() : null),
