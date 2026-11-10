@@ -989,39 +989,20 @@ function onPlaybackChanged(state) {
     if (!state) return;
     const playIcon = document.getElementById('play-icon');
 
-    // Si la canción cambió y llegó un evento de "pausa" muy rápido (probablemente
-    // porque el engine está cargando la siguiente), ignoramos esa pausa momentánea
-    // para que el icono NO salte a "play" y se mantenga en "pausa" como el usuario espera.
-    if (!state.isPlaying && state.currentSong) {
-        const songId = state.currentSong.id;
-        if (window._lastSongId !== songId) {
-            // Canción cambió. Si justo ahora llegó una pausa y antes estaba sonando,
-            // asumimos que es la transición entre canciones: mantener el icono actual.
-            if (playIcon.dataset.playing === 'true') {
-                // ignorar esta pausa momentánea — el engine terminará de cargar y disparará IsPlaying=true
-                // pero si en 500ms no llega un nuevo evento de playing, sí mostramos pausa
-                if (window._pendingPauseTimer) clearTimeout(window._pendingPauseTimer);
-                window._pendingPauseTimer = setTimeout(() => {
-                    if (!window._lastPlaybackState.isPlaying) {
-                        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-                        playIcon.dataset.playing = 'false';
-                    }
-                }, 500);
-                window._lastSongId = songId;
-                // Actualizar info de canción sin tocar el icono
-                updatePlayerSongInfo(state);
-                updateSeekBar(state);
-                updateShuffleRepeat(state);
-                updateVolumeDisplay(state);
-                handleLyricsAndRecents(state);
-                return;
-            }
-        }
-        window._lastSongId = songId;
+    // Si la canción cambió, registrar el ID pero NO hacer debounce.
+    // El problema anterior era un timer de 500ms que causaba que el primer
+    // click de play/pausa se "perdiera" después de cambiar de canción.
+    // Ahora simplemente actualizamos el icono según isPlaying directamente.
+    // Si durante la transición llega isPlaying=false momentáneamente,
+    // el siguiente evento de isPlaying=true lo corregirá.
+    if (state.currentSong) {
+        window._lastSongId = state.currentSong.id;
     }
 
+    // Limpiar cualquier timer pendiente
+    if (window._pendingPauseTimer) { clearTimeout(window._pendingPauseTimer); window._pendingPauseTimer = null; }
+
     if (state.isPlaying) {
-        if (window._pendingPauseTimer) { clearTimeout(window._pendingPauseTimer); window._pendingPauseTimer = null; }
         playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
         playIcon.dataset.playing = 'true';
     } else {
