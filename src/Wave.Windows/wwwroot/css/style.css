@@ -101,9 +101,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 #song-count { color: var(--text-dim); font-size: 13px; }
 .sort-chip { position: relative; cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 .sort-chip:hover { background: var(--surface-light); }
-.sort-menu { position: absolute; top: 100%; right: 0; background: var(--surface-light); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 100; min-width: 140px; }
-.sort-option { padding: 10px 16px; cursor: pointer; color: var(--text-dim); font-size: 13px; }
+.sort-menu { position: absolute; top: 100%; right: 0; background: var(--surface-light); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 100; min-width: 180px; padding: 4px 0; }
+.sort-option { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; color: var(--text-dim); font-size: 13px; transition: all 0.1s ease; }
+.sort-option svg { width: 18px; height: 18px; color: var(--text-faint); transition: color 0.1s ease; }
 .sort-option:hover { background: var(--bg); color: var(--accent); }
+.sort-option:hover svg { color: var(--accent); }
 
 /* Song list */
 #songs-list { display: flex; flex-direction: column; gap: 2px; }
@@ -158,10 +160,10 @@ body.has-selection #recent-section { top: 48px; }
 body.has-selection #selection-bar { top: 0; }
 #artists-section { margin-bottom: 4px; }
 #recent-slider, #artists-slider { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; scroll-behavior: smooth; }
-#recent-slider::-webkit-scrollbar, #artists-slider::-webkit-scrollbar { height: 6px; }
-#recent-slider::-webkit-scrollbar-track, #artists-slider::-webkit-scrollbar-track { background: var(--surface); border-radius: 3px; }
-#recent-slider::-webkit-scrollbar-thumb, #artists-slider::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-#recent-slider::-webkit-scrollbar-thumb:hover, #artists-slider::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+#recent-slider::-webkit-scrollbar, #artists-slider::-webkit-scrollbar { height: 10px; }
+#recent-slider::-webkit-scrollbar-track, #artists-slider::-webkit-scrollbar-track { background: var(--surface); border-radius: 5px; }
+#recent-slider::-webkit-scrollbar-thumb, #artists-slider::-webkit-scrollbar-thumb { background: var(--accent-dim); border-radius: 5px; border: 2px solid var(--surface); }
+#recent-slider::-webkit-scrollbar-thumb:hover, #artists-slider::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 .recent-card { flex-shrink: 0; width: 64px; height: 64px; border-radius: 6px; background: var(--accent-dim); overflow: hidden; cursor: pointer; position: relative; transition: all 0.2s ease; }
 .recent-card:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 6px 16px rgba(0,0,0,0.5); }
 .recent-card img { width: 100%; height: 100%; object-fit: cover; }
@@ -495,6 +497,8 @@ body.has-selection #selection-bar { top: 0; }
 .settings-group { margin-bottom: 20px; }
 .settings-group-title { font-size: 11px; text-transform: uppercase; color: var(--accent); padding: 8px 0 12px; font-weight: 700; letter-spacing: 0.8px; border-bottom: 1px solid rgba(50, 201, 139, 0.2); margin-bottom: 12px; }
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; font-size: 13px; color: var(--text-dim); }
+.settings-row .row-icon { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.settings-row .row-label { display: flex; align-items: center; gap: 10px; flex: 1; }
 .settings-row label { flex: 1; }
 .settings-slider { width: 120px; -webkit-appearance: none; height: 4px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
 .settings-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 6px rgba(50, 201, 139, 0.6); }
@@ -515,13 +519,13 @@ body.has-selection #selection-bar { top: 0; }
 .settings-btn.danger svg { color: #ff4444; }
 .settings-btn.danger:hover { background: rgba(255, 68, 68, 0.08); border-color: rgba(255, 68, 68, 0.3); }
 
-/* Toggle switch (iOS style) */
-.switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; cursor: pointer; }
+/* Toggle switch (iOS style) — más corto: 32x18 */
+.switch { position: relative; display: inline-block; width: 32px; height: 18px; flex-shrink: 0; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 2; }
-.slider-toggle { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 22px; transition: all 0.25s ease; }
-.slider-toggle::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--text-dim); border-radius: 50%; transition: all 0.25s ease; }
+.slider-toggle { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 18px; transition: all 0.25s ease; }
+.slider-toggle::before { content: ''; position: absolute; height: 12px; width: 12px; left: 3px; bottom: 3px; background: var(--text-dim); border-radius: 50%; transition: all 0.25s ease; }
 .switch input:checked ~ .slider-toggle { background: var(--accent); }
-.switch input:checked ~ .slider-toggle::before { transform: translateX(16px); background: #000; }
+.switch input:checked ~ .slider-toggle::before { transform: translateX(14px); background: #000; }
 .switch-inline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer; padding: 4px 0; }
 .switch-inline input { margin: 0; cursor: pointer; }
 
@@ -577,15 +581,15 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
     to { opacity: 1; transform: scale(1); }
 }
 
-/* Scrollbar — pintada en la parte que se arrastra (thumb) */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--surface); border-radius: 5px; }
+/* Scrollbar — ancha (14px) y con color accent para que se vea bien */
+::-webkit-scrollbar { width: 14px; height: 14px; }
+::-webkit-scrollbar-track { background: var(--surface); border-radius: 7px; }
 ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 5px;
-    border: 2px solid var(--surface);
+    background: var(--accent-dim);
+    border-radius: 7px;
+    border: 3px solid var(--surface);
     transition: background 0.2s ease;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
-::-webkit-scrollbar-thumb:active { background: var(--accent); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar-thumb:active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 ::-webkit-scrollbar-corner { background: var(--surface); }
