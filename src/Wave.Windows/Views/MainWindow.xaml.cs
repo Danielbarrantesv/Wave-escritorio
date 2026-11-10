@@ -36,26 +36,14 @@ public partial class MainWindow : Window
             // Bloquear aceleradores del navegador (F5 actualizar, Ctrl+S guardar, etc.)
             WebView.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
 
+            // Forzar zoom al 100% — importante para pantallas HiDPI donde el sistema
+            // usa 125%/150% por defecto, lo que hace que todo se vea "muy grande"
+            try { WebView.CoreWebView2.ZoomFactor = 1.0; } catch { /* ignore */ }
+
             // Navegar directamente al index.html via file:// protocol
             var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
             WaveLogger.Info($"Loading WebView2 from: {wwwrootPath}");
             WebView.CoreWebView2.Navigate(new Uri(wwwrootPath).AbsoluteUri);
-
-            // Forzar zoom al 100% via CSS — importante para pantallas HiDPI donde
-            // el sistema usa 125%/150% por defecto y hace que todo se vea "muy grande"
-            // Se ejecuta después de la navegación inicial
-            WebView.CoreWebView2.NavigationCompleted += (s, ev) =>
-            {
-                if (ev.IsSuccess)
-                {
-                    try
-                    {
-                        _ = WebView.CoreWebView2.ExecuteScriptAsync(
-                            "document.documentElement.style.zoom = '1';");
-                    }
-                    catch { /* ignore */ }
-                }
-            };
 
             // Crear el bridge
             _bridge = new WebViewBridge(
