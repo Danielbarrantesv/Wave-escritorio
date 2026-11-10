@@ -1618,7 +1618,7 @@ const I18N = {
         export_library: 'Exportar biblioteca (JSON)', import_library: 'Importar biblioteca (JSON)',
         export_logs: 'Exportar logs (wave.log)', clear_library: 'Borrar toda la biblioteca',
         report_bug: 'Reportar bug', view_changelog: 'Ver changelog',
-        first_run_title: 'Bienvenido a Wave', first_run_msg: 'Selecciona tu idioma para empezar:',
+        not_selected: 'No seleccionada', browse: 'Examinar', first_run_title: 'Bienvenido a Wave', first_run_msg: 'Selecciona tu idioma para empezar:',
         no_song: 'Canción', no_artist: 'Artista'
     },
     en: {
@@ -1643,7 +1643,7 @@ const I18N = {
         export_library: 'Export library (JSON)', import_library: 'Import library (JSON)',
         export_logs: 'Export logs (wave.log)', clear_library: 'Clear entire library',
         report_bug: 'Report bug', view_changelog: 'View changelog',
-        first_run_title: 'Welcome to Wave', first_run_msg: 'Select your language to start:',
+        not_selected: 'Not selected', browse: 'Browse', first_run_title: 'Welcome to Wave', first_run_msg: 'Select your language to start:',
         no_song: 'Song', no_artist: 'Artist'
     },
     fr: {
@@ -1668,7 +1668,7 @@ const I18N = {
         export_library: 'Exporter bibliothèque (JSON)', import_library: 'Importer bibliothèque (JSON)',
         export_logs: 'Exporter logs (wave.log)', clear_library: 'Vider toute la bibliothèque',
         report_bug: 'Signaler bug', view_changelog: 'Voir changelog',
-        first_run_title: 'Bienvenue dans Wave', first_run_msg: 'Sélectionnez votre langue pour commencer:',
+        not_selected: 'Non sélectionné', browse: 'Parcourir', first_run_title: 'Bienvenue dans Wave', first_run_msg: 'Sélectionnez votre langue pour commencer:',
         no_song: 'Chanson', no_artist: 'Artiste'
     },
     de: {
@@ -1693,7 +1693,7 @@ const I18N = {
         export_library: 'Bibliothek exportieren (JSON)', import_library: 'Bibliothek importieren (JSON)',
         export_logs: 'Logs exportieren (wave.log)', clear_library: 'Gesamte Bibliothek löschen',
         report_bug: 'Fehler melden', view_changelog: 'Changelog anzeigen',
-        first_run_title: 'Willkommen bei Wave', first_run_msg: 'Wählen Sie Ihre Sprache zum Starten:',
+        not_selected: 'Nicht ausgewählt', browse: 'Durchsuchen', first_run_title: 'Willkommen bei Wave', first_run_msg: 'Wählen Sie Ihre Sprache zum Starten:',
         no_song: 'Lied', no_artist: 'Künstler'
     },
     ja: {
@@ -1718,7 +1718,7 @@ const I18N = {
         export_library: 'ライブラリをエクスポート (JSON)', import_library: 'ライブラリをインポート (JSON)',
         export_logs: 'ログをエクスポート (wave.log)', clear_library: 'ライブラリをすべて削除',
         report_bug: 'バグを報告', view_changelog: '変更履歴を見る',
-        first_run_title: 'Waveへようこそ', first_run_msg: '開始する言語を選択してください:',
+        not_selected: '未選択', browse: '参照', first_run_title: 'Waveへようこそ', first_run_msg: '開始する言語を選択してください:',
         no_song: '曲', no_artist: 'アーティスト'
     },
     ko: {
@@ -1743,7 +1743,7 @@ const I18N = {
         export_library: '라이브러리 내보내기 (JSON)', import_library: '라이브러리 가져오기 (JSON)',
         export_logs: '로그 내보내기 (wave.log)', clear_library: '전체 라이브러리 삭제',
         report_bug: '버그 신고', view_changelog: '변경 로그 보기',
-        first_run_title: 'Wave에 오신 것을 환영합니다', first_run_msg: '시작하려면 언어를 선택하세요:',
+        not_selected: '선택되지 않음', browse: '찾아보기', first_run_title: 'Wave에 오신 것을 환영합니다', first_run_msg: '시작하려면 언어를 선택하세요:',
         no_song: '곡', no_artist: '아티스트'
     }
 };
@@ -1754,6 +1754,65 @@ function t(key) {
 }
 
 function applyLanguage(lang) {
+    // Helper: setear texto del label que está en la misma .settings-row que el input con id
+    const setSettingLabel = (inputId, text) => {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const row = input.closest('.settings-row');
+        if (!row) return;
+        // Buscar el <label> directo dentro de .row-label o directamente en la row
+        const label = row.querySelector('.row-label > label') || row.querySelector('label:not(.switch):not(.switch-inline)');
+        if (label) label.textContent = text;
+    };
+    const setSettingSpan = (inputId, text) => {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const parent = input.closest('label.switch-inline');
+        if (parent) {
+            const span = parent.querySelector('span');
+            if (span) span.textContent = text;
+        }
+    };
+    const setSettingPlaceholder = (inputId, text) => {
+        const input = document.getElementById(inputId);
+        if (input) input.placeholder = text;
+    };
+
+    // Header de configuración
+    const settingsHeader = document.querySelector('.settings-header h2');
+    if (settingsHeader) settingsHeader.textContent = t('settings');
+    // Group titles
+    const groupTitles = document.querySelectorAll('.settings-group-title');
+    const groupKeys = ['playback', 'library', 'interface', 'data', 'about'];
+    groupTitles.forEach((el, i) => { if (groupKeys[i]) el.textContent = t(groupKeys[i]); });
+
+    // Reproducción
+    setSettingLabel('set-volume-initial', t('volume_initial'));
+    setSettingLabel('set-repeat-all', t('repeat_all_default'));
+    setSettingLabel('set-shuffle-default', t('shuffle_default'));
+    setSettingLabel('set-skip-zero', t('skip_zero'));
+    // Biblioteca
+    setSettingLabel('set-default-folder', t('default_folder'));
+    setSettingPlaceholder('set-default-folder', t('not_selected'));
+    const btnExaminar = document.querySelector('#set-default-folder + button');
+    if (btnExaminar) btnExaminar.textContent = t('browse');
+    setSettingSpan('set-import-on-open', t('import_on_open'));
+    setSettingLabel('set-confirm-delete', t('confirm_delete'));
+    setSettingLabel('set-rescan-tags', t('rescan_tags'));
+    // Interfaz
+    setSettingLabel('set-theme', t('theme'));
+    setSettingLabel('set-accent-picker', t('accent_color'));
+    setSettingLabel('set-language', t('language'));
+    setSettingLabel('set-animations', t('animations'));
+    setSettingLabel('set-show-sliders', t('show_sliders'));
+    // Datos (botones)
+    const settingsBtns = document.querySelectorAll('#settings-content .settings-btn');
+    const btnLabels = [t('export_library'), t('import_library'), t('export_logs'), t('clear_library'), t('report_bug'), t('view_changelog')];
+    settingsBtns.forEach((btn, i) => {
+        const span = btn.querySelector('span');
+        if (span && btnLabels[i]) span.textContent = btnLabels[i];
+    });
+
     // Actualizar placeholders y textos hardcoded que no tienen data-i18n
     const search = document.getElementById('search');
     if (search) search.placeholder = t('search_placeholder');

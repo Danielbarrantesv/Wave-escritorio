@@ -17,6 +17,55 @@ html[data-theme="light"] {
     --border: #d0d0d0;
 }
 
+/* Overrides para el side-panel (lyrics/EQ/settings) en tema claro */
+html[data-theme="light"] #side-panel { background: var(--bg); }
+html[data-theme="light"] #side-panel::before {
+    background: linear-gradient(to bottom, rgba(245,245,245,0.4) 0%, rgba(245,245,245,0.7) 100%);
+}
+html[data-theme="light"] .lyric-line {
+    color: rgba(0,0,0,0.65);
+    text-shadow: 0 1px 4px rgba(255,255,255,0.6);
+}
+/* La línea activa SIEMPRE mantiene el color de accent (verde u otro) */
+html[data-theme="light"] .lyric-line.active {
+    color: var(--accent);
+    text-shadow: 0 0 12px rgba(50, 201, 139, 0.4);
+}
+html[data-theme="light"] .eq-header h2,
+html[data-theme="light"] .settings-header h2 {
+    text-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+html[data-theme="light"] .side-panel-close {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+}
+html[data-theme="light"] .side-panel-close:hover {
+    background: rgba(0,0,0,0.5);
+}
+/* Settings rows con hover claro */
+html[data-theme="light"] .settings-btn {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.1);
+}
+html[data-theme="light"] .settings-btn:hover {
+    background: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .settings-input {
+    background: #fff;
+    color: var(--text);
+}
+html[data-theme="light"] .settings-select {
+    background: #fff;
+    color: var(--text);
+}
+html[data-theme="light"] .edit-field {
+    background: #fff;
+}
+html[data-theme="light"] .edit-input {
+    color: var(--text);
+}
+
 /* Colores de accent disponibles */
 html[data-accent="green"]   { --accent: #32c98b; --accent-dim: #28a373; }
 html[data-accent="red"]     { --accent: #e83838; --accent-dim: #c12828; }
