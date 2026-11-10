@@ -32,6 +32,10 @@ public partial class PlaybackController : ObservableObject, IDisposable
     private int _shuffleIndex = -1;
     private bool _disposed;
     private long _lastLastPlayedUpdate;
+    // Flag para suprimir el evento IsPlaying=false durante la carga de una nueva canción.
+    // Sin esto, NAudio dispara PlaybackStopped al cargar la siguiente canción,
+    // lo que pone IsPlaying=false momentáneamente y causa el bug del doble click.
+    private bool _isLoadingNext;
 
     // Estado observable (UI bindea estos)
     [ObservableProperty] private bool _isPlaying;
@@ -261,6 +265,10 @@ public partial class PlaybackController : ObservableObject, IDisposable
         CurrentSong = _queue[_currentIndex];
         WaveLogger.Info($"LoadAndPlay: '{CurrentSong.DisplayTitle}' by {CurrentSong.DisplayArtist}, autoPlay={autoPlay}, FilePath={CurrentSong.FilePath}");
 
+        // Suprimir el evento IsPlaying=false que NAudio dispara al cargar una nueva canción.
+        // Sin este flag, OnPlaybackStopped pondría IsPlaying=false momentáneamente,
+        // causando que el JS cambie el icono a "play" y el usuario necesite doble click.
+        _isLoadingNext = true;
         try
         {
             _engine.Load(CurrentSong.FilePath);
@@ -284,11 +292,25 @@ public partial class PlaybackController : ObservableObject, IDisposable
             WaveLogger.Error($"Error loading/playing: {CurrentSong.FilePath}", ex);
             if (autoPlay) SkipToNext();
         }
+        finally
+        {
+            _isLoadingNext = false;
+        }
     }
 
     /// <summary>Manejador del evento PlaybackStopped del engine.</summary>
     private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
     {
+        // Si estamos cargando la siguiente canción, ignorar este evento.
+        // NAudio dispara PlaybackStopped cuando se carga un nuevo archivo
+        // (detiene el stream anterior). Sin este check, IsPlaying se pondría
+        // en false momentáneamente, causando el bug del doble click en play/pausa.
+        if (_isLoadingNext)
+        {
+            WaveLogger.Info("OnPlaybackStopped ignored during song transition (_isLoadingNext=true)");
+            return;
+        }
+
         // Si terminó naturalmente (no por Stop()) y llegó al final
         if (e.Exception == null && _engine.PositionMs >= _engine.LengthMs - 100)
         {
