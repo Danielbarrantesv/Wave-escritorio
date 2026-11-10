@@ -38,7 +38,7 @@ public partial class MainWindow : Window
 
             // Forzar zoom al 100% — importante para pantallas HiDPI donde el sistema
             // usa 125%/150% por defecto, lo que hace que todo se vea "muy grande"
-            try { WebView.CoreWebView2.SetZoomFactor(1.0); } catch { /* ignore */ }
+            try { WebView.CoreWebView2.ZoomFactor = 1.0; } catch { /* ignore */ }
 
             // Navegar directamente al index.html via file:// protocol
             var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
