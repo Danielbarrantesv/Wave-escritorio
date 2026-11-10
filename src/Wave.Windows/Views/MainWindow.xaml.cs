@@ -108,4 +108,28 @@ public partial class MainWindow : Window
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
+
+    /// <summary>
+    /// Cuando la ventana se maximiza, limitar al área de trabajo (WorkArea)
+    /// para que NO cubra la barra de tareas de Windows.
+    /// </summary>
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            // Obtener el área de trabajo (sin barra de tareas)
+            var workArea = SystemParameters.WorkArea;
+            // Limitar tamaño y posición
+            MaxWidth = workArea.Width;
+            MaxHeight = workArea.Height;
+            Top = workArea.Top;
+            Left = workArea.Left;
+        }
+        else
+        {
+            // Restaurar valores por defecto cuando no está maximizada
+            MaxWidth = double.PositiveInfinity;
+            MaxHeight = double.PositiveInfinity;
+        }
+    }
 }

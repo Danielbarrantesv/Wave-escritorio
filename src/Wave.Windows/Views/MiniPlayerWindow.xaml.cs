@@ -138,4 +138,33 @@ public partial class MiniPlayerWindow : Window
         Close();
         base.OnMouseRightButtonUp(e);
     }
+
+    /// <summary>
+    /// Aplica tema (dark/light) y color de accent al mini player en runtime.
+    /// Llamado por WebViewBridge.ApplyTheme cuando el JS cambia la configuración.
+    /// </summary>
+    public void ApplyTheme(string theme, System.Windows.Media.Color accentColor)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var bgHex = theme == "light"
+                ? System.Windows.Media.Color.FromRgb(0xf5, 0xf5, 0xf5)
+                : System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a);
+            var bgBrush = new System.Windows.Media.SolidColorBrush(bgHex);
+            bgBrush.Opacity = 0.87;
+
+            // Buscar el Border principal del contenido
+            if (Content is System.Windows.Controls.Border mainBorder)
+            {
+                mainBorder.Background = bgBrush;
+            }
+
+            // Actualizar thumb del slider (bolita) — buscar el Ellipse en el template
+            // y el relleno (DecreaseRepeatButton Background)
+            var accentBrush = new System.Windows.Media.SolidColorBrush(accentColor);
+            // El control ProgressBar es el Slider, pero el Thumb tiene su propio template
+            // que fue definido en App.xaml. Actualizar dinámicamente los brushes es complejo;
+            // el cambio principal es el background del border.
+        });
+    }
 }

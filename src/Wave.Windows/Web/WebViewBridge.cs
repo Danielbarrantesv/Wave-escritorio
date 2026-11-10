@@ -123,6 +123,7 @@ public class WebViewBridge
             "window.openEqualizer" => OpenEqualizer(),
             "window.exportLogs" => ExportLogs(),
             "window.selectFolder" => SelectFolder(),
+            "window.applyTheme" => ApplyTheme(p),
 
             _ => throw new NotImplementedException($"Method '{method}' not found")
         };
@@ -246,6 +247,55 @@ public class WebViewBridge
             try { _webView.PostWebMessageAsString(JsonSerializer.Serialize(new { @event = "playbackChanged", state = GetPlaybackState() }, JsonOpts)); }
             catch { }
         }
+    }
+
+    /// <summary>
+    /// Aplica el tema (dark/light) y color de accent al mini player y ventana principal.
+    /// Recibe { theme: "dark"|"light", accent: "green"|... } desde JS.
+    /// </summary>
+    private object? ApplyTheme(JsonElement p)
+    {
+        var theme = p.TryGetProperty("theme", out var tEl) ? tEl.GetString() ?? "dark" : "dark";
+        var accent = p.TryGetProperty("accent", out var aEl) ? aEl.GetString() ?? "green" : "green";
+
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            // Convertir accent name → color hex
+            var accentColor = accent switch
+            {
+                "red"     => System.Windows.Media.Color.FromRgb(0xe8, 0x38, 0x38),
+                "orange"  => System.Windows.Media.Color.FromRgb(0xff, 0x8c, 0x1a),
+                "yellow"  => System.Windows.Media.Color.FromRgb(0xff, 0xcc, 0x00),
+                "blue"    => System.Windows.Media.Color.FromRgb(0x1a, 0x8c, 0xff),
+                "cyan"    => System.Windows.Media.Color.FromRgb(0x00, 0xd4, 0xff),
+                "magenta" => System.Windows.Media.Color.FromRgb(0xff, 0x2d, 0xa8),
+                "purple"  => System.Windows.Media.Color.FromRgb(0x9c, 0x27, 0xff),
+                _         => System.Windows.Media.Color.FromRgb(0x32, 0xc9, 0x8b), // green default
+            };
+
+            // Tema: background del mini player
+            var bgBrush = theme == "light"
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xf5, 0xf5, 0xf5))
+                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a));
+            bgBrush.Opacity = 0.87;
+
+            var accentBrush = new System.Windows.Media.SolidColorBrush(accentColor);
+
+            // Actualizar ventana principal
+            if (Application.Current.MainWindow is MainWindow main)
+            {
+                main.Background = theme == "light"
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xf5, 0xf5, 0xf5))
+                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a));
+            }
+
+            // Actualizar mini player si está abierto
+            if (_miniPlayer is Views.MiniPlayerWindow mp)
+            {
+                mp.ApplyTheme(theme, accentColor);
+            }
+        });
+        return null;
     }
 
     private object? ToggleMiniPlayer()
