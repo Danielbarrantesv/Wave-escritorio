@@ -95,24 +95,10 @@ function bindEvents() {
         };
     });
 
-    // Close context menu on click anywhere (mousedown para mayor robustez)
-    // Verifica si el click fue FUERA del menú → lo cierra
-    document.addEventListener('mousedown', (e) => {
-        const ctxMenu = document.getElementById('context-menu');
-        const plMenu = document.getElementById('playlist-context-menu');
-        if (ctxMenu && !ctxMenu.contains(e.target) && !e.target.closest('.song-row')) {
-            ctxMenu.classList.add('hidden');
-        }
-        if (plMenu && !plMenu.contains(e.target) && !e.target.closest('.playlist-item')) {
-            plMenu.classList.add('hidden');
-        }
-    });
-    // Fallback adicional: click normal también cierra
-    document.addEventListener('click', (e) => {
-        const ctxMenu = document.getElementById('context-menu');
-        const plMenu = document.getElementById('playlist-context-menu');
-        if (ctxMenu && !ctxMenu.contains(e.target)) ctxMenu.classList.add('hidden');
-        if (plMenu && !plMenu.contains(e.target)) plMenu.classList.add('hidden');
+    // Close context menu on click anywhere
+    document.addEventListener('click', () => {
+        document.getElementById('context-menu').classList.add('hidden');
+        document.getElementById('playlist-context-menu').classList.add('hidden');
     });
 
     // Esc limpia la selección
@@ -1344,10 +1330,7 @@ async function editSong(songId) {
     }, 50);
 }
 
-function hideContextMenu() {
-    document.getElementById('context-menu').classList.add('hidden');
-    document.getElementById('playlist-context-menu').classList.add('hidden');
-}
+function hideContextMenu() { document.getElementById('context-menu').classList.add('hidden'); }
 
 async function removeFromPlaylist(songId) {
     hideContextMenu();
@@ -1405,18 +1388,9 @@ async function onBackup() {
 }
 
 async function onSettings() {
-    // Abrir el panel SIEMPRE primero, sin importar qué pase después
-    try {
-        openSidePanel('settings');
-    } catch (e) {
-        console.error('Error abriendo panel de settings:', e);
-    }
-    // Cargar valores guardados en los inputs (si falla, el panel ya está abierto)
-    try {
-        loadSettingsToForm();
-    } catch (e) {
-        console.error('Error cargando settings al form:', e);
-    }
+    openSidePanel('settings');
+    // Cargar valores guardados en los inputs
+    loadSettingsToForm();
 }
 
 // === Drag & drop ===
