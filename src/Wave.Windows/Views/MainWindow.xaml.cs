@@ -32,7 +32,7 @@ public partial class MainWindow : Window
             CaptionHeight = 0,           // Sin caption nativo (ya tenemos titlebar HTML)
             ResizeBorderThickness = new Thickness(6), // 6px de borde agarrable en todos los lados
             GlassFrameThickness = new Thickness(0),
-            CornerRadius = 0,
+            CornerRadius = new CornerRadius(0),
             UseAeroCaptionButtons = false
         };
         WindowChrome.SetWindowChrome(this, chrome);
