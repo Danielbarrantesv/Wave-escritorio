@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Wave" Height="720" Width="1200"
-        MinHeight="400" MinWidth="600"
+        MinHeight="400" MinWidth="480"
         WindowStartupLocation="CenterScreen"
         Background="#1A1A1A"
         WindowStyle="None"
