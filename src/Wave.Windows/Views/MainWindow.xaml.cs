@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
 using Wave.Windows.Services;
@@ -22,6 +23,19 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Loaded += MainWindow_Loaded;
+
+        // WindowChrome permite resize desde todos los bordes y esquinas
+        // incluso con WindowStyle=None + AllowsTransparency=True.
+        // ResizeBorderThickness define qué tan grueso es el borde agarrable.
+        var chrome = new WindowChrome
+        {
+            CaptionHeight = 0,           // Sin caption nativo (ya tenemos titlebar HTML)
+            ResizeBorderThickness = new Thickness(6), // 6px de borde agarrable en todos los lados
+            GlassFrameThickness = new Thickness(0),
+            CornerRadius = 0,
+            UseAeroCaptionButtons = false
+        };
+        WindowChrome.SetWindowChrome(this, chrome);
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
