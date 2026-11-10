@@ -301,15 +301,14 @@ public partial class PlaybackController : ObservableObject, IDisposable
     /// <summary>Manejador del evento PlaybackStopped del engine.</summary>
     private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
     {
-        // Si estamos cargando la siguiente canción, ignorar este evento.
-        // NAudio dispara PlaybackStopped cuando se carga un nuevo archivo
-        // (detiene el stream anterior). Sin este check, IsPlaying se pondría
-        // en false momentáneamente, causando el bug del doble click en play/pausa.
-        if (_isLoadingNext)
-        {
-            WaveLogger.Info("OnPlaybackStopped ignored during song transition (_isLoadingNext=true)");
-            return;
-        }
+        // NOTA: NO seteamos IsPlaying = false aquí.
+        // El evento PlaybackStopped de NAudio se dispara de forma ASINCRONA (en otro hilo),
+        // y se dispara tanto cuando el usuario pausa COMO cuando cargamos una nueva canción.
+        // Si seteáramos IsPlaying=false aquí, durante la transición entre canciones
+        // el JS recibiría isPlaying=false momentáneamente → bug del doble click.
+        //
+        // El estado IsPlaying=false lo maneja directamente Pause() en el momento.
+        // Aquí solo manejamos el caso de "canción terminó naturalmente → saltar a la siguiente".
 
         // Si terminó naturalmente (no por Stop()) y llegó al final
         if (e.Exception == null && _engine.PositionMs >= _engine.LengthMs - 100)
@@ -318,14 +317,17 @@ public partial class PlaybackController : ObservableObject, IDisposable
             {
                 _engine.Seek(0);
                 _engine.Play();
+                IsPlaying = true;
             }
             else
             {
                 SkipToNext();
             }
         }
-        else
+        // Si hubo una excepción, sí marcar como no-reproduciendo
+        if (e.Exception != null)
         {
+            WaveLogger.Error("OnPlaybackStopped: exception from engine", e.Exception);
             IsPlaying = false;
         }
     }
