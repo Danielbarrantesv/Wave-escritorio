@@ -36,8 +36,11 @@ const WaveAPI = {
     _onEvent(event, state) {
         if (event === 'playbackChanged' && this.onPlaybackChanged) {
             this.onPlaybackChanged(state);
+        } else if (event === 'importProgress' && this.onImportProgress) {
+            this.onImportProgress(state);
         }
     },
 
-    onPlaybackChanged: null
+    onPlaybackChanged: null,
+    onImportProgress: null
 };

@@ -206,6 +206,18 @@
     <div id="context-menu" class="context-menu hidden"></div>
     <div id="playlist-context-menu" class="context-menu hidden"></div>
 
+    <!-- Import progress overlay -->
+    <div id="import-overlay" class="import-overlay hidden">
+        <div class="import-dialog">
+            <div class="import-spinner"></div>
+            <div class="import-title" id="import-title">Importando música...</div>
+            <div class="import-progress-bar">
+                <div class="import-progress-fill" id="import-progress-fill"></div>
+            </div>
+            <div class="import-count" id="import-count">Procesando 0 / 0</div>
+        </div>
+    </div>
+
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>

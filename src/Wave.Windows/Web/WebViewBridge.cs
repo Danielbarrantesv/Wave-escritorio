@@ -38,6 +38,26 @@ public class WebViewBridge
         _settings = settings; _audioEngine = audioEngine;
         _webView.WebMessageReceived += OnMessageReceived;
         _playback.PropertyChanged += OnPlaybackChanged;
+        // Suscribirse al progreso de importación para enviarlo al JS
+        _library.ScanProgress += OnScanProgress;
+    }
+
+    /// <summary>
+    /// Envía el progreso de importación al JS como evento.
+    /// El JS lo recibe y actualiza la barra de progreso overlay.
+    /// </summary>
+    private void OnScanProgress(object? sender, (int Current, int Total) e)
+    {
+        try
+        {
+            _webView.PostWebMessageAsString(JsonSerializer.Serialize(new
+            {
+                @event = "importProgress",
+                current = e.Current,
+                total = e.Total
+            }, JsonOpts));
+        }
+        catch { /* ignore */ }
     }
 
     private async void OnMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)

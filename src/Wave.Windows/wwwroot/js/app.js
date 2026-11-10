@@ -12,6 +12,7 @@ let lastClickedId = null;
 document.addEventListener('DOMContentLoaded', async () => {
     WaveAPI.init();
     WaveAPI.onPlaybackChanged = onPlaybackChanged;
+    WaveAPI.onImportProgress = onImportProgress;
     bindEvents();
     // Cargar y aplicar settings guardadas al iniciar
     let settings = loadSettings();
@@ -460,13 +461,18 @@ async function addFolderToPlaylist(playlistId) {
     hideContextMenu();
     const res = await WaveAPI.call('window.selectFolder', {});
     if (!res || res.cancelled || !res.path) return;
-    const result = await WaveAPI.call('library.importFromFolderToPlaylist', {
-        folderPath: res.path,
-        playlistId
-    });
+    showImportOverlay('Importando a playlist...');
+    let result;
+    try {
+        result = await WaveAPI.call('library.importFromFolderToPlaylist', {
+            folderPath: res.path,
+            playlistId
+        });
+    } finally {
+        hideImportOverlay();
+    }
     if (result && !result.cancelled) {
         await loadPlaylists();
-        // Recargar vista si estamos en esa playlist
         if (currentPlaylist && currentPlaylist.id === playlistId) {
             await selectPlaylist(currentPlaylist);
         }
@@ -1337,10 +1343,15 @@ async function onAddMusic() {
             const choice = window._addChoice;
             if (choice === 'cancel' || !choice) return;
             let result;
-            if (choice === 'folder') {
-                result = await WaveAPI.call('library.importFromFolder', '');
-            } else if (choice === 'files') {
-                result = await WaveAPI.call('library.importFiles', {});
+            showImportOverlay('Importando música...');
+            try {
+                if (choice === 'folder') {
+                    result = await WaveAPI.call('library.importFromFolder', '');
+                } else if (choice === 'files') {
+                    result = await WaveAPI.call('library.importFiles', {});
+                }
+            } finally {
+                hideImportOverlay();
             }
             if (result && !result.cancelled) {
                 await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
@@ -1376,6 +1387,32 @@ function formatDuration(ms) {
     return h > 0 ? `${h}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` : `${m}:${String(s%60).padStart(2,'0')}`;
 }
 function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+// === Import progress overlay ===
+function showImportOverlay(title) {
+    const overlay = document.getElementById('import-overlay');
+    if (!overlay) return;
+    if (title) document.getElementById('import-title').textContent = title;
+    document.getElementById('import-progress-fill').style.width = '0%';
+    document.getElementById('import-count').textContent = 'Procesando 0 / 0';
+    overlay.classList.remove('hidden');
+}
+
+function hideImportOverlay() {
+    const overlay = document.getElementById('import-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+function onImportProgress(state) {
+    if (!state) return;
+    const overlay = document.getElementById('import-overlay');
+    if (!overlay || overlay.classList.contains('hidden')) showImportOverlay('Importando música...');
+    const pct = state.total > 0 ? Math.round((state.current / state.total) * 100) : 0;
+    const fill = document.getElementById('import-progress-fill');
+    if (fill) fill.style.width = pct + '%';
+    const count = document.getElementById('import-count');
+    if (count) count.textContent = `Procesando ${state.current} / ${state.total} (${pct}%)`;
+}
 
 // === Settings ===
 // Persistencia en localStorage. Las claves son set_<name>.
