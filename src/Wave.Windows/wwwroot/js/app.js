@@ -101,9 +101,19 @@ function bindEvents() {
     });
 
     // Esc limpia la selección
+    // Barra espaciadora (cuando el foco no está en un input/select/textarea) → play/pausa
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && selectedSongIds.size > 0) {
             clearSelection();
+            return;
+        }
+        // Evitar pausar/play cuando el usuario está escribiendo en un campo
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select'
+            || document.activeElement?.isContentEditable;
+        if (e.code === 'Space' && !isTyping && !e.repeat) {
+            e.preventDefault();
+            onPlayPause();
         }
     });
 }
