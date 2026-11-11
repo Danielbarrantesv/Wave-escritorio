@@ -92,6 +92,7 @@ public class WebViewBridge
             "library.importFiles" => await ImportFiles(p),
             "library.deleteSong" => DeleteSong(p),
             "library.deleteAll" => Invoke(() => _library.DeleteAll()),
+            "library.scanForNewFiles" => await ScanForNewFiles(),
             "library.editSong" => EditSong(p),
 
             // Playback
@@ -434,6 +435,16 @@ public class WebViewBridge
 
         var result = await _library.ImportFromFolderAsync(folderPath, playlistId);
         return result;
+    }
+
+    /// <summary>
+    /// Escanea las carpetas conocidas en busca de archivos nuevos.
+    /// Se ejecuta en background (async). Retorna el número de canciones nuevas encontradas.
+    /// </summary>
+    private async Task<object?> ScanForNewFiles()
+    {
+        var added = await _library.ScanForNewFilesAsync();
+        return new { added };
     }
 
     private static object? Invoke(Action a) { a(); return null; }

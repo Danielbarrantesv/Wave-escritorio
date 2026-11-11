@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (e) { /* ignore */ }
         }
     } catch (e) { /* ignore */ }
+
+    // Auto-scan de archivos nuevos 3 segundos después de cargar
+    // (en background, no bloquea la UI)
+    setTimeout(() => autoScanForNewFiles(), 3000);
 });
 
 function bindEvents() {
@@ -1412,6 +1416,45 @@ function onImportProgress(state) {
     if (fill) fill.style.width = pct + '%';
     const count = document.getElementById('import-count');
     if (count) count.textContent = `Procesando ${state.current} / ${state.total} (${pct}%)`;
+}
+
+// === Toast notification ===
+function showToast(title, message, iconSvg) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    document.getElementById('toast-title').textContent = title;
+    document.getElementById('toast-message').textContent = message;
+    document.getElementById('toast-icon').innerHTML = iconSvg ||
+        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    toast.classList.remove('hidden', 'slide-out');
+    // Auto-ocultar después de 5 segundos
+    if (window._toastTimer) clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => {
+        toast.classList.add('slide-out');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+    }, 5000);
+}
+
+// === Auto-scan for new files on startup ===
+// Se ejecuta 3 segundos después de que la app termina de cargar,
+// en background. Si encuentra canciones nuevas, muestra un toast.
+async function autoScanForNewFiles() {
+    try {
+        const result = await WaveAPI.call('library.scanForNewFiles', {});
+        if (result && result.added > 0) {
+            const n = result.added;
+            showToast(
+                'Música nueva encontrada',
+                `Se agregaron ${n} canción${n > 1 ? 'es' : ''} nueva${n > 1 ? 's' : ''} a tu biblioteca.`,
+                '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
+            );
+            // Recargar la biblioteca para mostrar las canciones nuevas
+            await loadSongs();
+            await loadPlaylists();
+        }
+    } catch (e) {
+        console.error('Auto-scan error:', e);
+    }
 }
 
 // === Settings ===

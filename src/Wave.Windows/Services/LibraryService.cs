@@ -325,4 +325,71 @@ public sealed class LibraryService : ILibraryService
             System.Diagnostics.Debug.WriteLine($"[LibraryService] Error updating song {songId}: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Escanea las carpetas conocidas (de playlists con folder_path + directorios
+    /// de canciones existentes) en busca de archivos NUEVOS que no están en la DB.
+    /// Es rápido porque solo compara paths (no lee tags de archivos existentes).
+    /// </summary>
+    /// <returns>Número de canciones nuevas encontradas (sin importar todavía).</returns>
+    public int ScanForNewFiles()
+    {
+        var existingPaths = _songRepo.ListAll().Select(s => s.FilePath).ToHashSet();
+        var foldersToScan = new HashSet<string>();
+
+        // 1. Carpetas de playlists que tienen folder_path
+        try
+        {
+            var db = Wave.Windows.Data.SqliteDatabase.Instance.Connection;
+            var playlistFolders = db.Query<string>(
+                "SELECT DISTINCT folder_path FROM playlists WHERE folder_path IS NOT NULL AND folder_path != ''");
+            foreach (var f in playlistFolders) foldersToScan.Add(f);
+        }
+        catch { /* ignore */ }
+
+        // 2. Directorios únicos de las canciones existentes
+        foreach (var path in existingPaths)
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                foldersToScan.Add(dir);
+        }
+
+        if (foldersToScan.Count == 0) return 0;
+
+        // Escanear cada carpeta y recolectar archivos nuevos
+        var newFiles = new List<string>();
+        foreach (var folder in foldersToScan)
+        {
+            var files = Scan(folder);
+            foreach (var file in files)
+            {
+                if (!existingPaths.Contains(file))
+                    newFiles.Add(file);
+            }
+        }
+
+        if (newFiles.Count == 0) return 0;
+
+        // Importar los archivos nuevos (reutiliza ImportFilesInternal)
+        WaveLogger.Info($"ScanForNewFiles: found {newFiles.Count} new files, importing...");
+        var result = ImportFilesInternal(newFiles, null);
+        WaveLogger.Info($"ScanForNewFiles: imported {result.Added} new, {result.Duplicates} duplicates");
+
+        // Recrear playlists por género si se agregaron canciones nuevas
+        if (result.Added > 0 && _playlistService != null)
+        {
+            try { _playlistService.CreateGenrePlaylists(); } catch { /* ignore */ }
+        }
+
+        return result.Added;
+    }
+
+    /// <summary>
+    /// Versión async de ScanForNewFiles para ejecutar en background al iniciar.
+    /// </summary>
+    public Task<int> ScanForNewFilesAsync()
+    {
+        return Task.Run(() => ScanForNewFiles());
+    }
 }
