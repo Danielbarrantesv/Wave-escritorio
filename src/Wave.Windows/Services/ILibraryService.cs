@@ -37,4 +37,10 @@ public interface ILibraryService
     /// actualizando sus metadatos con TagReader. Útil para migrar datos viejos.
     /// </summary>
     Task<int> FixMissingMetadataAsync();
+
+    /// <summary>
+    /// Escanea las carpetas conocidas en busca de archivos NUEVOS (que no están en DB).
+    /// Rápido: solo compara paths sin re-leer tags de existentes.
+    /// </summary>
+    Task<int> ScanForNewFilesAsync();
 }
