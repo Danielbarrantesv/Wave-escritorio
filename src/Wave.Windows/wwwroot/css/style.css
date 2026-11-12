@@ -154,6 +154,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
 }
+/* Cuando la selection-bar está visible, el header baja */
+body.has-selection #songs-header { top: 48px; }
 .songs-header-left { display: flex; align-items: center; gap: 8px; }
 .songs-header-right { display: flex; align-items: center; gap: 6px; }
 .header-icon { color: var(--accent); flex-shrink: 0; }
@@ -206,18 +208,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 @keyframes selection-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .selection-actions { display: flex; gap: 6px; align-items: center; }
 
-/* Recent songs slider — últimas 30 reproducidas, scroll horizontal, STICKY en top */
+/* Recent songs slider — NO sticky, se desplaza normalmente */
 #recent-section {
-    position: sticky; top: 0; z-index: 5;
     background: var(--bg);
     padding: 6px 0 4px;
     margin-bottom: 4px;
-    backdrop-filter: blur(10px);
-    transition: top 0.2s ease;
 }
-/* Cuando la selection-bar está visible, body tiene clase 'has-selection' y recent-section baja */
-body.has-selection #recent-section { top: 48px; }
-body.has-selection #selection-bar { top: 0; }
+/* artists-section tampoco sticky */
 #artists-section { margin-bottom: 4px; }
 #recent-slider, #artists-slider { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; scroll-behavior: smooth; }
 #recent-slider::-webkit-scrollbar, #artists-slider::-webkit-scrollbar { height: 10px; }
@@ -294,16 +291,18 @@ body.grid-view .song-row {
     background: var(--surface); cursor: pointer;
     transition: all 0.18s ease;
     grid-template-columns: none !important;
+    position: relative;
 }
 body.grid-view .song-row:hover { background: var(--surface-light); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 body.grid-view .song-check { display: none; }
 body.grid-view .song-cover { width: 100%; height: 140px; border-radius: 8px; }
-body.grid-view .song-info { text-align: center; }
-body.grid-view .song-title { font-size: 13px; }
-body.grid-view .song-artist { font-size: 11px; }
+body.grid-view .song-info { text-align: center; min-width: 0; }
+body.grid-view .song-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.grid-view .song-artist { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.grid-view .song-album { display: none; }
 body.grid-view .song-duration { display: none; }
-body.grid-view .fav-btn { position: absolute; top: 4px; right: 4px; }
+/* Corazón en cuadrícula: esquina superior derecha, sobre la portada */
+body.grid-view .fav-btn { position: absolute; top: 8px; right: 8px; z-index: 5; background: rgba(0,0,0,0.5); border-radius: 50%; padding: 4px; backdrop-filter: blur(4px); }
 
 /* Stats modal — diseño mejorado */
 .stats-modal { min-width: 380px; }

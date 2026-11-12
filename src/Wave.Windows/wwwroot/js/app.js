@@ -1740,6 +1740,27 @@ function navigateSongs(direction) {
 
 // === Sleep timer (temporizador de sueño) ===
 let sleepTimerId = null;
+function showSleepTimerMenu() {
+    const options = [15, 30, 45, 60, 90];
+    let bodyHtml = '<div class="playlist-picker">';
+    for (const min of options) {
+        bodyHtml += `<button class="modal-btn modal-btn-cancel" onclick="window._sleepChoice=${min};closeModal();">${min} minutos</button>`;
+    }
+    bodyHtml += `<button class="modal-btn modal-btn-cancel" style="color:#ff4444" onclick="window._sleepChoice=0;closeModal();">Cancelar temporizador</button>`;
+    bodyHtml += '</div>';
+    showModal('Temporizador de sueño', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._sleepChoice=-1;closeModal();">Cerrar</button>`);
+    window._sleepChoice = -1;
+    const check = setInterval(() => {
+        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+            clearInterval(check);
+            if (window._sleepChoice > 0) {
+                setSleepTimer(window._sleepChoice);
+            } else if (window._sleepChoice === 0) {
+                setSleepTimer(0);
+            }
+        }
+    }, 50);
+}
 function setSleepTimer(minutes) {
     if (sleepTimerId) { clearTimeout(sleepTimerId); sleepTimerId = null; }
     if (minutes > 0) {
