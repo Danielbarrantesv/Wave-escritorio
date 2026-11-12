@@ -147,4 +147,45 @@ public partial class MainWindow : Window
             MaxHeight = double.PositiveInfinity;
         }
     }
+
+    // === Media key handlers ===
+    // Estos métodos se ejecutan cuando el usuario presiona las teclas multimedia
+    // del teclado (Play/Pause, Next, Prev, Stop) que traen algunos laptops.
+
+    private PlaybackController? GetPlayback()
+    {
+        try { return App.Services.GetRequiredService<PlaybackController>(); }
+        catch { return null; }
+    }
+
+    private void MediaPlay_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+    {
+        GetPlayback()?.Play();
+    }
+
+    private void MediaPause_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+    {
+        GetPlayback()?.Pause();
+    }
+
+    private void MediaTogglePlayPause_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+    {
+        GetPlayback()?.TogglePlayPause();
+    }
+
+    private void MediaNextTrack_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+    {
+        GetPlayback()?.SkipToNext();
+    }
+
+    private void MediaPreviousTrack_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+    {
+        GetPlayback()?.SkipToPrevious();
+    }
+
+    private void MediaStop_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
+    {
+        var pb = GetPlayback();
+        if (pb != null) { pb.Pause(); pb.Seek(0); }
+    }
 }
