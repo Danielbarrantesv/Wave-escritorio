@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private bool _isExiting = false;
     /// <summary>Seteado por JS cuando el usuario ya confirmó salir vía modal HTML.</summary>
     public bool JsConfirmedExit = false;
+    private GlobalMediaKeyHook? _mediaKeyHook;
 
     public MainWindow()
     {
@@ -71,6 +72,18 @@ public partial class MainWindow : Window
             );
 
             WaveLogger.Info("WebView2 + Bridge initialized OK");
+
+            // Registrar hook global de media keys (funciona con app minimizada/en background)
+            try
+            {
+                _mediaKeyHook = new GlobalMediaKeyHook(
+                    App.Services.GetRequiredService<PlaybackController>());
+                _mediaKeyHook.Register(this);
+            }
+            catch (Exception ex)
+            {
+                WaveLogger.Error("Failed to register global media key hook", ex);
+            }
         }
         catch (Exception ex)
         {
@@ -96,6 +109,9 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        // Desregistrar hook global de media keys antes de cerrar
+        _mediaKeyHook?.Dispose();
+
         if (_isExiting) { base.OnClosing(e); return; }
 
         // Si JS ya confirmó la salida (modal HTML), salir sin pedir de nuevo
