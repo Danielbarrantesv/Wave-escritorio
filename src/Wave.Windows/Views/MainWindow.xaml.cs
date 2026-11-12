@@ -158,16 +158,6 @@ public partial class MainWindow : Window
         catch { return null; }
     }
 
-    private void MediaPlay_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
-    {
-        GetPlayback()?.Play();
-    }
-
-    private void MediaPause_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
-    {
-        GetPlayback()?.Pause();
-    }
-
     private void MediaTogglePlayPause_Executed(object sender, System.Windows.Input.ExecutedRoutedEventArgs e)
     {
         GetPlayback()?.TogglePlayPause();

@@ -14,16 +14,12 @@
         DragEnter="Window_DragEnter"
         StateChanged="Window_StateChanged">
     <Window.InputBindings>
-        <KeyBinding Command="{x:Static MediaCommands.Play}" Key="MediaPlay" />
-        <KeyBinding Command="{x:Static MediaCommands.Pause}" Key="MediaPause" />
-        <KeyBinding Command="{x:Static MediaCommands.TogglePlayPause}" Key="MediaPlayPause" />
-        <KeyBinding Command="{x:Static MediaCommands.NextTrack}" Key="MediaNextTrack" />
-        <KeyBinding Command="{x:Static MediaCommands.PreviousTrack}" Key="MediaPreviousTrack" />
-        <KeyBinding Command="{x:Static MediaCommands.Stop}" Key="MediaStop" />
+        <KeyBinding Command="{x:Static MediaCommands.TogglePlayPause}" Gesture="MediaPlayPause" />
+        <KeyBinding Command="{x:Static MediaCommands.NextTrack}" Gesture="MediaNextTrack" />
+        <KeyBinding Command="{x:Static MediaCommands.PreviousTrack}" Gesture="MediaPreviousTrack" />
+        <KeyBinding Command="{x:Static MediaCommands.Stop}" Gesture="MediaStop" />
     </Window.InputBindings>
     <Window.CommandBindings>
-        <CommandBinding Command="{x:Static MediaCommands.Play}" Executed="MediaPlay_Executed" />
-        <CommandBinding Command="{x:Static MediaCommands.Pause}" Executed="MediaPause_Executed" />
         <CommandBinding Command="{x:Static MediaCommands.TogglePlayPause}" Executed="MediaTogglePlayPause_Executed" />
         <CommandBinding Command="{x:Static MediaCommands.NextTrack}" Executed="MediaNextTrack_Executed" />
         <CommandBinding Command="{x:Static MediaCommands.PreviousTrack}" Executed="MediaPreviousTrack_Executed" />
