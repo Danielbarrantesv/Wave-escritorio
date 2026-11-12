@@ -309,9 +309,33 @@ function openSidePanel(mode) {
 
 function closeSidePanel() {
     const panel = document.getElementById('side-panel');
-    panel.classList.remove('open');
+    panel.classList.remove('open', 'expanded');
     panel.classList.add('closed');
+    // Reset expand/collapse buttons
+    document.getElementById('side-panel-expand')?.classList.remove('hidden');
+    document.getElementById('side-panel-collapse')?.classList.add('hidden');
     delete panel.dataset.mode;
+}
+
+// Expandir/contraer el side-panel a pantalla completa
+function toggleExpandPanel() {
+    const panel = document.getElementById('side-panel');
+    const expandBtn = document.getElementById('side-panel-expand');
+    const collapseBtn = document.getElementById('side-panel-collapse');
+    const isExpanded = panel.classList.contains('expanded');
+
+    if (isExpanded) {
+        // Contraer: volver al tamaño normal
+        panel.classList.remove('expanded');
+        expandBtn?.classList.remove('hidden');
+        collapseBtn?.classList.add('hidden');
+    } else {
+        // Expandir: ocupar todo el ancho (encima de la lista de canciones,
+        // pero NO del playerbar que queda visible abajo)
+        panel.classList.add('expanded');
+        expandBtn?.classList.add('hidden');
+        collapseBtn?.classList.remove('hidden');
+    }
 }
 
 function updateSidePanelBackground() {

@@ -470,6 +470,36 @@ body.has-selection #selection-bar { top: 0; }
 .side-panel-close svg { width: 18px; height: 18px; }
 .side-panel-close:hover { background: rgba(255,255,255,0.15); transform: rotate(90deg); border-color: rgba(255,255,255,0.3); }
 
+/* Botón expandir/contraer — esquina inferior derecha del side-panel */
+.side-panel-expand, .side-panel-collapse {
+    position: absolute;
+    bottom: 14px; right: 14px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #e3e3e3;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+.side-panel-expand svg, .side-panel-collapse svg { width: 18px; height: 18px; }
+.side-panel-expand:hover, .side-panel-collapse:hover {
+    background: var(--accent); color: #000; border-color: var(--accent);
+    transform: scale(1.1);
+}
+.side-panel-expand.hidden, .side-panel-collapse.hidden { display: none; }
+
+/* Cuando el panel está expandido, ocupa más ancho */
+#side-panel.expanded {
+    width: calc(100% - 0px) !important;
+}
+#side-panel.expanded .side-panel-content {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
 .side-panel-content {
     position: relative;
     z-index: 2;
