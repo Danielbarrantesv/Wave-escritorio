@@ -474,13 +474,14 @@ body.has-selection #selection-bar { top: 0; }
 .side-panel-expand, .side-panel-collapse {
     position: absolute;
     bottom: 14px; right: 14px;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.7);
+    border: 1px solid rgba(255,255,255,0.2);
     color: #e3e3e3;
     width: 32px; height: 32px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 10;
+    cursor: pointer;
+    z-index: 20;
     transition: all 0.2s ease;
     backdrop-filter: blur(8px);
 }
@@ -509,8 +510,9 @@ body.has-selection #selection-bar { top: 0; }
 
 .side-panel-content {
     position: relative;
-    z-index: 2;
+    z-index: 1;
     padding: 32px;
+    padding-bottom: 56px;
     height: 100%;
     overflow-y: auto;
 }
