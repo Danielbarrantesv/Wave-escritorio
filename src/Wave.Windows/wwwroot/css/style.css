@@ -296,9 +296,9 @@ body.grid-view .song-row {
 body.grid-view .song-row:hover { background: var(--surface-light); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 body.grid-view .song-check { display: none; }
 body.grid-view .song-cover { width: 100%; height: 140px; border-radius: 8px; }
-body.grid-view .song-info { text-align: center; min-width: 0; }
-body.grid-view .song-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.grid-view .song-artist { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.grid-view .song-info { text-align: center; min-width: 0; width: 100%; overflow: hidden; }
+body.grid-view .song-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; }
+body.grid-view .song-artist { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; }
 body.grid-view .song-album { display: none; }
 body.grid-view .song-duration { display: none; }
 /* Corazón en cuadrícula: esquina superior derecha, sobre la portada */

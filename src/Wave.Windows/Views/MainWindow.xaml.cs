@@ -143,22 +143,31 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Al maximizar, limita la ventana al WorkArea (sin barra de tareas).
-    /// Esto evita que la ventana cubra la barra de tareas de Windows.
+    /// Al maximizar, limita la ventana al área de trabajo del monitor DONDE ESTÁ LA VENTANA
+    /// (no el primario). Esto evita que cubra la barra de tareas.
     /// </summary>
     private void Window_StateChanged(object? sender, EventArgs e)
     {
         if (WindowState == WindowState.Maximized)
         {
-            var workArea = SystemParameters.WorkArea;
-            MaxWidth = workArea.Width;
-            MaxHeight = workArea.Height;
-            Top = workArea.Top;
-            Left = workArea.Left;
+            // Obtener el área de trabajo del monitor donde está la ventana
+            // Usando System.Windows.Forms.Screen para obtener el monitor correcto
+            var screen = System.Windows.Forms.Screen.FromHandle(
+                new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            var workArea = screen.WorkingArea;
+
+            // Convertir de pixels WPF a DIPs (Device Independent Pixels)
+            var source = System.Windows.Interop.HwndSource.FromHwnd(
+                new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            double dpi = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+
+            MaxWidth = workArea.Width * dpi;
+            MaxHeight = workArea.Height * dpi;
+            Top = workArea.Top * dpi;
+            Left = workArea.Left * dpi;
         }
         else
         {
-            // Al restaurar, quitar límites para poder redimensionar libremente
             MaxWidth = double.PositiveInfinity;
             MaxHeight = double.PositiveInfinity;
         }

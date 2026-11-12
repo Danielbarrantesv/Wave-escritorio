@@ -900,7 +900,19 @@ async function toggleFavorite(songId) {
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
     await WaveAPI.call('playlists.toggleFavorite', song);
-    await loadSongs();
+    // Recargar la vista actual (no salirse de la playlist/favoritos)
+    if (currentPlaylist) {
+        await selectPlaylist(currentPlaylist);
+    } else {
+        await loadSongs();
+    }
+    // Actualizar el corazón del playerbar si es la canción actual
+    const newState = await WaveAPI.call('playback.getState');
+    if (newState) {
+        window._lastPlaybackState = newState;
+        const favBtn = document.getElementById('btn-fav');
+        if (favBtn) favBtn.classList.toggle('active', !!newState.currentSong?.isFavorite);
+    }
 }
 
 // Toggle favorito de la canción ACTUAL (botón corazón en la playerbar)
@@ -1834,11 +1846,19 @@ function checkAbRepeat(state) {
 
 // === View mode (lista/cuadrícula) ===
 let viewMode = 'list';
+const ICON_GRID = '<path d="M3,11V3h8v8H3ZM3,21V13h8v8H3ZM13,11V3h8v8H13Zm0,10V13h8v8H13ZM5,9H9V5H5V9ZM15,9h4V5H15V9Zm0,10h4V15H15v4ZM5,19H9V15H5v4ZM15,9Zm0,6ZM9,15ZM9,9Z"/>';
+const ICON_LIST = '<path d="M4 14h4v-4H4v4zm0 5h4v-3H4v3zM4 9h4V6H4v3zm5 5h12v-4H9v4zm0 5h12v-3H9v3zM9 6v3h12V6H9z"/>';
 function toggleViewMode() {
     viewMode = viewMode === 'list' ? 'grid' : 'list';
     document.body.classList.toggle('grid-view', viewMode === 'grid');
+    // Cambiar el icono del botón
+    const icon = document.getElementById('view-icon');
+    if (icon) icon.innerHTML = viewMode === 'grid' ? ICON_LIST : ICON_GRID;
     renderSongs();
-    showToast('Vista', viewMode === 'grid' ? 'Vista cuadrícula' : 'Vista lista', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 14h4v-4H4v4zm0 5h4v-3H4v3zM4 9h4V6H4v3zm5 5h12v-4H9v4zm0 5h12v-3H9v3zM9 6v3h12V6H9z"/></svg>');
+    showToast('Vista', viewMode === 'grid' ? 'Vista cuadrícula' : 'Vista lista',
+        viewMode === 'grid'
+            ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3,11V3h8v8H3ZM3,21V13h8v8H3ZM13,11V3h8v8H13Zm0,10V13h8v8H13ZM5,9H9V5H5V9ZM15,9h4V5H15V9Zm0,10h4V15H15v4ZM5,19H9V15H5v4ZM15,9Zm0,6ZM9,15ZM9,9Z"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 14h4v-4H4v4zm0 5h4v-3H4v3zM4 9h4V6H4v3zm5 5h12v-4H9v4zm0 5h12v-3H9v3zM9 6v3h12V6H9z"/></svg>');
 }
 
 // === Statistics ===
