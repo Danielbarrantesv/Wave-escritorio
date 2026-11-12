@@ -107,6 +107,7 @@ function bindEvents() {
 
     // Esc limpia la selección
     // Barra espaciadora (cuando el foco no está en un input/select/textarea) → play/pausa
+    // Atajos de teclado adicionales: Ctrl+F, Ctrl+A, flechas, Enter
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && selectedSongIds.size > 0) {
             clearSelection();
@@ -119,6 +120,33 @@ function bindEvents() {
         if (e.code === 'Space' && !isTyping && !e.repeat) {
             e.preventDefault();
             onPlayPause();
+            return;
+        }
+        // Ctrl+F → enfocar buscador
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('search').focus();
+            document.getElementById('search').select();
+            return;
+        }
+        // Ctrl+A → seleccionar todas las canciones visibles
+        if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !isTyping) {
+            e.preventDefault();
+            selectAllVisible();
+            return;
+        }
+        // Flechas arriba/abajo → navegar canciones (cuando no se está escribiendo)
+        if (!isTyping && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            e.preventDefault();
+            navigateSongs(e.key === 'ArrowDown' ? 1 : -1);
+            return;
+        }
+        // Enter → reproducir canción seleccionada (si solo hay una)
+        if (e.key === 'Enter' && !isTyping && selectedSongIds.size === 1) {
+            e.preventDefault();
+            const id = Array.from(selectedSongIds)[0];
+            playSong(id);
+            return;
         }
     });
 }
@@ -1050,6 +1078,8 @@ function onPlaybackChanged(state) {
     updateVolumeDisplay(state);
     handleLyricsAndRecents(state);
     if (currentLyrics && currentLyrics.isSynced) updateLyricsHighlight(state.positionMs);
+    // Verificar A-B repeat
+    checkAbRepeat(state);
 }
 
 // Helpers extraídos de onPlaybackChanged para evitar duplicación
@@ -1683,6 +1713,184 @@ async function settingsReportBug() {
 
 async function settingsShowChangelog() {
     await modalAlert('Changelog', 'v1.9.0 — Tema claro + 8 colores de accent + 6 idiomas + i18n + fix toggle switch\nv1.8.1 — Sección Configuración completa como panel lateral\nv1.7.11 — Mini player slider con bolita visible\nv1.7.9 — Bolita mini player al frente\nv1.7.7 — Icono close del mini player arreglado\nv1.7.5 — Limpiar search al cambiar playlist + slider mini player + corazón playerbar + scrollbar pintada + fix marquee\nv1.7.4 — Bloquear context menu nativo + selection sticky + mini player toggle + icono play/pausa estable + barras con relleno\nv1.7.1 — Botón crear playlist visible + slider artistas + sticky + RECENT_MAX=30\nv1.7.0 — UI overhaul: side panel fixed, marquee, recientes, favoritos sync, delete contextual\nv1.6.1 — Side panel lyrics/EQ + UI play/pausa + animaciones\nv1.6.0 — Shuffle respeta playlist + multi-selección + fix diálogo doble\nv1.5.2 — Mini player click cover/info + playlist pierde canciones + más espacio iconos');
+}
+
+// === Keyboard navigation helpers ===
+function selectAllVisible() {
+    filteredSongs.forEach(s => selectedSongIds.add(s.id));
+    renderSongs();
+}
+
+function navigateSongs(direction) {
+    if (filteredSongs.length === 0) return;
+    let currentIdx = -1;
+    if (selectedSongIds.size > 0) {
+        currentIdx = filteredSongs.findIndex(s => selectedSongIds.has(s.id));
+    }
+    if (currentIdx === -1) currentIdx = 0;
+    const newIdx = Math.max(0, Math.min(filteredSongs.length - 1, currentIdx + direction));
+    selectedSongIds.clear();
+    selectedSongIds.add(filteredSongs[newIdx].id);
+    lastClickedId = filteredSongs[newIdx].id;
+    renderSongs();
+    // Scroll a la canción seleccionada
+    const row = document.querySelector(`[data-id="${filteredSongs[newIdx].id}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// === Sleep timer (temporizador de sueño) ===
+let sleepTimerId = null;
+function setSleepTimer(minutes) {
+    if (sleepTimerId) { clearTimeout(sleepTimerId); sleepTimerId = null; }
+    if (minutes > 0) {
+        sleepTimerId = setTimeout(() => {
+            WaveAPI.call('playback.pause');
+            showToast('Temporizador', 'La música se ha pausado.', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2h10v2h3v18H4V4h3zm2 0h6V2H9v2z"/></svg>');
+            sleepTimerId = null;
+        }, minutes * 60 * 1000);
+        showToast('Temporizador activado', `La música se pausará en ${minutes} minutos.`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>');
+    } else {
+        showToast('Temporizador cancelado', 'El temporizador fue cancelado.', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+    }
+}
+
+// === Playback speed ===
+let currentPlaybackRate = 1.0;
+const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+let speedIdx = 2; // index de 1.0
+function setPlaybackRate(rate) {
+    currentPlaybackRate = rate;
+    speedIdx = SPEED_OPTIONS.indexOf(rate);
+    if (speedIdx === -1) speedIdx = 2;
+    WaveAPI.call('playback.setRate', { rate });
+    const label = document.getElementById('speed-label');
+    if (label) label.textContent = rate + 'x';
+}
+function cycleSpeed() {
+    speedIdx = (speedIdx + 1) % SPEED_OPTIONS.length;
+    setPlaybackRate(SPEED_OPTIONS[speedIdx]);
+    showToast('Velocidad', `${SPEED_OPTIONS[speedIdx]}x`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 14.06 6.84l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44z"/></svg>');
+}
+
+// === A-B Repeat menu ===
+async function showAbMenu() {
+    const choice = await modalConfirm('Repetir A-B',
+        'Marcar punto A (Aceptar) o punto B (Cancelar)?\n\nPunto A actual: ' + (abRepeatA >= 0 ? formatDuration(abRepeatA) : 'no') + '\nPunto B actual: ' + (abRepeatB >= 0 ? formatDuration(abRepeatB) : 'no'));
+    if (choice) {
+        setAbPoint('A');
+    } else {
+        setAbPoint('B');
+    }
+}
+
+// === A-B Repeat ===
+let abRepeatA = -1;
+let abRepeatB = -1;
+function setAbPoint(which) {
+    const state = window._lastPlaybackState;
+    if (!state || !state.currentSong) return;
+    const pos = state.positionMs;
+    if (which === 'A') {
+        abRepeatA = pos;
+        showToast('Repetir A-B', `Punto A: ${formatDuration(pos)}`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
+    } else {
+        abRepeatB = pos;
+        showToast('Repetir A-B', `Punto B: ${formatDuration(pos)} — Repitiendo`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
+    }
+}
+function clearAbRepeat() {
+    abRepeatA = abRepeatB = -1;
+    showToast('Repetir A-B', 'Desactivado', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+}
+// Llamar esto desde onPlaybackChanged para verificar A-B
+function checkAbRepeat(state) {
+    if (abRepeatA >= 0 && abRepeatB >= 0 && abRepeatB > abRepeatA) {
+        if (state.positionMs >= abRepeatB) {
+            WaveAPI.call('playback.seek', { positionMs: abRepeatA });
+        }
+    }
+}
+
+// === View mode (lista/cuadrícula) ===
+let viewMode = 'list';
+function toggleViewMode() {
+    viewMode = viewMode === 'list' ? 'grid' : 'list';
+    document.body.classList.toggle('grid-view', viewMode === 'grid');
+    renderSongs();
+    showToast('Vista', viewMode === 'grid' ? 'Vista cuadrícula' : 'Vista lista', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 14h4v-4H4v4zm0 5h4v-3H4v3zM4 9h4V6H4v3zm5 5h12v-4H9v4zm0 5h12v-3H9v3zM9 6v3h12V6H9z"/></svg>');
+}
+
+// === Statistics ===
+async function showStats() {
+    const songs = allSongs;
+    if (songs.length === 0) {
+        await modalAlert('Estadísticas', 'No hay canciones en la biblioteca.');
+        return;
+    }
+    const totalDuration = songs.reduce((sum, s) => sum + (s.durationMs || 0), 0);
+    const totalHours = (totalDuration / 3600000).toFixed(1);
+    const artistCount = new Set(songs.map(s => (s.displayArtist || s.artist || '').toLowerCase()).filter(Boolean)).size;
+    const albumCount = new Set(songs.map(s => (s.displayAlbum || s.album || '').toLowerCase()).filter(Boolean)).size;
+
+    // Top 5 más reproducidas
+    const topPlayed = [...songs].sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0)).slice(0, 5);
+    const topList = topPlayed.map((s, i) => `${i + 1}. ${s.displayTitle || s.title} — ${s.displayArtist || s.artist || '?'}`).join('\n');
+
+    // Top artistas
+    const artistMap = {};
+    songs.forEach(s => {
+        const a = (s.displayArtist || s.artist || 'Desconocido').toLowerCase();
+        artistMap[a] = (artistMap[a] || 0) + 1;
+    });
+    const topArtists = Object.entries(artistMap).sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([name, count]) => `${name} (${count} canciones)`).join('\n');
+
+    await modalAlert('Estadísticas de reproducción',
+        `🎵 Total de canciones: ${songs.length}\n⏱ Tiempo total: ${totalHours} horas\n🎤 Artistas: ${artistCount}\n💿 Álbumes: ${albumCount}\n\n🔥 Top 5 reproducidas:\n${topList}\n\n🌟 Artistas más frecuentes:\n${topArtists}`);
+}
+
+// === Drag & drop ===
+async function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    // En WebView2 no podemos acceder a los paths del File API.
+    // Pero podemos detectar si se soltaron archivos y mostrar el modal de importar.
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        // Mostrar overlay de drag-drop
+        const dropZone = document.getElementById('drop-zone');
+        if (dropZone) dropZone.classList.add('hidden');
+
+        // Como WebView2 no da los paths, abrimos el selector nativo
+        const choice = await modalConfirm('Arrastrar y soltar',
+            'Para importar música arrastrada, usa el botón "+ Agregar música".\n\n¿Importar carpeta (Aceptar) o archivos (Cancelar)?');
+        let result;
+        showImportOverlay('Importando música...');
+        try {
+            if (choice) {
+                result = await WaveAPI.call('library.importFromFolder', '');
+            } else {
+                result = await WaveAPI.call('library.importFiles', {});
+            }
+        } finally {
+            hideImportOverlay();
+        }
+        if (result && !result.cancelled) {
+            await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
+            await loadSongs(); await loadPlaylists();
+        }
+    }
+}
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropZone = document.getElementById('drop-zone');
+    if (dropZone) dropZone.classList.remove('hidden');
+}
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropZone = document.getElementById('drop-zone');
+    if (dropZone) dropZone.classList.add('hidden');
 }
 
 // === Internationalization (i18n) ===

@@ -146,7 +146,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .btn-icon:active { transform: scale(0.95); }
 
 /* Content */
-#songs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+#songs-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    position: sticky; top: 0; z-index: 4;
+    background: var(--bg);
+    padding: 6px 0;
+}
 #song-count { color: var(--text-dim); font-size: 13px; }
 .sort-chip { position: relative; cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 .sort-chip:hover { background: var(--surface-light); }
@@ -258,6 +263,41 @@ body.has-selection #selection-bar { top: 0; }
     word-break: break-word;
 }
 .artist-card:hover .artist-name { color: var(--text); }
+
+/* Drop zone (cuando se arrastra archivos) */
+.drop-zone {
+    position: absolute; inset: 0; z-index: 50;
+    border: 3px dashed var(--accent);
+    border-radius: 12px;
+    background: rgba(50, 201, 139, 0.05);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+.drop-zone.hidden { display: none; }
+.drop-zone-text { font-size: 18px; color: var(--accent); font-weight: 600; }
+
+/* Grid view (vista cuadrícula) */
+body.grid-view #songs-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+body.grid-view .song-row {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 8px; border-radius: 8px;
+    background: var(--surface); cursor: pointer;
+    transition: all 0.18s ease;
+    grid-template-columns: none !important;
+}
+body.grid-view .song-row:hover { background: var(--surface-light); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+body.grid-view .song-check { display: none; }
+body.grid-view .song-cover { width: 100%; height: 140px; border-radius: 8px; }
+body.grid-view .song-info { text-align: center; }
+body.grid-view .song-title { font-size: 13px; }
+body.grid-view .song-artist { font-size: 11px; }
+body.grid-view .song-album { display: none; }
+body.grid-view .song-duration { display: none; }
+body.grid-view .fav-btn { position: absolute; top: 4px; right: 4px; }
 
 /* Empty state */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text-dim); }

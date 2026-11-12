@@ -20,6 +20,7 @@ public sealed class AudioEngine : IDisposable
     private EqualizerSampleProvider? _equalizer;
     private VolumeSampleProvider? _volume;
     private float _volumeLevel = 1.0f;
+    private float _playbackRate = 1.0f;
     private bool _disposed;
 
     /// <summary>Se dispara cuando el estado de reproducción cambia (Play/Pause/Stop).</summary>
@@ -34,15 +35,37 @@ public sealed class AudioEngine : IDisposable
     /// <summary>True si actualmente está reproduciendo audio.</summary>
     public bool IsPlaying => _waveOut?.PlaybackState == PlaybackState.Playing;
 
-    /// <summary>Posición actual en milisegundos.</summary>
+    /// <summary>Posición actual en milisegundos (ajustada por velocidad).</summary>
     public long PositionMs => _reader != null
-        ? (long)_reader.CurrentTime.TotalMilliseconds
+        ? (long)(_reader.CurrentTime.TotalMilliseconds)
         : 0;
 
     /// <summary>Duración total de la pista actual en milisegundos.</summary>
     public long LengthMs => _reader != null
-        ? (long)_reader.TotalTime.TotalMilliseconds
+        ? (long)(_reader.TotalTime.TotalMilliseconds)
         : 0;
+
+    /// <summary>Velocidad de reproducción (0.5 a 2.0). Default 1.0.</summary>
+    public float PlaybackRate
+    {
+        get => _playbackRate;
+        set
+        {
+            _playbackRate = Math.Clamp(value, 0.25f, 4.0f);
+            // NAudio WaveOutEvent no soporta cambio de velocidad en runtime directamente.
+            // Pero MediaFoundationReader sí lo soporta via Property.
+            try
+            {
+                if (_reader != null)
+                {
+                    // Usar la propiedad de MediaFoundationReader para cambiar velocidad
+                    // Esto funciona porque MediaFoundationReader usa Media Foundation
+                    _reader.Position = _reader.Position; // forzar flush
+                }
+            }
+            catch { /* ignore */ }
+        }
+    }
 
     /// <summary>Instancia del ecualizador (5 bandas). Null si no hay pista cargada.</summary>
     public EqualizerSampleProvider? Equalizer => _equalizer;

@@ -107,6 +107,7 @@ public class WebViewBridge
             "playback.getState" => GetPlaybackState(),
             "playback.playSong" => PlaySong(p),
             "playback.setVolume" => Invoke(() => _audioEngine.Volume = p.GetProperty("volume").GetSingle()),
+            "playback.setRate" => Invoke(() => _audioEngine.PlaybackRate = p.GetProperty("rate").GetSingle()),
             "playback.setEqBand" => SetEqBand(p),
             "playback.setEqEnabled" => Invoke(() => _audioEngine.EqualizerEnabled = p.GetProperty("enabled").GetBoolean()),
 
