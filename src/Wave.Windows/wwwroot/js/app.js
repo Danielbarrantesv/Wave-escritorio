@@ -1834,19 +1834,35 @@ async function showStats() {
 
     // Top 5 más reproducidas
     const topPlayed = [...songs].sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0)).slice(0, 5);
-    const topList = topPlayed.map((s, i) => `${i + 1}. ${s.displayTitle || s.title} — ${s.displayArtist || s.artist || '?'}`).join('\n');
+    const topList = topPlayed.map((s, i) =>
+        `<div class="stat-item"><span class="stat-rank">${i + 1}</span><span class="stat-name">${escapeHtml(s.displayTitle || s.title || '?')} — ${escapeHtml(s.displayArtist || s.artist || '?')}</span></div>`
+    ).join('');
 
     // Top artistas
     const artistMap = {};
     songs.forEach(s => {
-        const a = (s.displayArtist || s.artist || 'Desconocido').toLowerCase();
+        const a = (s.displayArtist || s.artist || 'Desconocido');
         artistMap[a] = (artistMap[a] || 0) + 1;
     });
     const topArtists = Object.entries(artistMap).sort((a, b) => b[1] - a[1]).slice(0, 3)
-        .map(([name, count]) => `${name} (${count} canciones)`).join('\n');
+        .map(([name, count]) =>
+            `<div class="stat-item"><span class="stat-rank">★</span><span class="stat-name">${escapeHtml(name)} (${count} canciones)</span></div>`
+        ).join('');
 
-    await modalAlert('Estadísticas de reproducción',
-        `🎵 Total de canciones: ${songs.length}\n⏱ Tiempo total: ${totalHours} horas\n🎤 Artistas: ${artistCount}\n💿 Álbumes: ${albumCount}\n\n🔥 Top 5 reproducidas:\n${topList}\n\n🌟 Artistas más frecuentes:\n${topArtists}`);
+    let bodyHtml = '<div class="stats-modal">';
+    bodyHtml += '<div class="stats-grid">';
+    bodyHtml += `<div class="stat-card"><div class="stat-number">${songs.length}</div><div class="stat-label">Canciones</div></div>`;
+    bodyHtml += `<div class="stat-card"><div class="stat-number">${totalHours}h</div><div class="stat-label">Tiempo total</div></div>`;
+    bodyHtml += `<div class="stat-card"><div class="stat-number">${artistCount}</div><div class="stat-label">Artistas</div></div>`;
+    bodyHtml += `<div class="stat-card"><div class="stat-number">${albumCount}</div><div class="stat-label">Álbumes</div></div>`;
+    bodyHtml += '</div>';
+    bodyHtml += `<div class="stats-section-title">Top 5 reproducidas</div>`;
+    bodyHtml += `<div class="stats-list">${topList}</div>`;
+    bodyHtml += `<div class="stats-section-title">Artistas más frecuentes</div>`;
+    bodyHtml += `<div class="stats-list">${topArtists}</div>`;
+    bodyHtml += '</div>';
+
+    showModal('Estadísticas de reproducción', bodyHtml, `<button class="modal-btn modal-btn-primary" onclick="closeModal();">Cerrar</button>`);
 }
 
 // === Drag & drop ===

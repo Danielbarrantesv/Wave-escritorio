@@ -147,11 +147,17 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 
 /* Content */
 #songs-header {
-    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
-    position: sticky; top: 0; z-index: 4;
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    position: sticky; top: 0; z-index: 10;
     background: var(--bg);
-    padding: 6px 0;
+    padding: 8px 4px;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
 }
+.songs-header-left { display: flex; align-items: center; gap: 8px; }
+.songs-header-right { display: flex; align-items: center; gap: 6px; }
+.header-icon { color: var(--accent); flex-shrink: 0; }
+.header-action-btn { padding: 4px !important; min-width: 28px !important; min-height: 28px !important; }
 #song-count { color: var(--text-dim); font-size: 13px; }
 .sort-chip { position: relative; cursor: pointer; color: var(--accent); font-size: 13px; padding: 4px 8px; border-radius: 4px; }
 .sort-chip:hover { background: var(--surface-light); }
@@ -298,6 +304,28 @@ body.grid-view .song-artist { font-size: 11px; }
 body.grid-view .song-album { display: none; }
 body.grid-view .song-duration { display: none; }
 body.grid-view .fav-btn { position: absolute; top: 4px; right: 4px; }
+
+/* Stats modal — diseño mejorado */
+.stats-modal { min-width: 380px; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.stat-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; text-align: center;
+    transition: all 0.2s ease;
+}
+.stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.stat-number { font-size: 24px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+.stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+.stats-section-title { font-size: 12px; font-weight: 700; color: var(--accent); margin: 16px 0 8px; text-transform: uppercase; }
+.stats-list { display: flex; flex-direction: column; gap: 4px; }
+.stat-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 6px; background: var(--bg);
+    font-size: 13px; color: var(--text-dim); transition: all 0.15s ease;
+}
+.stat-item:hover { background: var(--surface-light); color: var(--text); }
+.stat-rank { font-weight: 700; color: var(--accent); min-width: 20px; text-align: center; }
+.stat-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Empty state */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text-dim); }
