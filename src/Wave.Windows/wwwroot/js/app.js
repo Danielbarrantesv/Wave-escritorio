@@ -1361,16 +1361,45 @@ async function editSong(songId) {
     hideContextMenu();
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
-    const title = await modalPrompt('Título', song.displayTitle || song.title || '');
-    if (title === null) return;
-    const artist = await modalPrompt('Artista', song.displayArtist || song.artist || '');
-    if (artist === null) return;
-    const album = await modalPrompt('Álbum', song.displayAlbum || song.album || '');
-    if (album === null) return;
-    const genre = await modalPrompt('Género', song.genre || '');
-    if (genre === null) return;
-    await WaveAPI.call('library.editSong', { songId, title, artist, album, genre });
-    await loadSongs();
+
+    const iconTitle = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.78,17.46v-9H5.79V7.19h7.32V8.47H10.13v9H8.78Zm8.47,0.24q-0.99,0-1.6-0.62t-0.61-1.63v-4H13.69V10.29h1.35V8.12h1.28v2.18h1.85v1.16H16.33v3.76q0,0.58 0.31,0.93t0.78,0.35q0.19,0 0.39-0.06t0.4-0.17v1.27q-0.22,0.1-0.46,0.13t-0.5,0.04Z"/></svg>';
+    const iconArtist = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.56,9.92h3.19v1.77h-2v5.37q0,0.94-0.65,1.6t-1.6,0.65t-1.6-0.65t-0.65-1.6t0.65-1.6t1.6-0.65q0.26,0 0.52,0.07t0.54,0.23V9.92ZM3.25,19.31V17.08q0-0.75 0.4-1.37t1.07-0.95q1.5-0.74 3-1.1t3.03-0.36q0.95,0 1.86,0.13t1.8,0.41q-0.34,0.25-0.61,0.57t-0.47,0.67q-0.61-0.14-1.27-0.21t-1.31-0.07q-1.38,0-2.71,0.33T5.4,16.1q-0.3,0.15-0.48,0.42T4.75,17.08v0.72h8.19q0.05,0.38 0.18,0.76t0.36,0.74H3.25Zm5.03-8.64Q7.25,9.64 7.25,8.19T8.28,5.72t2.47-1.03t2.47,1.03t1.03,2.47t-1.03,2.47t-2.47,1.03T8.28,10.67ZM12.16,9.6q0.59-0.59 0.59-1.41T12.16,6.78T10.75,6.19T9.34,6.78T8.75,8.19T9.34,9.6t1.41,0.59T12.16,9.6ZM10.75,8.19Zm0,9.62Z"/></svg>';
+    const iconAlbum = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.58-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-12.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 5.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>';
+    const iconGenre = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+
+    const tId = `edit-title-${Date.now()}`;
+    const aId = `edit-artist-${Date.now()}`;
+    const alId = `edit-album-${Date.now()}`;
+    const gId = `edit-genre-${Date.now()}`;
+
+    let bodyHtml = '<div class="edit-form">';
+    bodyHtml += `<div class="edit-field">${iconTitle}<input type="text" id="${tId}" class="modal-input edit-input" placeholder="Título" value="${escapeHtml(song.displayTitle || song.title || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconArtist}<input type="text" id="${aId}" class="modal-input edit-input" placeholder="Artista" value="${escapeHtml(song.displayArtist || song.artist || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconAlbum}<input type="text" id="${alId}" class="modal-input edit-input" placeholder="Álbum" value="${escapeHtml(song.displayAlbum || song.album || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconGenre}<input type="text" id="${gId}" class="modal-input edit-input" placeholder="Género" value="${escapeHtml(song.genre || '')}" /></div>`;
+    bodyHtml += '</div>';
+
+    showModal('Editar información', bodyHtml,
+        `<button class="modal-btn modal-btn-cancel" onclick="window._editChoice='cancel';closeModal();">Cancelar</button>
+         <button class="modal-btn modal-btn-primary" onclick="window._editChoice='save';closeModal();">Guardar</button>`);
+
+    window._editChoice = null;
+    const check = setInterval(async () => {
+        if (document.getElementById('modal-overlay').classList.contains('hidden')) {
+            clearInterval(check);
+            if (window._editChoice !== 'save') return;
+            const title = document.getElementById(tId)?.value || '';
+            const artist = document.getElementById(aId)?.value || '';
+            const album = document.getElementById(alId)?.value || '';
+            const genre = document.getElementById(gId)?.value || '';
+            await WaveAPI.call('library.editSong', { songId, title, artist, album, genre });
+            if (currentPlaylist) {
+                await selectPlaylist(currentPlaylist);
+            } else {
+                await loadSongs();
+            }
+        }
+    }, 50);
 }
 
 function hideContextMenu() { document.getElementById('context-menu').classList.add('hidden'); }

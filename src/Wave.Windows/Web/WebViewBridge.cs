@@ -295,6 +295,26 @@ public class WebViewBridge
                 _miniPlayer.Left = (screen.Width - _miniPlayer.Width) / 2;
                 _miniPlayer.Top = screen.Height - _miniPlayer.Height - 100;
                 _miniPlayer.Show();
+                // Aplicar tema/accent al mini player recién creado
+                var settings = _settings;
+                var theme = settings.Get<string>("theme") ?? "dark";
+                var accentName = settings.Get<string>("accent") ?? "green";
+                var accentColor = accentName switch
+                {
+                    "red" => System.Windows.Media.Color.FromRgb(0xe8, 0x38, 0x38),
+                    "orange" => System.Windows.Media.Color.FromRgb(0xff, 0x8c, 0x1a),
+                    "yellow" => System.Windows.Media.Color.FromRgb(0xff, 0xcc, 0x00),
+                    "blue" => System.Windows.Media.Color.FromRgb(0x1a, 0x8c, 0xff),
+                    "cyan" => System.Windows.Media.Color.FromRgb(0x00, 0xd4, 0xff),
+                    "magenta" => System.Windows.Media.Color.FromRgb(0xff, 0x2d, 0xa8),
+                    "purple" => System.Windows.Media.Color.FromRgb(0x9c, 0x27, 0xff),
+                    _ => System.Windows.Media.Color.FromRgb(0x32, 0xc9, 0x8b),
+                };
+                // Delay para que el árbol visual ya esté construido
+                _miniPlayer.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _miniPlayer.ApplyTheme(theme, accentColor);
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
             }
         });
         return null;
