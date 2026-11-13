@@ -81,7 +81,7 @@ public partial class MainWindow : Window
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left, Top, Right, Bottom; }
 
-    private void WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == WM_GETMINMAXINFO)
         {
@@ -99,6 +99,7 @@ public partial class MainWindow : Window
             Marshal.StructureToPtr(mmi, lParam, true);
             handled = true;
         }
+        return IntPtr.Zero;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
