@@ -138,4 +138,78 @@ public partial class MiniPlayerWindow : Window
         Close();
         base.OnMouseRightButtonUp(e);
     }
+
+    /// <summary>
+    /// Aplica tema (dark/light) y color de accent al mini player en runtime.
+    /// </summary>
+    public void ApplyTheme(string theme, System.Windows.Media.Color accentColor)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            // Colores según tema
+            var bgColor = theme == "light"
+                ? System.Windows.Media.Color.FromRgb(0xf5, 0xf5, 0xf5)
+                : System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a);
+            var bgBrush = new System.Windows.Media.SolidColorBrush(bgColor);
+            bgBrush.Opacity = 0.87;
+
+            var accentBrush = new System.Windows.Media.SolidColorBrush(accentColor);
+            var whiteBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White);
+            var dimTextBrush = new System.Windows.Media.SolidColorBrush(
+                theme == "light"
+                    ? System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55)
+                    : System.Windows.Media.Color.FromRgb(0xb3, 0xb3, 0xb3));
+
+            // Buscar el Border principal del contenido
+            if (Content is System.Windows.Controls.Border mainBorder)
+            {
+                mainBorder.Background = bgBrush;
+                // Buscar el Grid interno y sus hijos
+                if (mainBorder.Child is System.Windows.Controls.Grid mainGrid)
+                {
+                    // Row 0: Grid con cover + info + botones
+                    if (mainGrid.Children.Count > 0 && mainGrid.Children[0] is System.Windows.Controls.Grid row0Grid)
+                    {
+                        foreach (var child in row0Grid.Children)
+                        {
+                            // Cover border → accent background
+                            if (child is System.Windows.Controls.Border coverBorder)
+                            {
+                                coverBorder.Background = accentBrush;
+                            }
+                            // Info StackPanel → texto blanco/dim según tema
+                            if (child is System.Windows.Controls.StackPanel infoPanel && infoPanel.Children.Count >= 2)
+                            {
+                                if (infoPanel.Children[0] is System.Windows.Controls.TextBlock titleTb)
+                                {
+                                    titleTb.Foreground = theme == "light"
+                                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a))
+                                        : whiteBrush;
+                                }
+                                if (infoPanel.Children[1] is System.Windows.Controls.TextBlock artistTb)
+                                {
+                                    artistTb.Foreground = dimTextBrush;
+                                }
+                            }
+                            // Botones: buscar Paths
+                            if (child is System.Windows.Controls.Button btn && btn.Content is System.Windows.Shapes.Path path)
+                            {
+                                // Play/pause button → accent, otros → blanco/dim
+                                if (btn.Name == "PlayPauseIcon" || path.Name == "PlayPauseIcon")
+                                {
+                                    path.Fill = accentBrush;
+                                }
+                                else
+                                {
+                                    path.Fill = theme == "light"
+                                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55))
+                                        : whiteBrush;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
