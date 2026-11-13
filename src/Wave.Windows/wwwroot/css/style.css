@@ -177,15 +177,16 @@ body.has-selection #songs-header { top: 48px; }
 .song-row.selected { background: rgba(var(--accent-rgb), 0.12); }
 .song-row.selected:hover { background: rgba(var(--accent-rgb), 0.18); }
 .song-row.playing {
-    background: rgba(var(--accent-rgb), 0.1);
-    border-left: 3px solid var(--accent);
-    animation: pulse-playing 2.5s ease-in-out infinite;
+    background: rgba(var(--accent-rgb), 0.12) !important;
+    box-shadow: inset 3px 0 0 var(--accent);
 }
+.song-row.playing:hover { background: rgba(var(--accent-rgb), 0.18) !important; }
 .song-row.playing .song-title { color: var(--accent); font-weight: 700; }
 @keyframes pulse-playing {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
-    50% { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15); }
+    0%, 100% { box-shadow: inset 3px 0 0 var(--accent), 0 0 0 0 rgba(var(--accent-rgb), 0); }
+    50% { box-shadow: inset 3px 0 0 var(--accent), 0 0 8px 0 rgba(var(--accent-rgb), 0.3); }
 }
+.song-row.playing { animation: pulse-playing 2.5s ease-in-out infinite; }
 .song-check { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); opacity: 0.4; transition: opacity 0.1s; cursor: default; }
 .song-row:hover .song-check { opacity: 0.8; }
 .song-row.selected .song-check { opacity: 1; color: var(--accent); }

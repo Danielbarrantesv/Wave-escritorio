@@ -141,12 +141,12 @@ public partial class MiniPlayerWindow : Window
 
     /// <summary>
     /// Aplica tema (dark/light) y color de accent al mini player en runtime.
+    /// Recorre TODO el árbol visual y actualiza los brushes.
     /// </summary>
     public void ApplyTheme(string theme, System.Windows.Media.Color accentColor)
     {
         Dispatcher.Invoke(() =>
         {
-            // Colores según tema
             var bgColor = theme == "light"
                 ? System.Windows.Media.Color.FromRgb(0xf5, 0xf5, 0xf5)
                 : System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a);
@@ -155,61 +155,85 @@ public partial class MiniPlayerWindow : Window
 
             var accentBrush = new System.Windows.Media.SolidColorBrush(accentColor);
             var whiteBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White);
+            var darkTextBrush = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a));
             var dimTextBrush = new System.Windows.Media.SolidColorBrush(
                 theme == "light"
                     ? System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55)
-                    : System.Windows.Media.Color.FromRgb(0xb3, 0xb3, 0xb3));
+                    : System.Windows.Media.Color.FromRgb(0x99, 0x99, 0x99));
 
-            // Buscar el Border principal del contenido
+            // Actualizar el Border principal
             if (Content is System.Windows.Controls.Border mainBorder)
             {
                 mainBorder.Background = bgBrush;
-                // Buscar el Grid interno y sus hijos
-                if (mainBorder.Child is System.Windows.Controls.Grid mainGrid)
+            }
+
+            // Recorrer todo el árbol visual y actualizar colores
+            UpdateVisualTree(this, theme, accentBrush, whiteBrush, darkTextBrush, dimTextBrush, bgBrush);
+        });
+    }
+
+    private void UpdateVisualTree(System.Windows.DependencyObject element, string theme,
+        System.Windows.Media.Brush accentBrush, System.Windows.Media.Brush whiteBrush,
+        System.Windows.Media.Brush darkTextBrush, System.Windows.Media.Brush dimTextBrush,
+        System.Windows.Media.Brush bgBrush)
+    {
+        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(element);
+        for (int i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(element, i);
+
+            // Borders con Background verde → accent
+            if (child is System.Windows.Controls.Border border && border.Background is System.Windows.Media.SolidColorBrush sb)
+            {
+                if (sb.Color == System.Windows.Media.Color.FromRgb(0x32, 0xC9, 0x8B) ||
+                    sb.Color == System.Windows.Media.Color.FromRgb(0x32, 0xc9, 0x8b))
                 {
-                    // Row 0: Grid con cover + info + botones
-                    if (mainGrid.Children.Count > 0 && mainGrid.Children[0] is System.Windows.Controls.Grid row0Grid)
+                    border.Background = accentBrush;
+                }
+            }
+
+            // TextBlocks: blanco → según tema
+            if (child is System.Windows.Controls.TextBlock tb)
+            {
+                if (tb.Foreground is System.Windows.Media.SolidColorBrush tbBrush)
+                {
+                    if (tbBrush.Color == System.Windows.Media.Colors.White)
                     {
-                        foreach (var child in row0Grid.Children)
-                        {
-                            // Cover border → accent background
-                            if (child is System.Windows.Controls.Border coverBorder)
-                            {
-                                coverBorder.Background = accentBrush;
-                            }
-                            // Info StackPanel → texto blanco/dim según tema
-                            if (child is System.Windows.Controls.StackPanel infoPanel && infoPanel.Children.Count >= 2)
-                            {
-                                if (infoPanel.Children[0] is System.Windows.Controls.TextBlock titleTb)
-                                {
-                                    titleTb.Foreground = theme == "light"
-                                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a))
-                                        : whiteBrush;
-                                }
-                                if (infoPanel.Children[1] is System.Windows.Controls.TextBlock artistTb)
-                                {
-                                    artistTb.Foreground = dimTextBrush;
-                                }
-                            }
-                            // Botones: buscar Paths
-                            if (child is System.Windows.Controls.Button btn && btn.Content is System.Windows.Shapes.Path path)
-                            {
-                                // Play/pause button → accent, otros → blanco/dim
-                                if (btn.Name == "PlayPauseIcon" || path.Name == "PlayPauseIcon")
-                                {
-                                    path.Fill = accentBrush;
-                                }
-                                else
-                                {
-                                    path.Fill = theme == "light"
-                                        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55))
-                                        : whiteBrush;
-                                }
-                            }
-                        }
+                        tb.Foreground = theme == "light" ? darkTextBrush : whiteBrush;
+                    }
+                    else if (tbBrush.Color == System.Windows.Media.Color.FromRgb(0x99, 0xFF, 0xFF) ||
+                             tbBrush.Color == System.Windows.Media.Color.FromRgb(0x99, 0xff, 0xff))
+                    {
+                        tb.Foreground = dimTextBrush;
                     }
                 }
             }
-        });
+
+            // Paths: verde → accent, blanco → según tema
+            if (child is System.Windows.Shapes.Path path)
+            {
+                if (path.Fill is System.Windows.Media.SolidColorBrush pBrush)
+                {
+                    if (pBrush.Color == System.Windows.Media.Color.FromRgb(0x32, 0xC9, 0x8B) ||
+                        pBrush.Color == System.Windows.Media.Color.FromRgb(0x32, 0xc9, 0x8b))
+                    {
+                        path.Fill = accentBrush;
+                    }
+                    else if (pBrush.Color == System.Windows.Media.Colors.White)
+                    {
+                        path.Fill = theme == "light" ? darkTextBrush : whiteBrush;
+                    }
+                    else if (pBrush.Color == System.Windows.Media.Color.FromRgb(0x99, 0xFF, 0xFF) ||
+                             pBrush.Color == System.Windows.Media.Color.FromRgb(0x99, 0xff, 0xff))
+                    {
+                        path.Fill = dimTextBrush;
+                    }
+                }
+            }
+
+            // Recursión
+            UpdateVisualTree(child, theme, accentBrush, whiteBrush, darkTextBrush, dimTextBrush, bgBrush);
+        }
     }
 }
