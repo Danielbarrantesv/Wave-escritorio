@@ -154,7 +154,7 @@ public partial class MiniPlayerWindow : Window
             bgBrush.Opacity = 0.87;
 
             var accentBrush = new System.Windows.Media.SolidColorBrush(accentColor);
-            var whiteBrush = System.Windows.Media.SolidColorBrush.White;
+            var whiteBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White);
             var titleBrush = theme == "light"
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1a, 0x1a, 0x1a))
                 : whiteBrush;
