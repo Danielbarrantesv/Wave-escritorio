@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
