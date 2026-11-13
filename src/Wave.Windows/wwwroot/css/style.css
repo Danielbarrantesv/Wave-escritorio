@@ -717,6 +717,13 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
     transition-duration: 0s !important;
 }
 
+/* Edit form (modal de editar información) */
+.edit-form { display: flex; flex-direction: column; gap: 10px; }
+.edit-field { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; transition: border-color 0.15s ease; }
+.edit-field:focus-within { border-color: var(--accent); }
+.edit-field svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.edit-input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 13px; padding: 2px 0; margin: 0; }
+
 /* Language picker (modal primera vez) */
 .lang-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .lang-option {

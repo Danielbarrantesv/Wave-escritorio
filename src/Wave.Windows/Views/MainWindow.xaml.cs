@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,19 +25,79 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Loaded += MainWindow_Loaded;
+        // Intercept WM_GETMINMAXINFO para controlar el maximize
+        SourceInitialized += (s, e) =>
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            var hwndSource = HwndSource.FromHwnd(handle);
+            hwndSource?.AddHook(WndProc);
+        };
 
         // WindowChrome permite resize desde todos los bordes y esquinas
-        // incluso con WindowStyle=None + AllowsTransparency=True.
-        // ResizeBorderThickness define qué tan grueso es el borde agarrable.
         var chrome = new WindowChrome
         {
-            CaptionHeight = 0,           // Sin caption nativo (ya tenemos titlebar HTML)
-            ResizeBorderThickness = new Thickness(6), // 6px de borde agarrable en todos los lados
+            CaptionHeight = 0,
+            ResizeBorderThickness = new Thickness(6),
             GlassFrameThickness = new Thickness(0),
             CornerRadius = new CornerRadius(0),
             UseAeroCaptionButtons = false
         };
         WindowChrome.SetWindowChrome(this, chrome);
+    }
+
+    private const int WM_GETMINMAXINFO = 0x0024;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    private void WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_GETMINMAXINFO)
+        {
+            var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+            var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            GetMonitorInfo(monitor, ref monitorInfo);
+
+            // Ajustar el maximizado al área de trabajo (sin barra de tareas)
+            mmi.ptMaxPosition.X = monitorInfo.rcWork.Left - monitorInfo.rcMonitor.Left;
+            mmi.ptMaxPosition.Y = monitorInfo.rcWork.Top - monitorInfo.rcMonitor.Top;
+            mmi.ptMaxSize.X = monitorInfo.rcWork.Right - monitorInfo.rcWork.Left;
+            mmi.ptMaxSize.Y = monitorInfo.rcWork.Bottom - monitorInfo.rcWork.Top;
+
+            Marshal.StructureToPtr(mmi, lParam, true);
+            handled = true;
+        }
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

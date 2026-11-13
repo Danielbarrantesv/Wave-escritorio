@@ -11,8 +11,7 @@
         AllowsTransparency="True"
         AllowDrop="True"
         Drop="Window_Drop"
-        DragEnter="Window_DragEnter"
-        StateChanged="Window_StateChanged">
+        DragEnter="Window_DragEnter">
     <Window.InputBindings>
         <KeyBinding Command="{x:Static MediaCommands.TogglePlayPause}" Gesture="MediaPlayPause" />
         <KeyBinding Command="{x:Static MediaCommands.NextTrack}" Gesture="MediaNextTrack" />
