@@ -118,11 +118,9 @@ public partial class MainWindow : Window
             try { WebView.CoreWebView2.Settings.IsNonClientRegionSupportEnabled = true; } catch { /* ignore */ }
 
             // Navegar directamente al index.html via file:// protocol
-            // Añadir cache-buster (?v=timestamp) para forzar recarga de CSS/JS
             var wwwrootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
             WaveLogger.Info($"Loading WebView2 from: {wwwrootPath}");
-            var uri = new Uri(wwwrootPath + "?v=" + DateTime.Now.Ticks).AbsoluteUri;
-            WebView.CoreWebView2.Navigate(uri);
+            WebView.CoreWebView2.Navigate(new Uri(wwwrootPath).AbsoluteUri);
 
             // Crear el bridge
             _bridge = new WebViewBridge(
