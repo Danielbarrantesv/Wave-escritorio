@@ -96,6 +96,7 @@ public class WebViewBridge
             "library.deleteAll" => Invoke(() => _library.DeleteAll()),
             "library.scanForNewFiles" => await ScanForNewFiles(),
             "library.editSong" => EditSong(p),
+            "library.selectArtImage" => SelectArtImage(),
 
             // Playback
             "playback.play" => Invoke(() => _playback.Play()),
@@ -409,23 +410,56 @@ public class WebViewBridge
         var artist = p.TryGetProperty("artist", out var a) ? a.GetString() : null;
         var album = p.TryGetProperty("album", out var al) ? al.GetString() : null;
         var genre = p.TryGetProperty("genre", out var g) ? g.GetString() : null;
+        var artPath = p.TryGetProperty("artPath", out var ap) ? ap.GetString() : null;
 
         // Update DB
         Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
             "UPDATE songs SET title = @title, artist = @artist, album = @album, genre = @genre WHERE id = @songId",
             new { title, artist, album, genre, songId });
 
+        var song = _library.GetAllSongs().FirstOrDefault(s => s.Id == songId);
+        if (song == null) return null;
+
+        // Update art_uri in DB if new image provided
+        if (!string.IsNullOrEmpty(artPath) && System.IO.File.Exists(artPath))
+        {
+            try
+            {
+                // Copy image to art cache
+                var artDir = Wave.Windows.Audio.TagReader.ArtDirectory;
+                var destPath = Path.Combine(artDir, $"song_{songId}.jpg");
+                System.IO.File.Copy(artPath, destPath, true);
+                Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+                    "UPDATE songs SET art_uri = @artUri WHERE id = @songId",
+                    new { artUri = destPath, songId });
+                song.ArtUri = destPath;
+            }
+            catch (Exception ex)
+            {
+                WaveLogger.Error("Error saving art image", ex);
+            }
+        }
+
         // Also update the actual file tags using TagLib#
         try
         {
-            var song = _library.GetAllSongs().FirstOrDefault(s => s.Id == songId);
-            if (song != null && System.IO.File.Exists(song.FilePath))
+            if (System.IO.File.Exists(song.FilePath))
             {
                 var tagFile = TagLib.File.Create(song.FilePath);
                 if (title != null) tagFile.Tag.Title = title;
                 if (artist != null) tagFile.Tag.Performers = new[] { artist };
                 if (album != null) tagFile.Tag.Album = album;
                 if (genre != null) tagFile.Tag.Genres = new[] { genre };
+                // Save cover art to file tags
+                if (!string.IsNullOrEmpty(artPath) && System.IO.File.Exists(artPath))
+                {
+                    try
+                    {
+                        var pic = new TagLib.Picture(artPath);
+                        tagFile.Tag.Pictures = new[] { pic };
+                    }
+                    catch { /* ignore image errors */ }
+                }
                 tagFile.Save();
             }
         }
@@ -434,6 +468,23 @@ public class WebViewBridge
             WaveLogger.Error("Error saving tags to file", ex);
         }
         return null;
+    }
+
+    /// <summary>Abre selector de imagen y retorna la ruta del archivo seleccionado.</summary>
+    private object? SelectArtImage()
+    {
+        string? path = null;
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Seleccionar imagen de portada",
+                Filter = "Imágenes|*.jpg;*.jpeg;*.png;*.bmp;*.gif|Todos|*.*"
+            };
+            if (dialog.ShowDialog() == true) path = dialog.FileName;
+        });
+        if (string.IsNullOrEmpty(path)) return new { cancelled = true };
+        return new { cancelled = false, path };
     }
 
     private object? ExportLogs()

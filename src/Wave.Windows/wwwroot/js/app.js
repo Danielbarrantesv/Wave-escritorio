@@ -105,6 +105,10 @@ function bindEvents() {
         document.getElementById('playlist-context-menu').classList.add('hidden');
     });
 
+    // Virtual scrolling: re-render canciones al hacer scroll
+    const songsContainer = document.getElementById('songs-container');
+    if (songsContainer) songsContainer.addEventListener('scroll', onSongsScroll);
+
     // Esc limpia la selección
     // Barra espaciadora (cuando el foco no está en un input/select/textarea) → play/pausa
     // Atajos de teclado adicionales: Ctrl+F, Ctrl+A, flechas, Enter
@@ -700,12 +704,64 @@ function applySort() {
 }
 
 // === Render ===
+// === Virtual scrolling ===
+// Solo renderiza las canciones visibles + buffer para que la lista sea rápida
+// incluso con miles de canciones.
+const ROW_HEIGHT = 60; // altura aproximada de cada song-row en px
+const BUFFER = 10; // canciones extra arriba y abajo del viewport
+let scrollContainer = null;
+
 function renderSongs() {
     const list = document.getElementById('songs-list');
     const empty = document.getElementById('empty-state');
     if (filteredSongs.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); updateSelectionBar(); return; }
     empty.classList.add('hidden');
-    list.innerHTML = filteredSongs.map(s => {
+
+    // Calcular qué canciones son visibles según el scroll
+    const container = document.getElementById('songs-container');
+    const scrollTop = container ? container.scrollTop : 0;
+    const viewportH = container ? container.clientHeight : window.innerHeight;
+    const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER);
+    const endIdx = Math.min(filteredSongs.length, Math.ceil((scrollTop + viewportH) / ROW_HEIGHT) + BUFFER);
+
+    // Crear contenedor virtual con altura total + offset
+    const totalH = filteredSongs.length * ROW_HEIGHT;
+    const offsetTop = startIdx * ROW_HEIGHT;
+
+    list.innerHTML = `<div style="height:${totalH}px;position:relative;">
+        <div style="position:absolute;top:${offsetTop}px;left:0;right:0;">
+        ${renderSongRange(startIdx, endIdx)}
+        </div>
+    </div>`;
+
+    // Bind click handlers
+    list.querySelectorAll('.song-row').forEach(row => {
+        row.onclick = (e) => {
+            const id = parseInt(row.dataset.id);
+            if (e.ctrlKey || e.metaKey) {
+                toggleRowSelection(id, e);
+            } else if (e.shiftKey && lastClickedId !== null) {
+                selectRange(lastClickedId, id);
+            } else {
+                clearSelection();
+                playSong(id);
+                lastClickedId = id;
+            }
+        };
+    });
+    updateSelectionBar();
+    // Re-aplicar clase playing si hay canción sonando
+    const state = window._lastPlaybackState;
+    if (state && state.currentSong) {
+        const row = list.querySelector(`[data-id="${state.currentSong.id}"]`);
+        if (row) row.classList.add('playing');
+    }
+}
+
+function renderSongRange(startIdx, endIdx) {
+    let html = '';
+    for (let i = startIdx; i < endIdx; i++) {
+        const s = filteredSongs[i];
         const title = s.displayTitle || s.title || s.fileName || 'Sin título';
         const artist = s.displayArtist || s.artist || 'Artista desconocido';
         const album = s.displayAlbum || s.album || '';
@@ -716,10 +772,9 @@ function renderSongs() {
         const checkIcon = isSelected
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
-        // Corazón verde, mismo ícono que la lista de Favoritos del sidebar
         const favSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35l-1.45-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78-3.4,6.86-8.55,11.54L12,21.35z"/></svg>';
         const favClass = s.isFavorite ? 'fav-btn active' : 'fav-btn';
-        return `<div class="song-row${selClass}" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
+        html += `<div class="song-row${selClass}" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
             <div class="song-check" onclick="event.stopPropagation(); toggleRowSelection(${s.id}, event)">${checkIcon}</div>
             <div class="song-cover">${cover}</div>
             <div class="song-info"><div class="song-title">${escapeHtml(title)}</div><div class="song-artist">${escapeHtml(artist)}</div></div>
@@ -727,25 +782,18 @@ function renderSongs() {
             <button class="${favClass}" onclick="event.stopPropagation(); toggleFavorite(${s.id})">${favSvg}</button>
             <div class="song-duration">${formatDuration(s.durationMs)}</div>
         </div>`;
-    }).join('');
+    }
+    return html;
+}
 
-    // Click handler con soporte multi-selección (Ctrl/Shift)
-    list.querySelectorAll('.song-row').forEach(row => {
-        row.onclick = (e) => {
-            const id = parseInt(row.dataset.id);
-            if (e.ctrlKey || e.metaKey) {
-                toggleRowSelection(id, e);
-            } else if (e.shiftKey && lastClickedId !== null) {
-                selectRange(lastClickedId, id);
-            } else {
-                // Click normal: limpiar selección y reproducir
-                clearSelection();
-                playSong(id);
-                lastClickedId = id;
-            }
-        };
-    });
-    updateSelectionBar();
+// Throttled scroll handler para virtual scrolling
+let scrollTimer = null;
+function onSongsScroll() {
+    if (scrollTimer) return;
+    scrollTimer = setTimeout(() => {
+        scrollTimer = null;
+        renderSongs();
+    }, 50); // 50ms throttle = 20fps, suficiente para scroll suave
 }
 
 function toggleRowSelection(id, e) {
@@ -1391,6 +1439,13 @@ async function editSong(songId) {
     bodyHtml += `<div class="edit-field">${iconArtist}<input type="text" id="${aId}" class="modal-input edit-input" placeholder="Artista" value="${escapeHtml(song.displayArtist || song.artist || '')}" /></div>`;
     bodyHtml += `<div class="edit-field">${iconAlbum}<input type="text" id="${alId}" class="modal-input edit-input" placeholder="Álbum" value="${escapeHtml(song.displayAlbum || song.album || '')}" /></div>`;
     bodyHtml += `<div class="edit-field">${iconGenre}<input type="text" id="${gId}" class="modal-input edit-input" placeholder="Género" value="${escapeHtml(song.genre || '')}" /></div>`;
+    // Selector de imagen de portada
+    const artId = `edit-art-${Date.now()}`;
+    bodyHtml += `<div class="edit-field edit-art-field">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        <input type="text" id="${artId}" class="modal-input edit-input" placeholder="Imagen de portada (click en Examinar)" value="${escapeHtml(song.artUri || '')}" readonly />
+        <button class="btn-primary small" onclick="selectArtImageForEdit('${artId}')">Examinar</button>
+    </div>`;
     bodyHtml += '</div>';
 
     showModal('Editar información', bodyHtml,
@@ -1398,6 +1453,7 @@ async function editSong(songId) {
          <button class="modal-btn modal-btn-primary" onclick="window._editChoice='save';closeModal();">Guardar</button>`);
 
     window._editChoice = null;
+    window._editArtPath = null;
     const check = setInterval(async () => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
             clearInterval(check);
@@ -1406,7 +1462,8 @@ async function editSong(songId) {
             const artist = document.getElementById(aId)?.value || '';
             const album = document.getElementById(alId)?.value || '';
             const genre = document.getElementById(gId)?.value || '';
-            await WaveAPI.call('library.editSong', { songId, title, artist, album, genre });
+            const artPath = window._editArtPath || null;
+            await WaveAPI.call('library.editSong', { songId, title, artist, album, genre, artPath });
             if (currentPlaylist) {
                 await selectPlaylist(currentPlaylist);
             } else {
@@ -1414,6 +1471,14 @@ async function editSong(songId) {
             }
         }
     }, 50);
+}
+
+async function selectArtImageForEdit(inputId) {
+    const res = await WaveAPI.call('library.selectArtImage', {});
+    if (res && !res.cancelled && res.path) {
+        document.getElementById(inputId).value = res.path;
+        window._editArtPath = res.path;
+    }
 }
 
 function hideContextMenu() {
