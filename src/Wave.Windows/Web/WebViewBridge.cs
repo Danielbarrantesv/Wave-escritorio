@@ -91,6 +91,7 @@ public class WebViewBridge
             "library.importFromFolderToPlaylist" => await ImportFromFolderToPlaylist(p),
             "library.importFiles" => await ImportFiles(p),
             "library.deleteSong" => DeleteSong(p),
+            "library.deleteSongAndFile" => DeleteSongAndFile(p),
             "library.deleteAll" => Invoke(() => _library.DeleteAll()),
             "library.scanForNewFiles" => await ScanForNewFiles(),
             "library.editSong" => EditSong(p),
@@ -296,9 +297,8 @@ public class WebViewBridge
                 _miniPlayer.Top = screen.Height - _miniPlayer.Height - 100;
                 _miniPlayer.Show();
                 // Aplicar tema/accent al mini player recién creado
-                var settings = _settings;
-                var theme = settings.Get<string>("theme") ?? "dark";
-                var accentName = settings.Get<string>("accent") ?? "green";
+                var theme = _settings.Get("theme", "dark");
+                var accentName = _settings.Get("accent", "green");
                 var accentColor = accentName switch
                 {
                     "red" => System.Windows.Media.Color.FromRgb(0xe8, 0x38, 0x38),
@@ -362,6 +362,43 @@ public class WebViewBridge
         Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
             "DELETE FROM songs WHERE id = @songId", new { songId });
         return null;
+    }
+
+    /// <summary>
+    /// Borra una canción de la DB Y mueve el archivo físico a la papelera de reciclaje.
+    /// Usa Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile con RecycleOption.
+    /// </summary>
+    private object? DeleteSongAndFile(JsonElement p)
+    {
+        var songId = p.GetProperty("songId").GetInt64();
+        var song = _library.GetAllSongs().FirstOrDefault(s => s.Id == songId);
+        if (song == null) return new { success = false, error = "Canción no encontrada" };
+
+        // Borrar de la DB primero
+        Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+            "DELETE FROM songs WHERE id = @songId", new { songId });
+        Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+            "DELETE FROM playlist_songs WHERE song_id = @songId", new { songId });
+
+        // Mover el archivo a la papelera de reciclaje
+        if (!string.IsNullOrEmpty(song.FilePath) && File.Exists(song.FilePath))
+        {
+            try
+            {
+                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                    song.FilePath,
+                    Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                WaveLogger.Info($"DeleteSongAndFile: moved to recycle bin: {song.FilePath}");
+                return new { success = true, recycled = true };
+            }
+            catch (Exception ex)
+            {
+                WaveLogger.Error($"DeleteSongAndFile: error sending to recycle bin: {song.FilePath}", ex);
+                return new { success = true, recycled = false, error = ex.Message };
+            }
+        }
+        return new { success = true, recycled = false, error = "Archivo no encontrado" };
     }
 
     private object? EditSong(JsonElement p)

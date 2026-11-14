@@ -243,6 +243,20 @@ public sealed class LibraryService : ILibraryService
     public void DeleteAll()
     {
         _songRepo.DeleteAll();
+        // También borrar todas las playlists excepto Favoritos (dejarla vacía)
+        try
+        {
+            var db = Wave.Windows.Data.SqliteDatabase.Instance.Connection;
+            // Borrar todas las playlist_songs associations
+            db.Execute("DELETE FROM playlist_songs");
+            // Borrar todas las playlists excepto Favoritos
+            db.Execute("DELETE FROM playlists WHERE name != 'Favoritos'");
+            WaveLogger.Info("DeleteAll: cleared all songs, playlist_songs, and non-favorites playlists");
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Error("DeleteAll: error clearing playlists", ex);
+        }
         try
         {
             if (Directory.Exists(TagReader.ArtDirectory))

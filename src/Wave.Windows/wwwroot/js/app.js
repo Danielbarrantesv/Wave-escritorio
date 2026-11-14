@@ -843,10 +843,6 @@ async function addSelectionToPlaylist() {
 async function deleteSelection() {
     const ids = Array.from(selectedSongIds);
     if (ids.length === 0) return;
-    // Si estamos en una playlist (no en "Todas las canciones"):
-    // - Eliminar SOLO de la playlist, NO de la biblioteca
-    // Si estamos en "Todas las canciones":
-    // - Eliminar de la biblioteca (afecta a todas las playlists)
     if (currentPlaylist) {
         if (await modalConfirm('Quitar de playlist', `¿Quitar ${ids.length} canción${ids.length>1?'es':''} de "${currentPlaylist.name}"?\n\nNo se borrarán de la biblioteca.`)) {
             for (const id of ids) {
@@ -861,6 +857,22 @@ async function deleteSelection() {
             clearSelection();
             await loadSongs();
         }
+    }
+}
+
+// Borrar canciones de la biblioteca Y mover los archivos a la papelera de reciclaje
+async function deleteSelectionAndFile() {
+    hideContextMenu();
+    const ids = Array.from(selectedSongIds);
+    if (ids.length === 0) return;
+    if (await modalConfirm('Borrar archivos',
+        `¿Borrar ${ids.length} canción${ids.length>1?'es':''} de la biblioteca Y mover ${ids.length>1?'los archivos':'el archivo'} a la papelera de reciclaje?`)) {
+        for (const id of ids) {
+            await WaveAPI.call('library.deleteSongAndFile', { songId: id });
+        }
+        clearSelection();
+        await loadSongs();
+        await loadPlaylists();
     }
 }
 
@@ -1296,6 +1308,12 @@ function showContextMenu(e, songId) {
         : `Eliminar${plural} canción${n>1?'es':''} de la biblioteca`;
     const isDanger = !currentPlaylist;
     items += `<div class="ctx-item${isDanger ? ' danger' : ''}" onclick="deleteSelection()">${iconDeleteSong}<span>${deleteLabel}</span></div>`;
+    // Opción de borrar archivo físico (solo en "Todas las canciones", no en playlist)
+    if (!currentPlaylist) {
+        const iconDeleteFile = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+        const deleteFileLabel = n > 1 ? `Borrar ${n} archivos (papelera)` : 'Borrar archivo (papelera)';
+        items += `<div class="ctx-item danger" onclick="deleteSelectionAndFile()">${iconDeleteFile}<span>${deleteFileLabel}</span></div>`;
+    }
     menu.innerHTML = items;
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
@@ -1713,6 +1731,12 @@ function applySettings(settings) {
     if (artists) artists.style.display = settings.showSliders ? '' : 'none';
     // Aplicar idioma
     applyLanguage(settings.language || 'es');
+    // Sincronizar con el SettingsService de C# para que el mini player use los valores correctos
+    try {
+        WaveAPI.call('settings.set', { key: 'theme', value: settings.theme || 'dark' });
+        WaveAPI.call('settings.set', { key: 'accent', value: settings.accent || 'green' });
+        WaveAPI.call('window.applyTheme', { theme: settings.theme || 'dark', accent: settings.accent || 'green' });
+    } catch (e) { /* ignore si el bridge no está listo */ }
 }
 
 // Acciones de los botones de settings
