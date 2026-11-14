@@ -136,19 +136,28 @@ public partial class MainWindow : Window
 
             WaveLogger.Info("WebView2 + Bridge initialized OK");
 
-            // Limitar zoom a 67% - 125% para evitar que la UI se distorsione
-            WebView.CoreWebView2.ZoomFactorChanged += (s, args) =>
+            // Limitar zoom a 67% - 125% via JS (Ctrl+rueda)
+            WebView.CoreWebView2.NavigationCompleted += (s, args) =>
             {
-                var zoom = WebView.CoreWebView2.ZoomFactor;
-                var minZoom = 0.67;
-                var maxZoom = 1.25;
-                if (zoom < minZoom)
+                if (args.IsSuccess)
                 {
-                    WebView.CoreWebView2.ZoomFactor = minZoom;
-                }
-                else if (zoom > maxZoom)
-                {
-                    WebView.CoreWebView2.ZoomFactor = maxZoom;
+                    try
+                    {
+                        _ = WebView.CoreWebView2.ExecuteScriptAsync(@"
+                            document.addEventListener('wheel', function(e) {
+                                if (e.ctrlKey) {
+                                    setTimeout(function() {
+                                        var z = document.body.style.zoom || 1;
+                                        var pct = parseFloat(z);
+                                        if (isNaN(pct)) pct = 1;
+                                        if (pct < 0.67) document.body.style.zoom = '0.67';
+                                        if (pct > 1.25) document.body.style.zoom = '1.25';
+                                    }, 50);
+                                }
+                            }, { passive: true });
+                        ");
+                    }
+                    catch { /* ignore */ }
                 }
             };
 
