@@ -5,7 +5,7 @@
         WindowStyle="None" ResizeMode="NoResize" Topmost="True"
         ShowInTaskbar="False" AllowsTransparency="True" Background="Transparent"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <Border x:Name="MainBorder" Background="#DD1A1A1A" CornerRadius="10" Padding="8">
+    <Border x:Name="MainBorder" Background="#DD1A1A1A" CornerRadius="10" Padding="8" BorderThickness="1" BorderBrush="#32C98B">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>

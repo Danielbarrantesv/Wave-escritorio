@@ -162,8 +162,12 @@ public partial class MiniPlayerWindow : Window
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55))
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x99, 0x99, 0x99));
 
-            // Border principal
-            if (MainBorder != null) MainBorder.Background = bgBrush;
+            // Border principal + borde accent
+            if (MainBorder != null)
+            {
+                MainBorder.Background = bgBrush;
+                MainBorder.BorderBrush = accentBrush;
+            }
             // Cover border → accent
             if (CoverBorder != null) CoverBorder.Background = accentBrush;
             // Title text

@@ -136,6 +136,22 @@ public partial class MainWindow : Window
 
             WaveLogger.Info("WebView2 + Bridge initialized OK");
 
+            // Limitar zoom a 67% - 125% para evitar que la UI se distorsione
+            WebView.CoreWebView2.ZoomFactorChanged += (s, args) =>
+            {
+                var zoom = WebView.CoreWebView2.ZoomFactor;
+                var minZoom = 0.67;
+                var maxZoom = 1.25;
+                if (zoom < minZoom)
+                {
+                    WebView.CoreWebView2.ZoomFactor = minZoom;
+                }
+                else if (zoom > maxZoom)
+                {
+                    WebView.CoreWebView2.ZoomFactor = maxZoom;
+                }
+            };
+
             // Registrar hook global de media keys (funciona con app minimizada/en background)
             try
             {

@@ -508,9 +508,7 @@ function showPlaylistContextMenu(e, pl) {
         items += `<div class="ctx-item" style="opacity:0.5;cursor:default">${iconLock}<span>No se puede eliminar Favoritos</span></div>`;
     }
     menu.innerHTML = items;
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
-    menu.classList.remove('hidden');
+    positionMenu(menu, e.clientX, e.clientY);
 }
 
 async function addFolderToPlaylist(playlistId) {
@@ -1315,9 +1313,7 @@ function showContextMenu(e, songId) {
         items += `<div class="ctx-item danger" onclick="deleteSelectionAndFile()">${iconDeleteFile}<span>${deleteFileLabel}</span></div>`;
     }
     menu.innerHTML = items;
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
-    menu.classList.remove('hidden');
+    positionMenu(menu, e.clientX, e.clientY);
 }
 
 async function showAddToPlaylist(songId) {
@@ -1420,7 +1416,26 @@ async function editSong(songId) {
     }, 50);
 }
 
-function hideContextMenu() { document.getElementById('context-menu').classList.add('hidden'); }
+function hideContextMenu() {
+    document.getElementById('context-menu').classList.add('hidden');
+    document.getElementById('playlist-context-menu').classList.add('hidden');
+}
+
+// Posicionar un context menu sin que se salga de la ventana
+function positionMenu(menu, clientX, clientY) {
+    menu.classList.remove('hidden');
+    const rect = menu.getBoundingClientRect();
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    let x = clientX;
+    let y = clientY;
+    if (x + rect.width > winW) x = winW - rect.width - 4;
+    if (y + rect.height > winH) y = winH - rect.height - 4;
+    x = Math.max(4, x);
+    y = Math.max(4, y);
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+}
 
 async function removeFromPlaylist(songId) {
     hideContextMenu();
