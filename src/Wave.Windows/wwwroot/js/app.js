@@ -717,14 +717,25 @@ function renderSongs() {
     if (filteredSongs.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); updateSelectionBar(); return; }
     empty.classList.add('hidden');
 
-    // Calcular qué canciones son visibles según el scroll
+    // En modo grid, no usar virtual scroll (las cards tienen altura variable)
+    if (viewMode === 'grid') {
+        list.innerHTML = renderSongRange(0, filteredSongs.length);
+        bindSongRowClicks(list);
+        updateSelectionBar();
+        if (window._playingSongId) {
+            const row = list.querySelector(`[data-id="${window._playingSongId}"]`);
+            if (row) row.classList.add('playing');
+        }
+        return;
+    }
+
+    // Modo lista: virtual scroll
     const container = document.getElementById('songs-container');
     const scrollTop = container ? container.scrollTop : 0;
     const viewportH = container ? container.clientHeight : window.innerHeight;
     const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER);
     const endIdx = Math.min(filteredSongs.length, Math.ceil((scrollTop + viewportH) / ROW_HEIGHT) + BUFFER);
 
-    // Crear contenedor virtual con altura total + offset
     const totalH = filteredSongs.length * ROW_HEIGHT;
     const offsetTop = startIdx * ROW_HEIGHT;
 
@@ -734,7 +745,15 @@ function renderSongs() {
         </div>
     </div>`;
 
-    // Bind click handlers
+    bindSongRowClicks(list);
+    updateSelectionBar();
+    if (window._playingSongId) {
+        const row = list.querySelector(`[data-id="${window._playingSongId}"]`);
+        if (row) row.classList.add('playing');
+    }
+}
+
+function bindSongRowClicks(list) {
     list.querySelectorAll('.song-row').forEach(row => {
         row.onclick = (e) => {
             const id = parseInt(row.dataset.id);
@@ -749,12 +768,6 @@ function renderSongs() {
             }
         };
     });
-    updateSelectionBar();
-    // Re-aplicar clase playing usando el ID guardado (más confiable que _lastPlaybackState)
-    if (window._playingSongId) {
-        const row = list.querySelector(`[data-id="${window._playingSongId}"]`);
-        if (row) row.classList.add('playing');
-    }
 }
 
 function renderSongRange(startIdx, endIdx) {
