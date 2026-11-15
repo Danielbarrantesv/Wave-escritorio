@@ -1897,6 +1897,28 @@ async function settingsRestore() {
     }
 }
 
+async function settingsRenameFiles() {
+    if (await modalConfirm(t('rename_files_title'), t('rename_files_confirm'))) {
+        showImportOverlay(t('rename_files_running'));
+        let result;
+        try {
+            result = await WaveAPI.call('library.renameSongsByMetadata', {});
+        } finally {
+            hideImportOverlay();
+        }
+        if (result) {
+            await loadSongs();
+            // Mensaje detallado con número de renombrados/omitidos/errores
+            const msg = tf('rename_files_result', {
+                renamed: result.renamed,
+                skipped: result.skipped,
+                errors: result.errors
+            });
+            await modalAlert(t('rename_files_done'), msg);
+        }
+    }
+}
+
 async function settingsExportLogs() {
     await WaveAPI.call('window.exportLogs', {});
 }
@@ -1914,7 +1936,7 @@ async function settingsReportBug() {
 }
 
 async function settingsShowChangelog() {
-    await modalAlert(t('changelog_title'), 'v2.0.24 — Fix: side-panel (config/EQ/lyrics) se veía oscuro en tema claro\nv2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
+    await modalAlert(t('changelog_title'), 'v2.0.25 — Botón "Renombrar archivos por metadatos" en Configuración → Datos (formato: Artista - Título.ext)\nv2.0.24 — Fix: side-panel (config/EQ/lyrics) se veía oscuro en tema claro\nv2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
 }
 
 // === Keyboard navigation helpers ===
@@ -2168,6 +2190,13 @@ const I18N = {
         export_library: 'Exportar biblioteca (JSON)', import_library: 'Importar biblioteca (JSON)',
         export_logs: 'Exportar logs (wave.log)', clear_library: 'Borrar toda la biblioteca',
         report_bug: 'Reportar bug', view_changelog: 'Ver changelog',
+        // Renombrar archivos por metadatos
+        rename_files_btn: 'Renombrar archivos por metadatos',
+        rename_files_title: 'Renombrar archivos',
+        rename_files_confirm: '¿Renombrar TODOS los archivos de la biblioteca al formato "Artista - Título.ext"?\n\nUsa los metadatos de cada canción (no modifica las carpetas).\n\nEsta acción no se puede deshacer.',
+        rename_files_running: 'Renombrando archivos...',
+        rename_files_done: 'Renombrado completo',
+        rename_files_result: 'Renombradas: {renamed}\nOmitidas (sin cambios): {skipped}\nErrores: {errors}',
         not_selected: 'No seleccionada', browse: 'Examinar', first_run_title: 'Bienvenido a Wave', first_run_msg: 'Selecciona tu idioma para empezar:',
         no_song: 'Canción', no_artist: 'Artista',
         // === Nuevas keys (v2.0.23) — strings hardcoded ===
@@ -2279,6 +2308,13 @@ const I18N = {
         export_library: 'Export library (JSON)', import_library: 'Import library (JSON)',
         export_logs: 'Export logs (wave.log)', clear_library: 'Clear entire library',
         report_bug: 'Report bug', view_changelog: 'View changelog',
+        // Rename files by metadata
+        rename_files_btn: 'Rename files by metadata',
+        rename_files_title: 'Rename files',
+        rename_files_confirm: 'Rename ALL library files to "Artist - Title.ext" format?\n\nUses each song\'s metadata (folders are not modified).\n\nThis action cannot be undone.',
+        rename_files_running: 'Renaming files...',
+        rename_files_done: 'Rename complete',
+        rename_files_result: 'Renamed: {renamed}\nSkipped (no change): {skipped}\nErrors: {errors}',
         not_selected: 'Not selected', browse: 'Browse', first_run_title: 'Welcome to Wave', first_run_msg: 'Select your language to start:',
         no_song: 'Song', no_artist: 'Artist',
         // === New keys (v2.0.23) — hardcoded strings ===
@@ -2379,6 +2415,13 @@ const I18N = {
         export_library: 'Exporter bibliothèque (JSON)', import_library: 'Importer bibliothèque (JSON)',
         export_logs: 'Exporter logs (wave.log)', clear_library: 'Vider toute la bibliothèque',
         report_bug: 'Signaler bug', view_changelog: 'Voir changelog',
+        // Renommer les fichiers par métadonnées
+        rename_files_btn: 'Renommer fichiers par métadonnées',
+        rename_files_title: 'Renommer fichiers',
+        rename_files_confirm: 'Renommer TOUS les fichiers de la bibliothèque au format « Artiste - Titre.ext » ?\n\nUtilise les métadonnées de chaque chanson (les dossiers ne sont pas modifiés).\n\nCette action est irréversible.',
+        rename_files_running: 'Renommage des fichiers...',
+        rename_files_done: 'Renommage terminé',
+        rename_files_result: 'Renommées : {renamed}\nIgnorées (sans changement) : {skipped}\nErreurs : {errors}',
         not_selected: 'Non sélectionné', browse: 'Parcourir', first_run_title: 'Bienvenue dans Wave', first_run_msg: 'Sélectionnez votre langue pour commencer:',
         no_song: 'Chanson', no_artist: 'Artiste',
         // === Nouvelles clés (v2.0.23) — chaînes codées en dur ===
@@ -2479,6 +2522,13 @@ const I18N = {
         export_library: 'Bibliothek exportieren (JSON)', import_library: 'Bibliothek importieren (JSON)',
         export_logs: 'Logs exportieren (wave.log)', clear_library: 'Gesamte Bibliothek löschen',
         report_bug: 'Fehler melden', view_changelog: 'Changelog anzeigen',
+        // Dateien nach Metadaten umbenennen
+        rename_files_btn: 'Dateien nach Metadaten umbenennen',
+        rename_files_title: 'Dateien umbenennen',
+        rename_files_confirm: 'ALLE Dateien der Bibliothek in das Format „Künstler - Titel.ext" umbenennen?\n\nVerwendet die Metadaten jedes Liedes (Ordner werden nicht geändert).\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
+        rename_files_running: 'Dateien werden umbenannt...',
+        rename_files_done: 'Umbenennung abgeschlossen',
+        rename_files_result: 'Umbenannt: {renamed}\nÜbersprungen (keine Änderung): {skipped}\nFehler: {errors}',
         not_selected: 'Nicht ausgewählt', browse: 'Durchsuchen', first_run_title: 'Willkommen bei Wave', first_run_msg: 'Wählen Sie Ihre Sprache zum Starten:',
         no_song: 'Lied', no_artist: 'Künstler',
         // === Neue Schlüssel (v2.0.23) — fest codierte Strings ===
@@ -2579,6 +2629,13 @@ const I18N = {
         export_library: 'ライブラリをエクスポート (JSON)', import_library: 'ライブラリをインポート (JSON)',
         export_logs: 'ログをエクスポート (wave.log)', clear_library: 'ライブラリをすべて削除',
         report_bug: 'バグを報告', view_changelog: '変更履歴を見る',
+        // メタデータでファイル名を変更
+        rename_files_btn: 'メタデータでファイル名を変更',
+        rename_files_title: 'ファイル名を変更',
+        rename_files_confirm: 'ライブラリのすべてのファイルを「アーティスト - タイトル.ext」形式に変更しますか？\n\n各曲のメタデータを使用します（フォルダーは変更されません）。\n\nこの操作は元に戻せません。',
+        rename_files_running: 'ファイル名を変更中...',
+        rename_files_done: 'ファイル名変更完了',
+        rename_files_result: '変更済み: {renamed}\nスキップ（変更なし）: {skipped}\nエラー: {errors}',
         not_selected: '未選択', browse: '参照', first_run_title: 'Waveへようこそ', first_run_msg: '開始する言語を選択してください:',
         no_song: '曲', no_artist: 'アーティスト',
         // === 新規キー (v2.0.23) — ハードコード文字列 ===
@@ -2679,6 +2736,13 @@ const I18N = {
         export_library: '라이브러리 내보내기 (JSON)', import_library: '라이브러리 가져오기 (JSON)',
         export_logs: '로그 내보내기 (wave.log)', clear_library: '전체 라이브러리 삭제',
         report_bug: '버그 신고', view_changelog: '변경 로그 보기',
+        // 메타데이터로 파일 이름 변경
+        rename_files_btn: '메타데이터로 파일 이름 변경',
+        rename_files_title: '파일 이름 변경',
+        rename_files_confirm: '라이브러리의 모든 파일을 "아티스트 - 제목.ext" 형식으로 변경하시겠습니까?\n\n각 곡의 메타데이터를 사용합니다 (폴더는 변경되지 않음).\n\n이 작업은 되돌릴 수 없습니다.',
+        rename_files_running: '파일 이름 변경 중...',
+        rename_files_done: '이름 변경 완료',
+        rename_files_result: '변경됨: {renamed}\n건너뜀 (변경 없음): {skipped}\n오류: {errors}',
         not_selected: '선택되지 않음', browse: '찾아보기', first_run_title: 'Wave에 오신 것을 환영합니다', first_run_msg: '시작하려면 언어를 선택하세요:',
         no_song: '곡', no_artist: '아티스트',
         // === 새 키 (v2.0.23) — 하드코딩된 문자열 ===
@@ -2833,12 +2897,16 @@ function applyLanguage(lang) {
         if (opts[0]) opts[0].textContent = t('theme_dark');
         if (opts[1]) opts[1].textContent = t('theme_light');
     }
-    // Datos (botones)
+    // Datos (botones) — los settings-btn tienen SVG + texto como textContent directo
     const settingsBtns = document.querySelectorAll('#settings-content .settings-btn');
-    const btnLabels = [t('export_library'), t('import_library'), t('export_logs'), t('clear_library'), t('report_bug'), t('view_changelog')];
+    const btnLabels = [t('export_library'), t('import_library'), t('rename_files_btn'), t('export_logs'), t('clear_library'), t('report_bug'), t('view_changelog')];
     settingsBtns.forEach((btn, i) => {
-        const span = btn.querySelector('span');
-        if (span && btnLabels[i]) span.textContent = btnLabels[i];
+        if (!btnLabels[i]) return;
+        // Conservar el SVG (primer child) y reemplazar el texto que sigue
+        // Caso 1: botón con <svg> + texto plano como text node
+        const svg = btn.querySelector('svg');
+        btn.textContent = btnLabels[i];
+        if (svg) btn.insertBefore(svg, btn.firstChild);
     });
 
     // Actualizar placeholders y textos hardcoded que no tienen data-i18n

@@ -43,4 +43,15 @@ public interface ILibraryService
     /// Rápido: solo compara paths sin re-leer tags de existentes.
     /// </summary>
     Task<int> ScanForNewFilesAsync();
+
+    /// <summary>
+    /// Renombra los archivos físicos de TODAS las canciones de la biblioteca
+    /// usando el patrón "Artista - Título.ext" con los metadatos de la DB.
+    /// - Si la canción está reproduciéndose, la pausa y reanuda tras renombrar.
+    /// - Si el nombre destino ya existe en la misma carpeta (y no es el mismo archivo),
+    ///   añade sufijo _1, _2, etc.
+    /// - Sanitiza caracteres inválidos para nombres de archivo en Windows.
+    /// Devuelve el número de archivos renombrados correctamente.
+    /// </summary>
+    Task<(int Renamed, int Skipped, int Errors)> RenameSongsByMetadataAsync();
 }

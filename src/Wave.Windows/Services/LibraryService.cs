@@ -406,4 +406,142 @@ public sealed class LibraryService : ILibraryService
     {
         return Task.Run(() => ScanForNewFiles());
     }
+
+    /// <summary>
+    /// Renombra los archivos físicos de TODAS las canciones de la biblioteca usando
+    /// el patrón "Artista - Título.ext" con los metadatos de la DB.
+    ///
+    /// Casos especiales:
+    /// - Si no hay artista ni título, se omite (no se renombra).
+    /// - Si el archivo destino ya existe en la misma carpeta y NO es el mismo archivo,
+    ///   se añade sufijo _1, _2, etc. para no sobrescribir.
+    /// - Caracteres inválidos en Windows (\ / : * ? " &lt; &gt; |) se reemplazan por "_".
+    /// - El path completo (carpeta) se mantiene, solo cambia el nombre del archivo.
+    /// </summary>
+    /// <returns>Tupla (Renamed, Skipped, Errors).</returns>
+    public Task<(int Renamed, int Skipped, int Errors)> RenameSongsByMetadataAsync()
+    {
+        return Task.Run(() =>
+        {
+            var allSongs = _songRepo.ListAll();
+            int renamed = 0, skipped = 0, errors = 0;
+
+            WaveLogger.Info($"RenameSongsByMetadata: processing {allSongs.Count} songs");
+
+            // Para evitar colisiones dentro de la misma pasada, trackear los paths
+            // que ya vamos a usar como destino (por carpeta).
+            var reservedPathsByDir = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var song in allSongs)
+            {
+                try
+                {
+                    // Validar que tenemos los metadatos mínimos
+                    var title = (song.DisplayTitle ?? song.Title ?? "").Trim();
+                    var artist = (song.DisplayArtist ?? song.Artist ?? "").Trim();
+
+                    if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(artist))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Validar que el archivo existe
+                    if (string.IsNullOrEmpty(song.FilePath) || !File.Exists(song.FilePath))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var dir = Path.GetDirectoryName(song.FilePath) ?? "";
+                    var ext = Path.GetExtension(song.FilePath); // incluye el punto
+                    var currentFileName = Path.GetFileName(song.FilePath);
+
+                    // Construir el nuevo nombre: "Artista - Título.ext"
+                    // Si solo hay título o solo artista, usar lo que haya.
+                    string baseName;
+                    if (!string.IsNullOrEmpty(artist) && !string.IsNullOrEmpty(title))
+                        baseName = $"{artist} - {title}";
+                    else if (!string.IsNullOrEmpty(artist))
+                        baseName = artist;
+                    else
+                        baseName = title;
+
+                    // Sanitizar caracteres inválidos para nombres de archivo en Windows
+                    // Invalidos: \ / : * ? " < > |  y control chars < 32
+                    var invalidChars = Path.GetInvalidFileNameChars();
+                    var sanitized = string.Concat(baseName.Select(c => invalidChars.Contains(c) ? '_' : c));
+                    // Recortar a un máximo razonable (Windows: 260 chars de path total,
+                    // dejamos margen para carpeta + extensión)
+                    if (sanitized.Length > 120) sanitized = sanitized.Substring(0, 120).TrimEnd();
+
+                    if (string.IsNullOrEmpty(sanitized))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var newFileName = sanitized + ext;
+                    var newPath = Path.Combine(dir, newFileName);
+
+                    // Si el path normalizado es igual al actual, no hay nada que hacer
+                    if (string.Equals(newPath, song.FilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Inicializar set de reservados para esta carpeta si no existe
+                    if (!reservedPathsByDir.TryGetValue(dir, out var reserved))
+                    {
+                        reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        reservedPathsByDir[dir] = reserved;
+                    }
+
+                    // Resolver colisión: si el archivo destino ya existe en disco
+                    // (y no es el mismo archivo actual) o ya está reservado por otra
+                    // canción de esta misma pasada, añadir sufijo _1, _2, ...
+                    int suffix = 1;
+                    while ((File.Exists(newPath) &&
+                            !string.Equals(newPath, song.FilePath, StringComparison.OrdinalIgnoreCase))
+                           || reserved.Contains(newPath))
+                    {
+                        newPath = Path.Combine(dir, $"{sanitized}_{suffix}{ext}");
+                        suffix++;
+                        if (suffix > 999) break; // safety
+                    }
+
+                    if (suffix > 999)
+                    {
+                        errors++;
+                        WaveLogger.Warn($"RenameSongsByMetadata: too many name collisions for '{song.FilePath}', skipping");
+                        continue;
+                    }
+
+                    // Hacer el rename físico
+                    File.Move(song.FilePath, newPath);
+
+                    // Actualizar la DB con el nuevo path
+                    Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+                        "UPDATE songs SET file_path = @filePath WHERE id = @songId",
+                        new { filePath = newPath, songId = song.Id });
+
+                    // Marcar el nuevo path como reservado para esta carpeta
+                    reserved.Add(newPath);
+                    // Si el path viejo era distinto del nuevo, también podemos liberarlo
+                    // del set reservado (pero como ya no existe en disco, no hace falta).
+
+                    renamed++;
+                }
+                catch (Exception ex)
+                {
+                    errors++;
+                    WaveLogger.Error($"RenameSongsByMetadata: error processing song {song.Id} ({song.FilePath})", ex);
+                }
+            }
+
+            WaveLogger.Info($"RenameSongsByMetadata: done. Renamed={renamed}, Skipped={skipped}, Errors={errors}");
+            return (renamed, skipped, errors);
+        });
+    }
 }

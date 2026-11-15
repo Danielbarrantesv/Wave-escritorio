@@ -98,6 +98,7 @@ public class WebViewBridge
             "library.scanForNewFiles" => await ScanForNewFiles(),
             "library.editSong" => EditSong(p),
             "library.selectArtImage" => SelectArtImage(),
+            "library.renameSongsByMetadata" => await RenameSongsByMetadata(p),
 
             // Playback
             "playback.play" => Invoke(() => _playback.Play()),
@@ -685,6 +686,66 @@ public class WebViewBridge
     {
         var added = await _library.ScanForNewFilesAsync();
         return new { added };
+    }
+
+    /// <summary>
+    /// Renombra TODAS las canciones de la biblioteca al patrón "Artista - Título.ext".
+    /// Si la canción actual se está reproduciendo, la pausa y reanuda tras renombrar.
+    /// </summary>
+    private async Task<object?> RenameSongsByMetadata(JsonElement p)
+    {
+        // Si la canción actual está reproduciéndose, pausarla y liberar el archivo
+        // antes de empezar el rename masivo (algunas canciones pueden ser la actual).
+        bool wasPlaying = _playback.IsPlaying;
+        long positionMs = _playback.PositionMs;
+        long? currentSongId = _playback.CurrentSong?.Id;
+        string? currentOldPath = _playback.CurrentSong?.FilePath;
+
+        if (wasPlaying)
+        {
+            _playback.Pause();
+            _audioEngine.Stop();
+            WaveLogger.Info($"RenameSongsByMetadata: paused playback before bulk rename (pos={positionMs}ms)");
+            System.Threading.Thread.Sleep(200);
+        }
+
+        var (renamed, skipped, errors) = await _library.RenameSongsByMetadataAsync();
+
+        // Si la canción actual fue renombrada (su path cambió), recargarla con el nuevo path
+        if (wasPlaying && currentSongId.HasValue)
+        {
+            try
+            {
+                // Leer el path actualizado desde la DB
+                var updatedSong = _library.GetAllSongs().FirstOrDefault(s => s.Id == currentSongId.Value);
+                if (updatedSong != null && !string.IsNullOrEmpty(updatedSong.FilePath)
+                    && File.Exists(updatedSong.FilePath))
+                {
+                    // Actualizar el path en el objeto CurrentSong en memoria
+                    _playback.CurrentSong.FilePath = updatedSong.FilePath;
+                    WaveLogger.Info($"RenameSongsByMetadata: current song path updated to '{updatedSong.FilePath}'");
+                }
+                else
+                {
+                    // No se encontró o el archivo no existe; no se puede reanudar
+                    WaveLogger.Warn($"RenameSongsByMetadata: current song path not found after rename, cannot resume");
+                    return new { success = true, renamed, skipped, errors, resumed = false };
+                }
+
+                _audioEngine.Load(_playback.CurrentSong.FilePath);
+                _playback.Seek(positionMs);
+                _audioEngine.Play();
+                WaveLogger.Info($"RenameSongsByMetadata: resumed playback at {positionMs}ms");
+                return new { success = true, renamed, skipped, errors, resumed = true };
+            }
+            catch (Exception ex)
+            {
+                WaveLogger.Error("RenameSongsByMetadata: error resuming playback", ex);
+                return new { success = true, renamed, skipped, errors, resumed = false, error = ex.Message };
+            }
+        }
+
+        return new { success = true, renamed, skipped, errors };
     }
 
     private static object? Invoke(Action a) { a(); return null; }
