@@ -240,8 +240,8 @@ function modalConfirmCustom(title, message, btn1Text, btn2Text) {
 function minimizeWindow() { WaveAPI.call('window.minimize'); }
 function maximizeWindow() { WaveAPI.call('window.maximize'); }
 async function closeWindow() {
-    const choice = await modalConfirmCustom('Cerrar Wave', '¿Qué quieres hacer?',
-        'Minimizar a bandeja', 'Salir');
+    const choice = await modalConfirmCustom(t('close_wave'), t('close_wave_msg'),
+        t('minimize_to_tray'), t('exit'));
     if (choice === 'minimize') {
         WaveAPI.call('window.minimize');
     } else if (choice === 'exit') {
@@ -503,13 +503,13 @@ function showPlaylistContextMenu(e, pl) {
     const iconLock = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
     let items = '';
     if (pl.name !== 'Favoritos') {
-        items += `<div class="ctx-item" onclick="addFolderToPlaylist(${pl.id})">${iconImport}<span>Importar carpeta a esta playlist</span></div>`;
+        items += `<div class="ctx-item" onclick="addFolderToPlaylist(${pl.id})">${iconImport}<span>${t('import_folder_to_playlist')}</span></div>`;
         items += `<div class="ctx-separator"></div>`;
-        items += `<div class="ctx-item" onclick="renamePlaylist(${pl.id}, '${escapeHtml(pl.name)}')">${iconEdit}<span>Editar nombre</span></div>`;
+        items += `<div class="ctx-item" onclick="renamePlaylist(${pl.id}, '${escapeHtml(pl.name)}')">${iconEdit}<span>${t('edit_name')}</span></div>`;
         items += `<div class="ctx-separator"></div>`;
-        items += `<div class="ctx-item danger" onclick="deletePlaylist(${pl.id})">${iconDelete}<span>Eliminar playlist</span></div>`;
+        items += `<div class="ctx-item danger" onclick="deletePlaylist(${pl.id})">${iconDelete}<span>${t('delete_playlist')}</span></div>`;
     } else {
-        items += `<div class="ctx-item" style="opacity:0.5;cursor:default">${iconLock}<span>No se puede eliminar Favoritos</span></div>`;
+        items += `<div class="ctx-item" style="opacity:0.5;cursor:default">${iconLock}<span>${t('cannot_delete_favorites')}</span></div>`;
     }
     menu.innerHTML = items;
     positionMenu(menu, e.clientX, e.clientY);
@@ -519,7 +519,7 @@ async function addFolderToPlaylist(playlistId) {
     hideContextMenu();
     const res = await WaveAPI.call('window.selectFolder', {});
     if (!res || res.cancelled || !res.path) return;
-    showImportOverlay('Importando a playlist...');
+            showImportOverlay(t('importing_to_playlist'));
     let result;
     try {
         result = await WaveAPI.call('library.importFromFolderToPlaylist', {
@@ -534,16 +534,16 @@ async function addFolderToPlaylist(playlistId) {
         if (currentPlaylist && currentPlaylist.id === playlistId) {
             await selectPlaylist(currentPlaylist);
         }
-        await modalAlert('Importación completa',
-            `${result.added} canciones nuevas, ${result.duplicates} ya en biblioteca.`);
+        await modalAlert(t('import_complete'),
+            tf('import_result_long', { added: result.added, duplicates: result.duplicates }));
     } else if (result && result.error) {
-        await modalAlert('Error', result.error);
+        await modalAlert(t('error'), result.error);
     }
 }
 
 async function renamePlaylist(id, oldName) {
     hideContextMenu();
-    const newName = await modalPrompt('Editar nombre', oldName);
+    const newName = await modalPrompt(t('edit_name'), oldName);
     if (newName && newName.trim() && newName !== oldName) {
         await WaveAPI.call('playlists.rename', { playlistId: id, newName: newName.trim() });
         await loadPlaylists();
@@ -552,7 +552,7 @@ async function renamePlaylist(id, oldName) {
 
 async function deletePlaylist(id) {
     hideContextMenu();
-    if (await modalConfirm('Eliminar playlist', '¿Eliminar esta playlist?')) {
+    if (await modalConfirm(t('delete_playlist'), t('delete_playlist_confirm'))) {
         await WaveAPI.call('playlists.delete', { playlistId: id });
         selectAllSongs();
         await loadPlaylists();
@@ -600,17 +600,17 @@ async function createPlaylist() {
     const nameId = 'pl-name-' + Date.now();
     const folderId = 'pl-folder-' + Date.now();
 
-    showModal('Crear playlist',
+    showModal(t('create_playlist'),
         `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-            <input type="text" class="modal-input" id="${nameId}" placeholder="Nombre de la playlist" style="flex:1;margin:0;" />
+            <input type="text" class="modal-input" id="${nameId}" placeholder="${t('new_playlist_name')}" style="flex:1;margin:0;" />
             <button class="modal-btn modal-btn-cancel" onclick="window._selectFolder=true;" style="white-space:nowrap;display:flex;align-items:center;gap:6px;padding:10px 12px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4,20q-0.82,0-1.41-0.59T2,18V6Q2,5.18 2.59,4.59T4,4h6l2,2h8q0.83,0 1.41,0.59Q22,7.18 22,8H11.18l-2-2H4V18l2.4-8H23.5l-2.57,8.57q-0.2,0.65-0.74,1.04T19,20H4Z"/></svg>
-                <span>Folder</span>
+                <span>${t('folder')}</span>
             </button>
         </div>
         <div id="${folderId}" style="color:var(--text-dim);font-size:13px;margin-bottom:16px;"></div>`,
-        `<button class="modal-btn modal-btn-cancel" onclick="window._modalChoice='cancel';closeModal();">Cancelar</button>
-         <button class="modal-btn modal-btn-primary" onclick="window._modalChoice='create';closeModal();">Crear</button>`);
+        `<button class="modal-btn modal-btn-cancel" onclick="window._modalChoice='cancel';closeModal();">${t('cancel')}</button>
+         <button class="modal-btn modal-btn-primary" onclick="window._modalChoice='create';closeModal();">${t('create_playlist')}</button>`);
 
     window._modalChoice = null;
     window._selectFolder = false;
@@ -632,10 +632,10 @@ async function createPlaylist() {
                     document.getElementById(folderId).innerHTML =
                         `📁 <span style="color:var(--accent);word-break:break-all">${escapeHtml(folderStr)}</span>`;
                 } else {
-                    document.getElementById(folderId).textContent = 'No se seleccionó ninguna carpeta';
+                    document.getElementById(folderId).textContent = t('not_selected');
                 }
             }).catch(err => {
-                document.getElementById(folderId).textContent = 'Error: ' + err;
+                document.getElementById(folderId).textContent = t('error_prefix') + err;
             });
         }
     }, 100);
@@ -659,18 +659,18 @@ async function createPlaylist() {
                                 playlistId: target.id
                             });
                             if (result && !result.cancelled) {
-                                addedMsg = `${result.added} canciones nuevas, ${result.duplicates} ya en biblioteca.`;
+                                addedMsg = tf('import_result_long', { added: result.added, duplicates: result.duplicates });
                             } else {
-                                addedMsg = 'No se pudo importar la carpeta.';
+                                addedMsg = t('import_failed');
                             }
                         } else {
-                            addedMsg = 'No se encontró la playlist creada.';
+                            addedMsg = t('playlist_not_found');
                         }
                     } else {
-                        addedMsg = 'Playlist vacía creada. Agrega canciones con clic derecho.';
+                        addedMsg = t('playlist_empty_created');
                     }
                     await loadPlaylists();
-                    await modalAlert('Playlist creada', `"${name}" creada. ${addedMsg}`);
+                    await modalAlert(t('playlist_created'), tf('playlist_created_short', { name: name, msg: addedMsg }));
                     // Seleccionar automáticamente la playlist recién creada
                     const playlists = await WaveAPI.call('playlists.getAll') || [];
                     const created2 = playlists.find(p => p.name === name.trim());
@@ -867,12 +867,12 @@ async function addSelectionToPlaylist() {
             bodyHtml += `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=${i};closeModal();">${escapeHtml(p.name)}</button>`;
         });
     } else {
-        bodyHtml += '<div style="color:var(--text-faint);font-size:13px;padding:8px;text-align:center">No hay playlists. Crea una nueva arriba ↑</div>';
+        bodyHtml += `<div style="color:var(--text-faint);font-size:13px;padding:8px;text-align:center">${t('no_playlists_hint')}</div>`;
     }
     bodyHtml += '</div>';
 
-    showModal(`Agregar ${ids.length} canción${ids.length>1?'es':''} a playlist`, bodyHtml,
-        `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">Cancelar</button>`);
+    showModal(tf('add_n_songs_to_playlist', { n: ids.length, plural: ids.length>1?'es':'' }), bodyHtml,
+        `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">${t('cancel')}</button>`);
 
     window._modalSelect = -1;
     const check = setInterval(async () => {
@@ -881,18 +881,18 @@ async function addSelectionToPlaylist() {
             const sel = window._modalSelect;
             if (sel === 'create') {
                 // Crear nueva playlist + agregar canciones
-                const name = await modalPrompt('Nombre de la nueva playlist', '');
+                const name = await modalPrompt(t('new_playlist_name'), '');
                 if (name && name.trim()) {
                     await WaveAPI.call('playlists.create', { name: name.trim(), songIds: ids });
                     await loadPlaylists();
                     clearSelection();
-                    await modalAlert('Playlist creada', `"${name}" creada con ${ids.length} canciones.`);
+                    await modalAlert(t('playlist_created'), tf('playlist_created_with_songs', { name: name, n: ids.length }));
                 }
             } else if (typeof sel === 'number' && sel >= 0 && sel < playableLists.length) {
                 await WaveAPI.call('playlists.addSongs', { playlistId: playableLists[sel].id, songIds: ids });
                 await loadPlaylists();
                 clearSelection();
-                await modalAlert('Agregado', `${ids.length} canciones agregadas a "${playableLists[sel].name}"`);
+                await modalAlert(t('added'), tf('added_songs_to_playlist', { n: ids.length, name: playableLists[sel].name }));
             }
         }
     }, 50);
@@ -902,7 +902,7 @@ async function deleteSelection() {
     const ids = Array.from(selectedSongIds);
     if (ids.length === 0) return;
     if (currentPlaylist) {
-        if (await modalConfirm('Quitar de playlist', `¿Quitar ${ids.length} canción${ids.length>1?'es':''} de "${currentPlaylist.name}"?\n\nNo se borrarán de la biblioteca.`)) {
+        if (await modalConfirm(t('remove_from_playlist'), tf('remove_from_playlist_confirm_multi', { n: ids.length, name: currentPlaylist.name }))) {
             for (const id of ids) {
                 await WaveAPI.call('playlists.removeSong', { playlistId: currentPlaylist.id, songId: id });
             }
@@ -910,7 +910,7 @@ async function deleteSelection() {
             await selectPlaylist(currentPlaylist);
         }
     } else {
-        if (await modalConfirm('Eliminar canciones', `¿Eliminar ${ids.length} canciones de la biblioteca?\n\nSe borrarán de TODAS las playlists.`)) {
+        if (await modalConfirm(t('delete_song'), tf('delete_songs_confirm_multi', { n: ids.length }))) {
             for (const id of ids) await WaveAPI.call('library.deleteSong', { songId: id });
             clearSelection();
             await loadSongs();
@@ -923,8 +923,9 @@ async function deleteSelectionAndFile() {
     hideContextMenu();
     const ids = Array.from(selectedSongIds);
     if (ids.length === 0) return;
-    if (await modalConfirm('Borrar archivos',
-        `¿Borrar ${ids.length} canción${ids.length>1?'es':''} de la biblioteca Y mover ${ids.length>1?'los archivos':'el archivo'} a la papelera de reciclaje?`)) {
+    const n = ids.length;
+    if (await modalConfirm(t('delete_files_title'),
+        tf('delete_files_confirm', { n: n, files: n>1?t('files_plural'):t('files_singular') }))) {
         for (const id of ids) {
             await WaveAPI.call('library.deleteSongAndFile', { songId: id });
         }
@@ -952,10 +953,14 @@ async function moveSelectionToFolder() {
     clearSelection();
     await loadSongs();
     if (errors === 0) {
-        showToast('Movido', `${moved} canción${moved>1?'es':''} movida${moved>1?'s':''} a "${res.path}"`,
+        showToast(t('moved'), moved === 1
+            ? tf('moved_songs_to_single', { path: res.path })
+            : tf('moved_songs_to_multi', { n: moved, path: res.path }),
             '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.2,14l-1.63,1.63l1.4,1.4L16,13L11.98,8.98l-1.4,1.4L12.2,12H8v2h4.2Z"/></svg>');
     } else {
-        await modalAlert('Mover canciones', `${moved} movida${moved>1?'s':''}, ${errors} con error.`);
+        await modalAlert(t('move_to_folder_single'), moved === 1
+            ? tf('move_songs_result_single', { errors: errors })
+            : tf('move_songs_result_multi', { moved: moved, errors: errors }));
     }
 }
 
@@ -1014,7 +1019,7 @@ async function toggleFavorite(songId) {
 async function onToggleCurrentFavorite() {
     const state = window._lastPlaybackState;
     if (!state || !state.currentSong) {
-        await modalAlert('Sin canción', 'No hay ninguna canción reproduciéndose.');
+        await modalAlert(t('no_song_playing'), t('no_song_playing_msg'));
         return;
     }
     // Toggle en C# (envía una copia del song, NO actualiza _playback.CurrentSong)
@@ -1374,42 +1379,42 @@ function showContextMenu(e, songId) {
     const iconRemoveFromPlaylist = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.65,13.14l2.1-2.1l2.1,2.1l1.04-1.04L14.79,10l2.1-2.1L15.85,6.86l-2.1,2.1l-2.1-2.1L10.61,7.9l2.1,2.1l-2.1,2.1l1.04,1.04ZM8.06,17.5q-0.76,0-1.28-0.52T6.25,15.69V4.31q0-0.76 0.52-1.28T8.06,2.5H19.44q0.76,0 1.28,0.52t0.52,1.28V15.69q0,0.76-0.52,1.28T19.44,17.5H8.06Z"/></svg>';
 
     const n = selectedSongIds.size;
-    const plural = n > 1 ? ` (${n} canciones)` : '';
+    const plural = tf('plural_songs', { n: n });
     let items = '';
-    items += `<div class="ctx-item" onclick="addSelectionToPlaylist()">${iconAddToPlaylist}<span>Agregar a playlist...${plural}</span></div>`;
+    items += `<div class="ctx-item" onclick="addSelectionToPlaylist()">${iconAddToPlaylist}<span>${t('add_to_playlist')}...${plural}</span></div>`;
     if (currentPlaylist) {
-        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">${iconRemoveFromPlaylist}<span>Quitar de "${escapeHtml(currentPlaylist.name)}"${plural}</span></div>`;
+        items += `<div class="ctx-item" onclick="removeSelectedFromPlaylist()">${iconRemoveFromPlaylist}<span>${tf('remove_from_playlist', { name: escapeHtml(currentPlaylist.name) })}${plural}</span></div>`;
     }
     items += `<div class="ctx-separator"></div>`;
     if (n === 1) {
         if (song.isFavorite) {
-            items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${iconRemoveFav}<span>Quitar de favoritos</span></div>`;
+            items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${iconRemoveFav}<span>${t('remove_from_favorites')}</span></div>`;
         } else {
-            items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${iconAddFav}<span>Agregar a favoritos</span></div>`;
+            items += `<div class="ctx-item" onclick="toggleFavorite(${songId})">${iconAddFav}<span>${t('add_to_favorites')}</span></div>`;
         }
         items += `<div class="ctx-separator"></div>`;
-        items += `<div class="ctx-item" onclick="editSong(${songId})">${iconEditSong}<span>Editar información</span></div>`;
+        items += `<div class="ctx-item" onclick="editSong(${songId})">${iconEditSong}<span>${t('edit_info')}</span></div>`;
         items += `<div class="ctx-separator"></div>`;
     }
     // Texto dinámico según contexto:
     // - En playlist: "Quitar de la playlist" (NO borra de biblioteca)
     // - En "Todas las canciones": "Eliminar canción" (borra de biblioteca)
     const deleteLabel = currentPlaylist
-        ? `Quitar de la playlist${plural}`
-        : `Eliminar${plural} canción${n>1?'es':''} de la biblioteca`;
+        ? tf('delete_label_playlist', { plural: plural })
+        : (n > 1 ? tf('delete_label_library_multi', { n: n }) : t('delete_label_library_single'));
     const isDanger = !currentPlaylist;
     // Eliminar: color amarillo (no rojo)
     items += `<div class="ctx-item" style="color:#ffcc00" onclick="deleteSelection()">${iconDeleteSong}<span>${deleteLabel}</span></div>`;
     // Mover a carpeta (solo en "Todas las canciones")
     if (!currentPlaylist) {
         const iconMove = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.2,14l-1.63,1.63l1.4,1.4L16,13L11.98,8.98l-1.4,1.4L12.2,12H8v2h4.2ZM4,20q-0.82,0-1.41-0.59T2,18V6Q2,5.18 2.59,4.59T4,4h6l2,2h8q0.83,0 1.41,0.59Q22,7.18 22,8V18q0,0.82-0.59,1.41T20,20H4Zm0-2H20V8H11.18l-2-2H4V18Zm0,0V6V8V18Z"/></svg>';
-        const moveLabel = n > 1 ? `Mover ${n} canciones a carpeta...` : 'Mover a carpeta...';
+        const moveLabel = n > 1 ? tf('move_to_folder_multi', { n: n }) : t('move_to_folder_single');
         items += `<div class="ctx-item" onclick="moveSelectionToFolder()">${iconMove}<span>${moveLabel}</span></div>`;
     }
     // Opción de borrar archivo físico (solo en "Todas las canciones", no en playlist)
     if (!currentPlaylist) {
         const iconDeleteFile = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-        const deleteFileLabel = n > 1 ? `Borrar ${n} archivos (papelera)` : 'Borrar archivo (papelera)';
+        const deleteFileLabel = n > 1 ? tf('delete_file_multi', { n: n }) : t('delete_file_single');
         items += `<div class="ctx-item danger" onclick="deleteSelectionAndFile()">${iconDeleteFile}<span>${deleteFileLabel}</span></div>`;
     }
     menu.innerHTML = items;
@@ -1433,18 +1438,18 @@ async function showAddToPlaylist(songId) {
     }
     bodyHtml += '</div>';
 
-    showModal('Agregar a playlist', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">Cancelar</button>`);
+    showModal(t('add_to_playlist_title'), bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._modalSelect=-1;closeModal();">${t('cancel')}</button>`);
     window._modalSelect = -1;
     const check = setInterval(async () => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
             clearInterval(check);
             const sel = window._modalSelect;
             if (sel === 'create') {
-                const name = await modalPrompt('Nombre de la nueva playlist', '');
+                const name = await modalPrompt(t('new_playlist_name'), '');
                 if (name && name.trim()) {
                     await WaveAPI.call('playlists.create', { name: name.trim(), songIds: [songId] });
                     await loadPlaylists();
-                    await modalAlert('Playlist creada', `"${name}" creada con la canción.`);
+                    await modalAlert(t('playlist_created'), tf('playlist_created_with_song', { name: name }));
                 }
             } else if (typeof sel === 'number' && sel >= 0 && sel < playableLists.length) {
                 await WaveAPI.call('playlists.addSongs', { playlistId: playableLists[sel].id, songIds: [songId] });
@@ -1458,13 +1463,13 @@ async function deleteSong(songId) {
     hideContextMenu();
     if (currentPlaylist) {
         // En playlist: quitar SOLO de la playlist
-        if (await modalConfirm('Quitar de playlist', `¿Quitar esta canción de "${currentPlaylist.name}"?\n\nNo se borrará de la biblioteca.`)) {
+        if (await modalConfirm(t('remove_from_playlist'), tf('remove_from_playlist_confirm_single', { name: currentPlaylist.name }))) {
             await WaveAPI.call('playlists.removeSong', { playlistId: currentPlaylist.id, songId });
             await selectPlaylist(currentPlaylist);
         }
     } else {
         // En "Todas las canciones": borrar de la biblioteca
-        if (await modalConfirm('Eliminar canción', '¿Eliminar esta canción de la biblioteca?\n\nSe borrará de TODAS las playlists.')) {
+        if (await modalConfirm(t('delete_song'), t('delete_song_confirm_single'))) {
             await WaveAPI.call('library.deleteSong', { songId });
             await loadSongs();
         }
@@ -1487,22 +1492,22 @@ async function editSong(songId) {
     const gId = `edit-genre-${Date.now()}`;
 
     let bodyHtml = '<div class="edit-form">';
-    bodyHtml += `<div class="edit-field">${iconTitle}<input type="text" id="${tId}" class="modal-input edit-input" placeholder="Título" value="${escapeHtml(song.displayTitle || song.title || '')}" /></div>`;
-    bodyHtml += `<div class="edit-field">${iconArtist}<input type="text" id="${aId}" class="modal-input edit-input" placeholder="Artista" value="${escapeHtml(song.displayArtist || song.artist || '')}" /></div>`;
-    bodyHtml += `<div class="edit-field">${iconAlbum}<input type="text" id="${alId}" class="modal-input edit-input" placeholder="Álbum" value="${escapeHtml(song.displayAlbum || song.album || '')}" /></div>`;
-    bodyHtml += `<div class="edit-field">${iconGenre}<input type="text" id="${gId}" class="modal-input edit-input" placeholder="Género" value="${escapeHtml(song.genre || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconTitle}<input type="text" id="${tId}" class="modal-input edit-input" placeholder="${t('placeholder_title')}" value="${escapeHtml(song.displayTitle || song.title || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconArtist}<input type="text" id="${aId}" class="modal-input edit-input" placeholder="${t('placeholder_artist')}" value="${escapeHtml(song.displayArtist || song.artist || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconAlbum}<input type="text" id="${alId}" class="modal-input edit-input" placeholder="${t('placeholder_album')}" value="${escapeHtml(song.displayAlbum || song.album || '')}" /></div>`;
+    bodyHtml += `<div class="edit-field">${iconGenre}<input type="text" id="${gId}" class="modal-input edit-input" placeholder="${t('placeholder_genre')}" value="${escapeHtml(song.genre || '')}" /></div>`;
     // Selector de imagen de portada
     const artId = `edit-art-${Date.now()}`;
     bodyHtml += `<div class="edit-field edit-art-field">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-        <input type="text" id="${artId}" class="modal-input edit-input" placeholder="Imagen de portada (click en Examinar)" value="${escapeHtml(song.artUri || '')}" readonly />
-        <button class="btn-primary small" onclick="selectArtImageForEdit('${artId}')">Examinar</button>
+        <input type="text" id="${artId}" class="modal-input edit-input" placeholder="${t('placeholder_art')}" value="${escapeHtml(song.artUri || '')}" readonly />
+        <button class="btn-primary small" onclick="selectArtImageForEdit('${artId}')">${t('browse')}</button>
     </div>`;
     bodyHtml += '</div>';
 
-    showModal('Editar información', bodyHtml,
-        `<button class="modal-btn modal-btn-cancel" onclick="window._editChoice='cancel';closeModal();">Cancelar</button>
-         <button class="modal-btn modal-btn-primary" onclick="window._editChoice='save';closeModal();">Guardar</button>`);
+    showModal(t('edit_info_title'), bodyHtml,
+        `<button class="modal-btn modal-btn-cancel" onclick="window._editChoice='cancel';closeModal();">${t('cancel')}</button>
+         <button class="modal-btn modal-btn-primary" onclick="window._editChoice='save';closeModal();">${t('save')}</button>`);
 
     window._editChoice = null;
     window._editArtPath = null;
@@ -1580,11 +1585,11 @@ async function onAddMusic() {
     const iconSong = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M10.75,18.85q0.88,0 1.49-0.61t0.61-1.49V12.88h2.87V11.12H11.96V15.1q-0.26-0.23-0.56-0.34t-0.65-0.11q-0.88,0-1.49,0.61T8.65,16.75t0.61,1.49t1.49,0.61ZM6.31,21.5q-0.76,0-1.28-0.52T4.5,19.69V4.31q0-0.76 0.52-1.28T6.31,2.5h7.94L19.5,7.75V19.69q0,0.76-0.52,1.28T17.69,21.5H6.31Zm7.19-13V4H6.31Q6.19,4 6.1,4.1T6,4.31V19.69q0,0.12 0.1,0.21T6.31,20H17.69q0.12,0 0.21-0.1T18,19.69V8.5H13.5ZM6,4V8.5V4V8.5V19.69q0,0.12 0,0.21T6,20q0,0 0-0.1t0-0.21V4.31Q6,4.19 6,4.1T6,4Z"/></svg>';
 
     let bodyHtml = '<div class="add-music-options">';
-    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='folder';closeModal();">${iconFolder}<div class="add-music-label"><div class="add-music-title">Carpeta</div><div class="add-music-desc">Importar todos los archivos de audio de una carpeta</div></div></button>`;
-    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='files';closeModal();">${iconSong}<div class="add-music-label"><div class="add-music-title">Canciones</div><div class="add-music-desc">Seleccionar archivos individuales de audio</div></div></button>`;
+    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='folder';closeModal();">${iconFolder}<div class="add-music-label"><div class="add-music-title">${t('folder')}</div><div class="add-music-desc">${t('folder_desc')}</div></div></button>`;
+    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='files';closeModal();">${iconSong}<div class="add-music-label"><div class="add-music-title">${t('songs_label')}</div><div class="add-music-desc">${t('songs_desc')}</div></div></button>`;
     bodyHtml += '</div>';
 
-    showModal('Agregar música', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._addChoice='cancel';closeModal();">Cerrar</button>`);
+    showModal(t('add_music_title'), bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._addChoice='cancel';closeModal();">${t('close')}</button>`);
     window._addChoice = null;
     const check = setInterval(async () => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
@@ -1592,7 +1597,7 @@ async function onAddMusic() {
             const choice = window._addChoice;
             if (choice === 'cancel' || !choice) return;
             let result;
-            showImportOverlay('Importando música...');
+            showImportOverlay(t('importing_music'));
             try {
                 if (choice === 'folder') {
                     result = await WaveAPI.call('library.importFromFolder', '');
@@ -1603,7 +1608,7 @@ async function onAddMusic() {
                 hideImportOverlay();
             }
             if (result && !result.cancelled) {
-                await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
+                await modalAlert(t('import_complete'), tf('import_result_short', { added: result.added, duplicates: result.duplicates }));
                 await loadSongs(); await loadPlaylists();
             }
         }
@@ -1626,7 +1631,7 @@ async function handleDrop(e) {
     e.stopPropagation();
     // En WebView2, no podemos acceder a File API paths directamente.
     // Necesitamos que C# maneje el drop. Por ahora, mostrar modal.
-    await modalAlert('Arrastrar y soltar', 'Para importar música, usa el botón "+ Agregar música"');
+    await modalAlert(t('import_drag_drop'), t('import_drag_drop_msg'));
 }
 
 // === Utils ===
@@ -1689,8 +1694,8 @@ async function autoScanForNewFiles() {
         if (result && result.added > 0) {
             const n = result.added;
             showToast(
-                'Música nueva encontrada',
-                `Se agregaron ${n} canción${n > 1 ? 'es' : ''} nueva${n > 1 ? 's' : ''} a tu biblioteca.`,
+                t('new_music_found'),
+                tf('new_music_added', { n: n }),
                 '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
             );
             // Recargar la biblioteca para mostrar las canciones nuevas
@@ -1886,7 +1891,7 @@ async function settingsBackup() {
 }
 
 async function settingsRestore() {
-    if (await modalConfirm('Importar biblioteca', '¿Importar biblioteca desde un archivo JSON?\n\nEsto reemplazará la biblioteca actual.')) {
+    if (await modalConfirm(t('import_library'), t('import_library_confirm'))) {
         await WaveAPI.call('library.importBackup', {});
         await loadSongs(); await loadPlaylists();
     }
@@ -1897,19 +1902,19 @@ async function settingsExportLogs() {
 }
 
 async function settingsClearLibrary() {
-    if (await modalConfirm('Borrar biblioteca', '¿Borrar TODAS las canciones de la biblioteca?\n\nEsta acción no se puede deshacer.')) {
+    if (await modalConfirm(t('delete_library'), t('delete_library_confirm'))) {
         await WaveAPI.call('library.deleteAll', {});
         await loadSongs(); await loadPlaylists();
-        await modalAlert('Biblioteca borrada', 'Todas las canciones han sido eliminadas.');
+        await modalAlert(t('library_deleted'), t('library_deleted_msg'));
     }
 }
 
 async function settingsReportBug() {
-    await modalAlert('Reportar bug', 'Para reportar un bug:\n\n1. Exporta los logs desde Configuración → Exportar logs (wave.log)\n2. Ve a: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Crea un nuevo issue con:\n   - Descripción del bug\n   - Pasos para reproducirlo\n   - Archivo wave.log adjunto');
+    await modalAlert(t('report_bug'), t('report_bug_msg'));
 }
 
 async function settingsShowChangelog() {
-    await modalAlert('Changelog', 'v2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky\nv1.9.28 — Botones expandir/contraer visibles (z-index fix)\nv1.9.27 — Scrollbar panel expandido pegado a la derecha\nv1.9.26 — Botón expandir/contraer panel de letras\nv1.9.25 — Nuevo icono de la aplicación\nv1.9.24 — Media keys globales (funcionan con app minimizada)\nv1.9.22 — Soporte teclas multimedia del teclado\nv1.9.21 — Auto-scan de música nueva al iniciar + toast\nv1.9.20 — Barra de progreso durante importación\nv1.9.18 — Resize desde cualquier esquina + MinWidth 580px\nv1.9.16 — Scrollbars anchas + switches cortos + iconos sort + iconos settings + fix i18n\nv1.9.15 — Fix definitivo doble click play/pausa\nv1.9.13 — Eliminar debounce 500ms play/pausa\nv1.9.12 — Fix botón corazón + revisión play/pausa\nv1.9.11 — i18n settings + tema claro en side-panel\nv1.9.10 — Atajo barra espaciadora play/pausa\nv1.9.9 — Ventana movible + resizable + maximize sin barra de tareas\nv1.9.0 — Tema claro + 8 colores de accent + 6 idiomas + i18n + fix toggle switch\nv1.8.1 — Sección Configuración completa como panel lateral\nv1.7.11 — Mini player slider con bolita visible\nv1.7.0 — UI overhaul: side panel, marquee, recientes, favoritos sync, delete contextual\nv1.6.0 — Shuffle respeta playlist + multi-selección + fix diálogo doble');
+    await modalAlert(t('changelog_title'), 'v2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
 }
 
 // === Keyboard navigation helpers ===
@@ -1941,11 +1946,11 @@ function showSleepTimerMenu() {
     const options = [15, 30, 45, 60, 90];
     let bodyHtml = '<div class="playlist-picker">';
     for (const min of options) {
-        bodyHtml += `<button class="modal-btn modal-btn-cancel" onclick="window._sleepChoice=${min};closeModal();">${min} minutos</button>`;
+        bodyHtml += `<button class="modal-btn modal-btn-cancel" onclick="window._sleepChoice=${min};closeModal();">${tf('sleep_timer_minutes', { n: min })}</button>`;
     }
-    bodyHtml += `<button class="modal-btn modal-btn-cancel" style="color:#ff4444" onclick="window._sleepChoice=0;closeModal();">Cancelar temporizador</button>`;
+    bodyHtml += `<button class="modal-btn modal-btn-cancel" style="color:#ff4444" onclick="window._sleepChoice=0;closeModal();">${t('sleep_timer_cancel')}</button>`;
     bodyHtml += '</div>';
-    showModal('Temporizador de sueño', bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._sleepChoice=-1;closeModal();">Cerrar</button>`);
+    showModal(t('sleep_timer_title'), bodyHtml, `<button class="modal-btn modal-btn-cancel" onclick="window._sleepChoice=-1;closeModal();">${t('close')}</button>`);
     window._sleepChoice = -1;
     const check = setInterval(() => {
         if (document.getElementById('modal-overlay').classList.contains('hidden')) {
@@ -1963,12 +1968,12 @@ function setSleepTimer(minutes) {
     if (minutes > 0) {
         sleepTimerId = setTimeout(() => {
             WaveAPI.call('playback.pause');
-            showToast('Temporizador', 'La música se ha pausado.', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2h10v2h3v18H4V4h3zm2 0h6V2H9v2z"/></svg>');
+            showToast(t('sleep_timer_paused_title'), t('sleep_timer_paused_msg'), '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2h10v2h3v18H4V4h3zm2 0h6V2H9v2z"/></svg>');
             sleepTimerId = null;
         }, minutes * 60 * 1000);
-        showToast('Temporizador activado', `La música se pausará en ${minutes} minutos.`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>');
+        showToast(t('sleep_timer_set_title'), tf('sleep_timer_set_msg', { n: minutes }), '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>');
     } else {
-        showToast('Temporizador cancelado', 'El temporizador fue cancelado.', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+        showToast(t('sleep_timer_cancelled_title'), t('sleep_timer_cancelled_msg'), '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
     }
 }
 
@@ -1987,13 +1992,13 @@ function setPlaybackRate(rate) {
 function cycleSpeed() {
     speedIdx = (speedIdx + 1) % SPEED_OPTIONS.length;
     setPlaybackRate(SPEED_OPTIONS[speedIdx]);
-    showToast('Velocidad', `${SPEED_OPTIONS[speedIdx]}x`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 14.06 6.84l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44z"/></svg>');
+    showToast(t('speed'), `${SPEED_OPTIONS[speedIdx]}x`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 14.06 6.84l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44z"/></svg>');
 }
 
 // === A-B Repeat menu ===
 async function showAbMenu() {
-    const choice = await modalConfirm('Repetir A-B',
-        'Marcar punto A (Aceptar) o punto B (Cancelar)?\n\nPunto A actual: ' + (abRepeatA >= 0 ? formatDuration(abRepeatA) : 'no') + '\nPunto B actual: ' + (abRepeatB >= 0 ? formatDuration(abRepeatB) : 'no'));
+    const choice = await modalConfirm(t('ab_repeat'),
+        tf('ab_repeat_msg', { a: abRepeatA >= 0 ? formatDuration(abRepeatA) : t('ab_no_point'), b: abRepeatB >= 0 ? formatDuration(abRepeatB) : t('ab_no_point') }));
     if (choice) {
         setAbPoint('A');
     } else {
@@ -2010,15 +2015,15 @@ function setAbPoint(which) {
     const pos = state.positionMs;
     if (which === 'A') {
         abRepeatA = pos;
-        showToast('Repetir A-B', `Punto A: ${formatDuration(pos)}`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
+        showToast(t('ab_repeat'), tf('ab_point_a', { pos: formatDuration(pos) }), '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
     } else {
         abRepeatB = pos;
-        showToast('Repetir A-B', `Punto B: ${formatDuration(pos)} — Repitiendo`, '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
+        showToast(t('ab_repeat'), tf('ab_point_b', { pos: formatDuration(pos) }), '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
     }
 }
 function clearAbRepeat() {
     abRepeatA = abRepeatB = -1;
-    showToast('Repetir A-B', 'Desactivado', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+    showToast(t('ab_repeat'), t('ab_disabled'), '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
 }
 // Llamar esto desde onPlaybackChanged para verificar A-B
 function checkAbRepeat(state) {
@@ -2040,7 +2045,7 @@ function toggleViewMode() {
     const icon = document.getElementById('view-icon');
     if (icon) icon.innerHTML = viewMode === 'grid' ? ICON_LIST : ICON_GRID;
     renderSongs();
-    showToast('Vista', viewMode === 'grid' ? 'Vista cuadrícula' : 'Vista lista',
+    showToast(t('view'), viewMode === 'grid' ? t('view_grid') : t('view_list'),
         viewMode === 'grid'
             ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3,11V3h8v8H3ZM3,21V13h8v8H3ZM13,11V3h8v8H13Zm0,10V13h8v8H13ZM5,9H9V5H5V9ZM15,9h4V5H15V9Zm0,10h4V15H15v4ZM5,19H9V15H5v4ZM15,9Zm0,6ZM9,15ZM9,9Z"/></svg>'
             : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 14h4v-4H4v4zm0 5h4v-3H4v3zM4 9h4V6H4v3zm5 5h12v-4H9v4zm0 5h12v-3H9v3zM9 6v3h12V6H9z"/></svg>');
@@ -2050,7 +2055,7 @@ function toggleViewMode() {
 async function showStats() {
     const songs = allSongs;
     if (songs.length === 0) {
-        await modalAlert('Estadísticas', 'No hay canciones en la biblioteca.');
+        await modalAlert(t('stats_title'), t('stats_empty'));
         return;
     }
     const totalDuration = songs.reduce((sum, s) => sum + (s.durationMs || 0), 0);
@@ -2088,7 +2093,7 @@ async function showStats() {
     bodyHtml += `<div class="stats-list">${topArtists}</div>`;
     bodyHtml += '</div>';
 
-    showModal('Estadísticas de reproducción', bodyHtml, `<button class="modal-btn modal-btn-primary" onclick="closeModal();">Cerrar</button>`);
+    showModal(t('stats_title'), bodyHtml, `<button class="modal-btn modal-btn-primary" onclick="closeModal();">${t('close')}</button>`);
 }
 
 // === Drag & drop ===
@@ -2103,10 +2108,10 @@ async function handleDrop(e) {
         if (dropZone) dropZone.classList.add('hidden');
 
         // Como WebView2 no da los paths, abrimos el selector nativo
-        const choice = await modalConfirm('Arrastrar y soltar',
-            'Para importar música arrastrada, usa el botón "+ Agregar música".\n\n¿Importar carpeta (Aceptar) o archivos (Cancelar)?');
+        const choice = await modalConfirm(t('import_drag_drop'),
+            t('import_drag_drop_choice'));
         let result;
-        showImportOverlay('Importando música...');
+        showImportOverlay(t('importing_music'));
         try {
             if (choice) {
                 result = await WaveAPI.call('library.importFromFolder', '');
@@ -2117,7 +2122,7 @@ async function handleDrop(e) {
             hideImportOverlay();
         }
         if (result && !result.cancelled) {
-            await modalAlert('Importación', `${result.added} canciones nuevas, ${result.duplicates} duplicadas`);
+            await modalAlert(t('import_complete'), tf('import_result_short', { added: result.added, duplicates: result.duplicates }));
             await loadSongs(); await loadPlaylists();
         }
     }
@@ -2158,12 +2163,98 @@ const I18N = {
         default_folder: 'Carpeta de música por defecto', import_on_open: 'Importar al abrir la app',
         confirm_delete: 'Confirmar antes de eliminar canciones', rescan_tags: 'Re-escanear metadatos al iniciar',
         theme: 'Tema', accent_color: 'Color de acento', language: 'Idioma', animations: 'Animaciones',
+        theme_dark: 'Oscuro', theme_light: 'Claro',
         show_sliders: 'Mostrar sliders de recientes y artistas',
         export_library: 'Exportar biblioteca (JSON)', import_library: 'Importar biblioteca (JSON)',
         export_logs: 'Exportar logs (wave.log)', clear_library: 'Borrar toda la biblioteca',
         report_bug: 'Reportar bug', view_changelog: 'Ver changelog',
         not_selected: 'No seleccionada', browse: 'Examinar', first_run_title: 'Bienvenido a Wave', first_run_msg: 'Selecciona tu idioma para empezar:',
-        no_song: 'Canción', no_artist: 'Artista'
+        no_song: 'Canción', no_artist: 'Artista',
+        // === Nuevas keys (v2.0.23) — strings hardcoded ===
+        // Acciones de ventana
+        close_wave: 'Cerrar Wave', close_wave_msg: '¿Qué quieres hacer?',
+        minimize_to_tray: 'Minimizar a bandeja', exit: 'Salir',
+        // Importar / agregar música
+        importing_music: 'Importando música...', importing_to_playlist: 'Importando a playlist...',
+        import_complete: 'Importación completa',
+        import_result_long: '{added} canciones nuevas, {duplicates} ya en biblioteca.',
+        import_result_short: '{added} canciones nuevas, {duplicates} duplicadas',
+        import_failed: 'No se pudo importar la carpeta.',
+        add_music_title: 'Agregar música', folder: 'Carpeta',
+        folder_desc: 'Importar todos los archivos de audio de una carpeta',
+        songs_label: 'Canciones', songs_desc: 'Seleccionar archivos individuales de audio',
+        import_drag_drop: 'Arrastrar y soltar',
+        import_drag_drop_msg: 'Para importar música, usa el botón "+ Agregar música"',
+        import_drag_drop_choice: 'Para importar música arrastrada, usa el botón "+ Agregar música".\n\n¿Importar carpeta (Aceptar) o archivos (Cancelar)?',
+        processing_default: 'Procesando 0 / 0',
+        processing: 'Procesando {current} / {total} ({pct}%)',
+        new_music_found: 'Música nueva encontrada',
+        new_music_added: 'Se agregaron {n} canciones nuevas a tu biblioteca.',
+        // Biblioteca / playlist
+        import_library_confirm: '¿Importar biblioteca desde un archivo JSON?\n\nEsto reemplazará la biblioteca actual.',
+        delete_library: 'Borrar biblioteca',
+        delete_library_confirm: '¿Borrar TODAS las canciones de la biblioteca?\n\nEsta acción no se puede deshacer.',
+        library_deleted: 'Biblioteca borrada', library_deleted_msg: 'Todas las canciones han sido eliminadas.',
+        playlist_created: 'Playlist creada',
+        playlist_created_with_song: '"{name}" creada con la canción.',
+        playlist_created_with_songs: '"{name}" creada con {n} canciones.',
+        playlist_created_short: '"{name}" creada. {msg}',
+        playlist_not_found: 'No se encontró la playlist creada.',
+        playlist_empty_created: 'Playlist vacía creada. Agrega canciones con clic derecho.',
+        no_playlists_hint: 'No hay playlists. Crea una nueva arriba ↑',
+        added: 'Agregado', added_songs_to_playlist: '{n} canciones agregadas a "{name}"',
+        add_n_songs_to_playlist: 'Agregar {n} canción{plural} a playlist',
+        delete_playlist_confirm: '¿Eliminar esta playlist?',
+        new_playlist_name: 'Nombre de la nueva playlist',
+        changelog_title: 'Changelog',
+        // Contexto canción / multi-selección
+        no_song_playing: 'Sin canción', no_song_playing_msg: 'No hay ninguna canción reproduciéndose.',
+        plural_songs: ' ({n} canciones)',
+        remove_from_playlist_confirm_multi: '¿Quitar {n} canciones de "{name}"?\n\nNo se borrarán de la biblioteca.',
+        remove_from_playlist_confirm_single: '¿Quitar esta canción de "{name}"?\n\nNo se borrará de la biblioteca.',
+        delete_songs_confirm_multi: '¿Eliminar {n} canciones de la biblioteca?\n\nSe borrarán de TODAS las playlists.',
+        delete_song_confirm_single: '¿Eliminar esta canción de la biblioteca?\n\nSe borrará de TODAS las playlists.',
+        delete_files_confirm: '¿Borrar {n} canciones de la biblioteca Y mover {files} a la papelera de reciclaje?',
+        files_plural: 'los archivos', files_singular: 'el archivo',
+        moved: 'Movido', moved_songs_to_single: 'Canción movida a "{path}"',
+        moved_songs_to_multi: '{n} canciones movidas a "{path}"',
+        move_songs_result_multi: '{moved} movidas, {errors} con error.',
+        move_songs_result_single: '1 movida, {errors} con error.',
+        delete_label_playlist: 'Quitar de la playlist{plural}',
+        delete_label_library_single: 'Eliminar canción de la biblioteca',
+        delete_label_library_multi: 'Eliminar {n} canciones de la biblioteca',
+        move_to_folder_multi: 'Mover {n} canciones a carpeta...', move_to_folder_single: 'Mover a carpeta...',
+        delete_file_multi: 'Borrar {n} archivos (papelera)', delete_file_single: 'Borrar archivo (papelera)',
+        delete_files_title: 'Borrar archivos',
+        // Edit song
+        edit_info_title: 'Editar información', save: 'Guardar',
+        placeholder_title: 'Título', placeholder_artist: 'Artista',
+        placeholder_album: 'Álbum', placeholder_genre: 'Género',
+        placeholder_art: 'Imagen de portada (click en Examinar)',
+        // Sleep timer
+        sleep_timer_title: 'Temporizador de sueño', sleep_timer_minutes: '{n} minutos',
+        sleep_timer_cancel: 'Cancelar temporizador',
+        sleep_timer_paused_title: 'Temporizador', sleep_timer_paused_msg: 'La música se ha pausado.',
+        sleep_timer_set_title: 'Temporizador activado', sleep_timer_set_msg: 'La música se pausará en {n} minutos.',
+        sleep_timer_cancelled_title: 'Temporizador cancelado', sleep_timer_cancelled_msg: 'El temporizador fue cancelado.',
+        // Speed / A-B
+        speed: 'Velocidad', ab_repeat: 'Repetir A-B',
+        ab_repeat_msg: 'Marcar punto A (Aceptar) o punto B (Cancelar)?\n\nPunto A actual: {a}\nPunto B actual: {b}',
+        ab_point_a: 'Punto A: {pos}', ab_point_b: 'Punto B: {pos} — Repitiendo',
+        ab_disabled: 'Desactivado', ab_no_point: 'no',
+        // View
+        view: 'Vista', view_grid: 'Vista cuadrícula', view_list: 'Vista lista',
+        // Stats
+        stats_title: 'Estadísticas de reproducción', stats_empty: 'No hay canciones en la biblioteca.',
+        stats_label_songs: 'Canciones', stats_label_total_time: 'Tiempo total',
+        stats_label_artists: 'Artistas', stats_label_albums: 'Álbumes',
+        stats_top_played: 'Top 5 reproducidas', stats_top_artists: 'Artistas más frecuentes',
+        stats_unknown_artist: 'Desconocido', stats_artist_count: '{count} canciones',
+        // Errores / bug report
+        error: 'Error', error_prefix: 'Error: ',
+        report_bug_msg: 'Para reportar un bug:\n\n1. Exporta los logs desde Configuración → Exportar logs (wave.log)\n2. Ve a: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Crea un nuevo issue con:\n   - Descripción del bug\n   - Pasos para reproducirlo\n   - Archivo wave.log adjunto',
+        // Add to playlist modal
+        add_to_playlist_title: 'Agregar a playlist'
     },
     en: {
         app_title: 'Wave', add_music: '+ Add music', search_placeholder: 'Search songs, artists, albums...',
@@ -2183,12 +2274,87 @@ const I18N = {
         default_folder: 'Default music folder', import_on_open: 'Import on app open',
         confirm_delete: 'Confirm before deleting songs', rescan_tags: 'Re-scan metadata on startup',
         theme: 'Theme', accent_color: 'Accent color', language: 'Language', animations: 'Animations',
+        theme_dark: 'Dark', theme_light: 'Light',
         show_sliders: 'Show recent and artists sliders',
         export_library: 'Export library (JSON)', import_library: 'Import library (JSON)',
         export_logs: 'Export logs (wave.log)', clear_library: 'Clear entire library',
         report_bug: 'Report bug', view_changelog: 'View changelog',
         not_selected: 'Not selected', browse: 'Browse', first_run_title: 'Welcome to Wave', first_run_msg: 'Select your language to start:',
-        no_song: 'Song', no_artist: 'Artist'
+        no_song: 'Song', no_artist: 'Artist',
+        // === New keys (v2.0.23) — hardcoded strings ===
+        close_wave: 'Close Wave', close_wave_msg: 'What do you want to do?',
+        minimize_to_tray: 'Minimize to tray', exit: 'Exit',
+        importing_music: 'Importing music...', importing_to_playlist: 'Importing to playlist...',
+        import_complete: 'Import complete',
+        import_result_long: '{added} new songs, {duplicates} already in library.',
+        import_result_short: '{added} new songs, {duplicates} duplicates',
+        import_failed: 'Could not import the folder.',
+        add_music_title: 'Add music', folder: 'Folder',
+        folder_desc: 'Import all audio files from a folder',
+        songs_label: 'Songs', songs_desc: 'Select individual audio files',
+        import_drag_drop: 'Drag and drop',
+        import_drag_drop_msg: 'To import music, use the "+ Add music" button',
+        import_drag_drop_choice: 'To import dragged music, use the "+ Add music" button.\n\nImport folder (OK) or files (Cancel)?',
+        processing_default: 'Processing 0 / 0',
+        processing: 'Processing {current} / {total} ({pct}%)',
+        new_music_found: 'New music found',
+        new_music_added: '{n} new songs added to your library.',
+        import_library_confirm: 'Import library from a JSON file?\n\nThis will replace the current library.',
+        delete_library: 'Clear library',
+        delete_library_confirm: 'Delete ALL songs from the library?\n\nThis action cannot be undone.',
+        library_deleted: 'Library cleared', library_deleted_msg: 'All songs have been deleted.',
+        playlist_created: 'Playlist created',
+        playlist_created_with_song: '"{name}" created with the song.',
+        playlist_created_with_songs: '"{name}" created with {n} songs.',
+        playlist_created_short: '"{name}" created. {msg}',
+        playlist_not_found: 'Created playlist not found.',
+        playlist_empty_created: 'Empty playlist created. Add songs with right-click.',
+        no_playlists_hint: 'No playlists. Create a new one above ↑',
+        added: 'Added', added_songs_to_playlist: '{n} songs added to "{name}"',
+        add_n_songs_to_playlist: 'Add {n} song{plural} to playlist',
+        delete_playlist_confirm: 'Delete this playlist?',
+        new_playlist_name: 'New playlist name',
+        changelog_title: 'Changelog',
+        no_song_playing: 'No song', no_song_playing_msg: 'No song is currently playing.',
+        plural_songs: ' ({n} songs)',
+        remove_from_playlist_confirm_multi: 'Remove {n} songs from "{name}"?\n\nThey will not be deleted from the library.',
+        remove_from_playlist_confirm_single: 'Remove this song from "{name}"?\n\nIt will not be deleted from the library.',
+        delete_songs_confirm_multi: 'Delete {n} songs from the library?\n\nThey will be removed from ALL playlists.',
+        delete_song_confirm_single: 'Delete this song from the library?\n\nIt will be removed from ALL playlists.',
+        delete_files_confirm: 'Delete {n} songs from the library AND move {files} to the recycle bin?',
+        files_plural: 'the files', files_singular: 'the file',
+        moved: 'Moved', moved_songs_to_single: 'Song moved to "{path}"',
+        moved_songs_to_multi: '{n} songs moved to "{path}"',
+        move_songs_result_multi: '{moved} moved, {errors} with error.',
+        move_songs_result_single: '1 moved, {errors} with error.',
+        delete_label_playlist: 'Remove from playlist{plural}',
+        delete_label_library_single: 'Delete song from library',
+        delete_label_library_multi: 'Delete {n} songs from library',
+        move_to_folder_multi: 'Move {n} songs to folder...', move_to_folder_single: 'Move to folder...',
+        delete_file_multi: 'Delete {n} files (recycle bin)', delete_file_single: 'Delete file (recycle bin)',
+        delete_files_title: 'Delete files',
+        edit_info_title: 'Edit info', save: 'Save',
+        placeholder_title: 'Title', placeholder_artist: 'Artist',
+        placeholder_album: 'Album', placeholder_genre: 'Genre',
+        placeholder_art: 'Cover image (click Browse)',
+        sleep_timer_title: 'Sleep timer', sleep_timer_minutes: '{n} minutes',
+        sleep_timer_cancel: 'Cancel timer',
+        sleep_timer_paused_title: 'Timer', sleep_timer_paused_msg: 'Music has been paused.',
+        sleep_timer_set_title: 'Timer set', sleep_timer_set_msg: 'Music will pause in {n} minutes.',
+        sleep_timer_cancelled_title: 'Timer cancelled', sleep_timer_cancelled_msg: 'The timer was cancelled.',
+        speed: 'Speed', ab_repeat: 'A-B Repeat',
+        ab_repeat_msg: 'Mark point A (OK) or point B (Cancel)?\n\nCurrent point A: {a}\nCurrent point B: {b}',
+        ab_point_a: 'Point A: {pos}', ab_point_b: 'Point B: {pos} — Repeating',
+        ab_disabled: 'Disabled', ab_no_point: 'none',
+        view: 'View', view_grid: 'Grid view', view_list: 'List view',
+        stats_title: 'Playback statistics', stats_empty: 'No songs in the library.',
+        stats_label_songs: 'Songs', stats_label_total_time: 'Total time',
+        stats_label_artists: 'Artists', stats_label_albums: 'Albums',
+        stats_top_played: 'Top 5 played', stats_top_artists: 'Most frequent artists',
+        stats_unknown_artist: 'Unknown', stats_artist_count: '{count} songs',
+        error: 'Error', error_prefix: 'Error: ',
+        report_bug_msg: 'To report a bug:\n\n1. Export logs from Settings → Export logs (wave.log)\n2. Go to: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Create a new issue with:\n   - Bug description\n   - Steps to reproduce\n   - wave.log file attached',
+        add_to_playlist_title: 'Add to playlist'
     },
     fr: {
         app_title: 'Wave', add_music: '+ Ajouter musique', search_placeholder: 'Rechercher chansons, artistes, albums...',
@@ -2208,12 +2374,87 @@ const I18N = {
         default_folder: 'Dossier de musique par défaut', import_on_open: 'Importer à l\'ouverture',
         confirm_delete: 'Confirmer avant de supprimer', rescan_tags: 'Re-scanner métadonnées au démarrage',
         theme: 'Thème', accent_color: 'Couleur d\'accent', language: 'Langue', animations: 'Animations',
+        theme_dark: 'Sombre', theme_light: 'Clair',
         show_sliders: 'Afficher sliders récents et artistes',
         export_library: 'Exporter bibliothèque (JSON)', import_library: 'Importer bibliothèque (JSON)',
         export_logs: 'Exporter logs (wave.log)', clear_library: 'Vider toute la bibliothèque',
         report_bug: 'Signaler bug', view_changelog: 'Voir changelog',
         not_selected: 'Non sélectionné', browse: 'Parcourir', first_run_title: 'Bienvenue dans Wave', first_run_msg: 'Sélectionnez votre langue pour commencer:',
-        no_song: 'Chanson', no_artist: 'Artiste'
+        no_song: 'Chanson', no_artist: 'Artiste',
+        // === Nouvelles clés (v2.0.23) — chaînes codées en dur ===
+        close_wave: 'Fermer Wave', close_wave_msg: 'Que voulez-vous faire ?',
+        minimize_to_tray: 'Réduire dans la barre', exit: 'Quitter',
+        importing_music: 'Importation de musique...', importing_to_playlist: 'Importation vers playlist...',
+        import_complete: 'Importation terminée',
+        import_result_long: '{added} nouvelles chansons, {duplicates} déjà dans la bibliothèque.',
+        import_result_short: '{added} nouvelles chansons, {duplicates} doublons',
+        import_failed: 'Impossible d\'importer le dossier.',
+        add_music_title: 'Ajouter musique', folder: 'Dossier',
+        folder_desc: 'Importer tous les fichiers audio d\'un dossier',
+        songs_label: 'Chansons', songs_desc: 'Sélectionner des fichiers audio individuels',
+        import_drag_drop: 'Glisser-déposer',
+        import_drag_drop_msg: 'Pour importer de la musique, utilisez le bouton « + Ajouter musique »',
+        import_drag_drop_choice: 'Pour importer la musique glissée, utilisez le bouton « + Ajouter musique ».\n\nImporter un dossier (OK) ou des fichiers (Annuler) ?',
+        processing_default: 'Traitement 0 / 0',
+        processing: 'Traitement {current} / {total} ({pct}%)',
+        new_music_found: 'Nouvelle musique trouvée',
+        new_music_added: '{n} nouvelles chansons ajoutées à votre bibliothèque.',
+        import_library_confirm: 'Importer la bibliothèque depuis un fichier JSON ?\n\nCela remplacera la bibliothèque actuelle.',
+        delete_library: 'Vider bibliothèque',
+        delete_library_confirm: 'Supprimer TOUTES les chansons de la bibliothèque ?\n\nCette action est irréversible.',
+        library_deleted: 'Bibliothèque vidée', library_deleted_msg: 'Toutes les chansons ont été supprimées.',
+        playlist_created: 'Playlist créée',
+        playlist_created_with_song: '« {name} » créée avec la chanson.',
+        playlist_created_with_songs: '« {name} » créée avec {n} chansons.',
+        playlist_created_short: '« {name} » créée. {msg}',
+        playlist_not_found: 'Playlist créée introuvable.',
+        playlist_empty_created: 'Playlist vide créée. Ajoutez des chansons avec un clic droit.',
+        no_playlists_hint: 'Aucune playlist. Créez-en une ci-dessus ↑',
+        added: 'Ajouté', added_songs_to_playlist: '{n} chansons ajoutées à « {name} »',
+        add_n_songs_to_playlist: 'Ajouter {n} chanson{plural} à playlist',
+        delete_playlist_confirm: 'Supprimer cette playlist ?',
+        new_playlist_name: 'Nom de la nouvelle playlist',
+        changelog_title: 'Changelog',
+        no_song_playing: 'Aucune chanson', no_song_playing_msg: 'Aucune chanson n\'est en cours de lecture.',
+        plural_songs: ' ({n} chansons)',
+        remove_from_playlist_confirm_multi: 'Retirer {n} chansons de « {name} » ?\n\nElles ne seront pas supprimées de la bibliothèque.',
+        remove_from_playlist_confirm_single: 'Retirer cette chanson de « {name} » ?\n\nElle ne sera pas supprimée de la bibliothèque.',
+        delete_songs_confirm_multi: 'Supprimer {n} chansons de la bibliothèque ?\n\nElles seront retirées de TOUTES les playlists.',
+        delete_song_confirm_single: 'Supprimer cette chanson de la bibliothèque ?\n\nElle sera retirée de TOUTES les playlists.',
+        delete_files_confirm: 'Supprimer {n} chansons de la bibliothèque ET déplacer {files} vers la corbeille ?',
+        files_plural: 'les fichiers', files_singular: 'le fichier',
+        moved: 'Déplacé', moved_songs_to_single: 'Chanson déplacée vers « {path} »',
+        moved_songs_to_multi: '{n} chansons déplacées vers « {path} »',
+        move_songs_result_multi: '{moved} déplacées, {errors} avec erreur.',
+        move_songs_result_single: '1 déplacée, {errors} avec erreur.',
+        delete_label_playlist: 'Retirer de la playlist{plural}',
+        delete_label_library_single: 'Supprimer la chanson de la bibliothèque',
+        delete_label_library_multi: 'Supprimer {n} chansons de la bibliothèque',
+        move_to_folder_multi: 'Déplacer {n} chansons vers dossier...', move_to_folder_single: 'Déplacer vers dossier...',
+        delete_file_multi: 'Supprimer {n} fichiers (corbeille)', delete_file_single: 'Supprimer fichier (corbeille)',
+        delete_files_title: 'Supprimer fichiers',
+        edit_info_title: 'Modifier infos', save: 'Enregistrer',
+        placeholder_title: 'Titre', placeholder_artist: 'Artiste',
+        placeholder_album: 'Album', placeholder_genre: 'Genre',
+        placeholder_art: 'Image de couverture (cliquer Parcourir)',
+        sleep_timer_title: 'Minuteur de sommeil', sleep_timer_minutes: '{n} minutes',
+        sleep_timer_cancel: 'Annuler minuteur',
+        sleep_timer_paused_title: 'Minuteur', sleep_timer_paused_msg: 'La musique a été mise en pause.',
+        sleep_timer_set_title: 'Minuteur activé', sleep_timer_set_msg: 'La musique s\'arrêtera dans {n} minutes.',
+        sleep_timer_cancelled_title: 'Minuteur annulé', sleep_timer_cancelled_msg: 'Le minuteur a été annulé.',
+        speed: 'Vitesse', ab_repeat: 'Répétition A-B',
+        ab_repeat_msg: 'Marquer point A (OK) ou point B (Annuler) ?\n\nPoint A actuel : {a}\nPoint B actuel : {b}',
+        ab_point_a: 'Point A : {pos}', ab_point_b: 'Point B : {pos} — En boucle',
+        ab_disabled: 'Désactivé', ab_no_point: 'aucun',
+        view: 'Vue', view_grid: 'Vue grille', view_list: 'Vue liste',
+        stats_title: 'Statistiques de lecture', stats_empty: 'Aucune chanson dans la bibliothèque.',
+        stats_label_songs: 'Chansons', stats_label_total_time: 'Temps total',
+        stats_label_artists: 'Artistes', stats_label_albums: 'Albums',
+        stats_top_played: 'Top 5 écoutées', stats_top_artists: 'Artistes les plus fréquents',
+        stats_unknown_artist: 'Inconnu', stats_artist_count: '{count} chansons',
+        error: 'Erreur', error_prefix: 'Erreur : ',
+        report_bug_msg: 'Pour signaler un bug :\n\n1. Exportez les logs depuis Paramètres → Exporter logs (wave.log)\n2. Allez à : https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Créez un nouveau ticket avec :\n   - Description du bug\n   - Étapes pour le reproduire\n   - Fichier wave.log joint',
+        add_to_playlist_title: 'Ajouter à playlist'
     },
     de: {
         app_title: 'Wave', add_music: '+ Musik hinzufügen', search_placeholder: 'Lieder, Künstler, Alben suchen...',
@@ -2233,12 +2474,87 @@ const I18N = {
         default_folder: 'Standard-Musikordner', import_on_open: 'Beim Öffnen importieren',
         confirm_delete: 'Vor dem Löschen bestätigen', rescan_tags: 'Metadaten beim Start neu scannen',
         theme: 'Design', accent_color: 'Akzentfarbe', language: 'Sprache', animations: 'Animationen',
+        theme_dark: 'Dunkel', theme_light: 'Hell',
         show_sliders: 'Slider für Neueste und Künstler anzeigen',
         export_library: 'Bibliothek exportieren (JSON)', import_library: 'Bibliothek importieren (JSON)',
         export_logs: 'Logs exportieren (wave.log)', clear_library: 'Gesamte Bibliothek löschen',
         report_bug: 'Fehler melden', view_changelog: 'Changelog anzeigen',
         not_selected: 'Nicht ausgewählt', browse: 'Durchsuchen', first_run_title: 'Willkommen bei Wave', first_run_msg: 'Wählen Sie Ihre Sprache zum Starten:',
-        no_song: 'Lied', no_artist: 'Künstler'
+        no_song: 'Lied', no_artist: 'Künstler',
+        // === Neue Schlüssel (v2.0.23) — fest codierte Strings ===
+        close_wave: 'Wave schließen', close_wave_msg: 'Was möchten Sie tun?',
+        minimize_to_tray: 'In Taskleiste minimieren', exit: 'Beenden',
+        importing_music: 'Musik wird importiert...', importing_to_playlist: 'In Playlist wird importiert...',
+        import_complete: 'Import abgeschlossen',
+        import_result_long: '{added} neue Lieder, {duplicates} bereits in Bibliothek.',
+        import_result_short: '{added} neue Lieder, {duplicates} Duplikate',
+        import_failed: 'Ordner konnte nicht importiert werden.',
+        add_music_title: 'Musik hinzufügen', folder: 'Ordner',
+        folder_desc: 'Alle Audiodateien eines Ordners importieren',
+        songs_label: 'Lieder', songs_desc: 'Einzelne Audiodateien auswählen',
+        import_drag_drop: 'Drag & Drop',
+        import_drag_drop_msg: 'Verwenden Sie die Schaltfläche „+ Musik hinzufügen“, um Musik zu importieren',
+        import_drag_drop_choice: 'Verwenden Sie die Schaltfläche „+ Musik hinzufügen“, um gezogene Musik zu importieren.\n\nOrdner (OK) oder Dateien (Abbrechen) importieren?',
+        processing_default: 'Verarbeite 0 / 0',
+        processing: 'Verarbeite {current} / {total} ({pct}%)',
+        new_music_found: 'Neue Musik gefunden',
+        new_music_added: '{n} neue Lieder wurden Ihrer Bibliothek hinzugefügt.',
+        import_library_confirm: 'Bibliothek aus JSON-Datei importieren?\n\nDies ersetzt die aktuelle Bibliothek.',
+        delete_library: 'Bibliothek leeren',
+        delete_library_confirm: 'Alle Lieder aus der Bibliothek löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
+        library_deleted: 'Bibliothek geleert', library_deleted_msg: 'Alle Lieder wurden gelöscht.',
+        playlist_created: 'Playlist erstellt',
+        playlist_created_with_song: '„{name}" mit dem Lied erstellt.',
+        playlist_created_with_songs: '„{name}" mit {n} Liedern erstellt.',
+        playlist_created_short: '„{name}" erstellt. {msg}',
+        playlist_not_found: 'Erstellte Playlist nicht gefunden.',
+        playlist_empty_created: 'Leere Playlist erstellt. Fügen Sie Lieder mit Rechtsklick hinzu.',
+        no_playlists_hint: 'Keine Playlists. Erstellen Sie oben eine neue ↑',
+        added: 'Hinzugefügt', added_songs_to_playlist: '{n} Lieder zu „{name}" hinzugefügt',
+        add_n_songs_to_playlist: '{n} Lied{plural} zur Playlist hinzufügen',
+        delete_playlist_confirm: 'Diese Playlist löschen?',
+        new_playlist_name: 'Name der neuen Playlist',
+        changelog_title: 'Changelog',
+        no_song_playing: 'Kein Lied', no_song_playing_msg: 'Es wird gerade kein Lied wiedergegeben.',
+        plural_songs: ' ({n} Lieder)',
+        remove_from_playlist_confirm_multi: '{n} Lieder aus „{name}" entfernen?\n\nWerden nicht aus der Bibliothek gelöscht.',
+        remove_from_playlist_confirm_single: 'Dieses Lied aus „{name}" entfernen?\n\nWird nicht aus der Bibliothek gelöscht.',
+        delete_songs_confirm_multi: '{n} Lieder aus der Bibliothek löschen?\n\nSie werden aus ALLEN Playlists entfernt.',
+        delete_song_confirm_single: 'Dieses Lied aus der Bibliothek löschen?\n\nEs wird aus ALLEN Playlists entfernt.',
+        delete_files_confirm: '{n} Lieder aus der Bibliothek löschen UND {files} in den Papierkorb verschieben?',
+        files_plural: 'die Dateien', files_singular: 'die Datei',
+        moved: 'Verschoben', moved_songs_to_single: 'Lied nach „{path}" verschoben',
+        moved_songs_to_multi: '{n} Lieder nach „{path}" verschoben',
+        move_songs_result_multi: '{moved} verschoben, {errors} mit Fehler.',
+        move_songs_result_single: '1 verschoben, {errors} mit Fehler.',
+        delete_label_playlist: 'Aus Playlist entfernen{plural}',
+        delete_label_library_single: 'Lied aus Bibliothek löschen',
+        delete_label_library_multi: '{n} Lieder aus Bibliothek löschen',
+        move_to_folder_multi: '{n} Lieder in Ordner verschieben...', move_to_folder_single: 'In Ordner verschieben...',
+        delete_file_multi: '{n} Dateien löschen (Papierkorb)', delete_file_single: 'Datei löschen (Papierkorb)',
+        delete_files_title: 'Dateien löschen',
+        edit_info_title: 'Infos bearbeiten', save: 'Speichern',
+        placeholder_title: 'Titel', placeholder_artist: 'Künstler',
+        placeholder_album: 'Album', placeholder_genre: 'Genre',
+        placeholder_art: 'Coverbild (klicken Sie auf Durchsuchen)',
+        sleep_timer_title: 'Sleep-Timer', sleep_timer_minutes: '{n} Minuten',
+        sleep_timer_cancel: 'Timer abbrechen',
+        sleep_timer_paused_title: 'Timer', sleep_timer_paused_msg: 'Die Musik wurde pausiert.',
+        sleep_timer_set_title: 'Timer aktiviert', sleep_timer_set_msg: 'Die Musik wird in {n} Minuten pausiert.',
+        sleep_timer_cancelled_title: 'Timer abgebrochen', sleep_timer_cancelled_msg: 'Der Timer wurde abgebrochen.',
+        speed: 'Geschwindigkeit', ab_repeat: 'A-B Wiederholung',
+        ab_repeat_msg: 'Punkt A (OK) oder Punkt B (Abbrechen) markieren?\n\nAktueller Punkt A: {a}\nAktueller Punkt B: {b}',
+        ab_point_a: 'Punkt A: {pos}', ab_point_b: 'Punkt B: {pos} — Wiederholt',
+        ab_disabled: 'Deaktiviert', ab_no_point: 'kein',
+        view: 'Ansicht', view_grid: 'Gitteransicht', view_list: 'Listenansicht',
+        stats_title: 'Wiedergabestatistiken', stats_empty: 'Keine Lieder in der Bibliothek.',
+        stats_label_songs: 'Lieder', stats_label_total_time: 'Gesamtzeit',
+        stats_label_artists: 'Künstler', stats_label_albums: 'Alben',
+        stats_top_played: 'Top 5 gespielt', stats_top_artists: 'Häufigste Künstler',
+        stats_unknown_artist: 'Unbekannt', stats_artist_count: '{count} Lieder',
+        error: 'Fehler', error_prefix: 'Fehler: ',
+        report_bug_msg: 'So melden Sie einen Fehler:\n\n1. Exportieren Sie die Logs unter Einstellungen → Logs exportieren (wave.log)\n2. Gehen Sie zu: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Erstellen Sie ein neues Issue mit:\n   - Fehlerbeschreibung\n   - Schritte zur Reproduktion\n   - wave.log-Datei angehängt',
+        add_to_playlist_title: 'Zur Playlist hinzufügen'
     },
     ja: {
         app_title: 'Wave', add_music: '+ 音楽を追加', search_placeholder: '曲、アーティスト、アルバムを検索...',
@@ -2258,12 +2574,87 @@ const I18N = {
         default_folder: 'デフォルトの音楽フォルダー', import_on_open: '起動時にインポート',
         confirm_delete: '削除前に確認', rescan_tags: '起動時にメタデータを再スキャン',
         theme: 'テーマ', accent_color: 'アクセント色', language: '言語', animations: 'アニメーション',
+        theme_dark: 'ダーク', theme_light: 'ライト',
         show_sliders: '最近とアーティストのスライダーを表示',
         export_library: 'ライブラリをエクスポート (JSON)', import_library: 'ライブラリをインポート (JSON)',
         export_logs: 'ログをエクスポート (wave.log)', clear_library: 'ライブラリをすべて削除',
         report_bug: 'バグを報告', view_changelog: '変更履歴を見る',
         not_selected: '未選択', browse: '参照', first_run_title: 'Waveへようこそ', first_run_msg: '開始する言語を選択してください:',
-        no_song: '曲', no_artist: 'アーティスト'
+        no_song: '曲', no_artist: 'アーティスト',
+        // === 新規キー (v2.0.23) — ハードコード文字列 ===
+        close_wave: 'Waveを閉じる', close_wave_msg: 'どうしますか？',
+        minimize_to_tray: 'トレイに最小化', exit: '終了',
+        importing_music: '音楽をインポート中...', importing_to_playlist: 'プレイリストにインポート中...',
+        import_complete: 'インポート完了',
+        import_result_long: '{added}曲の新規追加、{duplicates}曲はライブラリに既存。',
+        import_result_short: '{added}曲の新規追加、{duplicates}曲の重複',
+        import_failed: 'フォルダーをインポートできませんでした。',
+        add_music_title: '音楽を追加', folder: 'フォルダー',
+        folder_desc: 'フォルダー内のすべての音声ファイルをインポート',
+        songs_label: '曲', songs_desc: '個別の音声ファイルを選択',
+        import_drag_drop: 'ドラッグ＆ドロップ',
+        import_drag_drop_msg: '音楽をインポートするには「+ 音楽を追加」ボタンを使用してください',
+        import_drag_drop_choice: 'ドラッグされた音楽をインポートするには「+ 音楽を追加」ボタンを使用してください。\n\nフォルダーをインポート（OK）またはファイル（キャンセル）？',
+        processing_default: '処理中 0 / 0',
+        processing: '処理中 {current} / {total} ({pct}%)',
+        new_music_found: '新しい音楽が見つかりました',
+        new_music_added: '{n}曲がライブラリに追加されました。',
+        import_library_confirm: 'JSONファイルからライブラリをインポートしますか？\n\n現在のライブラリが置き換えられます。',
+        delete_library: 'ライブラリを消去',
+        delete_library_confirm: 'ライブラリからすべての曲を削除しますか？\n\nこの操作は元に戻せません。',
+        library_deleted: 'ライブラリを消去しました', library_deleted_msg: 'すべての曲が削除されました。',
+        playlist_created: 'プレイリストを作成しました',
+        playlist_created_with_song: '「{name}」を曲と一緒に作成しました。',
+        playlist_created_with_songs: '「{name}」を{n}曲で作成しました。',
+        playlist_created_short: '「{name}」を作成しました。{msg}',
+        playlist_not_found: '作成したプレイリストが見つかりません。',
+        playlist_empty_created: '空のプレイリストを作成しました。右クリックで曲を追加。',
+        no_playlists_hint: 'プレイリストがありません。上で新規作成 ↑',
+        added: '追加しました', added_songs_to_playlist: '{n}曲を「{name}」に追加しました',
+        add_n_songs_to_playlist: '{n}曲をプレイリストに追加',
+        delete_playlist_confirm: 'このプレイリストを削除しますか？',
+        new_playlist_name: '新しいプレイリスト名',
+        changelog_title: '変更履歴',
+        no_song_playing: '曲なし', no_song_playing_msg: '現在再生中の曲はありません。',
+        plural_songs: ' ({n}曲)',
+        remove_from_playlist_confirm_multi: '「{name}」から{n}曲を削除しますか？\n\nライブラリからは削除されません。',
+        remove_from_playlist_confirm_single: 'この曲を「{name}」から削除しますか？\n\nライブラリからは削除されません。',
+        delete_songs_confirm_multi: '{n}曲をライブラリから削除しますか？\n\nすべてのプレイリストから削除されます。',
+        delete_song_confirm_single: 'この曲をライブラリから削除しますか？\n\nすべてのプレイリストから削除されます。',
+        delete_files_confirm: '{n}曲をライブラリから削除し、{files}をごみ箱に移動しますか？',
+        files_plural: 'ファイル群', files_singular: 'ファイル',
+        moved: '移動しました', moved_songs_to_single: '曲を「{path}」に移動しました',
+        moved_songs_to_multi: '{n}曲を「{path}」に移動しました',
+        move_songs_result_multi: '{moved}曲移動、{errors}件エラー。',
+        move_songs_result_single: '1曲移動、{errors}件エラー。',
+        delete_label_playlist: 'プレイリストから削除{plural}',
+        delete_label_library_single: '曲をライブラリから削除',
+        delete_label_library_multi: '{n}曲をライブラリから削除',
+        move_to_folder_multi: '{n}曲をフォルダーに移動...', move_to_folder_single: 'フォルダーに移動...',
+        delete_file_multi: '{n}ファイルを削除（ごみ箱）', delete_file_single: 'ファイルを削除（ごみ箱）',
+        delete_files_title: 'ファイルを削除',
+        edit_info_title: '情報を編集', save: '保存',
+        placeholder_title: 'タイトル', placeholder_artist: 'アーティスト',
+        placeholder_album: 'アルバム', placeholder_genre: 'ジャンル',
+        placeholder_art: 'カバーアート（参照をクリック）',
+        sleep_timer_title: 'スリープタイマー', sleep_timer_minutes: '{n}分',
+        sleep_timer_cancel: 'タイマーをキャンセル',
+        sleep_timer_paused_title: 'タイマー', sleep_timer_paused_msg: '音楽を一時停止しました。',
+        sleep_timer_set_title: 'タイマー設定', sleep_timer_set_msg: '{n}分後に音楽を一時停止します。',
+        sleep_timer_cancelled_title: 'タイマーキャンセル', sleep_timer_cancelled_msg: 'タイマーがキャンセルされました。',
+        speed: '速度', ab_repeat: 'A-Bリピート',
+        ab_repeat_msg: 'ポイントA（OK）またはポイントB（キャンセル）を設定しますか？\n\n現在のポイントA: {a}\n現在のポイントB: {b}',
+        ab_point_a: 'ポイントA: {pos}', ab_point_b: 'ポイントB: {pos} — リピート中',
+        ab_disabled: '無効', ab_no_point: 'なし',
+        view: '表示', view_grid: 'グリッド表示', view_list: 'リスト表示',
+        stats_title: '再生統計', stats_empty: 'ライブラリに曲がありません。',
+        stats_label_songs: '曲', stats_label_total_time: '合計時間',
+        stats_label_artists: 'アーティスト', stats_label_albums: 'アルバム',
+        stats_top_played: 'トップ5再生', stats_top_artists: '頻出アーティスト',
+        stats_unknown_artist: '不明', stats_artist_count: '{count}曲',
+        error: 'エラー', error_prefix: 'エラー: ',
+        report_bug_msg: 'バグを報告するには:\n\n1. 設定 → ログをエクスポート（wave.log）からログをエクスポート\n2. https://github.com/Danielbarrantesv/Wave-escritorio/issues にアクセス\n3. 新しいissueを作成し、以下を含めてください:\n   - バグの説明\n   - 再現手順\n   - wave.logファイルを添付',
+        add_to_playlist_title: 'プレイリストに追加'
     },
     ko: {
         app_title: 'Wave', add_music: '+ 음악 추가', search_placeholder: '곡, 아티스트, 앨범 검색...',
@@ -2283,18 +2674,104 @@ const I18N = {
         default_folder: '기본 음악 폴더', import_on_open: '열 때 가져오기',
         confirm_delete: '삭제 전 확인', rescan_tags: '시작 시 메타데이터 다시 스캔',
         theme: '테마', accent_color: '강조 색상', language: '언어', animations: '애니메이션',
+        theme_dark: '다크', theme_light: '라이트',
         show_sliders: '최근 및 아티스트 슬라이더 표시',
         export_library: '라이브러리 내보내기 (JSON)', import_library: '라이브러리 가져오기 (JSON)',
         export_logs: '로그 내보내기 (wave.log)', clear_library: '전체 라이브러리 삭제',
         report_bug: '버그 신고', view_changelog: '변경 로그 보기',
         not_selected: '선택되지 않음', browse: '찾아보기', first_run_title: 'Wave에 오신 것을 환영합니다', first_run_msg: '시작하려면 언어를 선택하세요:',
-        no_song: '곡', no_artist: '아티스트'
+        no_song: '곡', no_artist: '아티스트',
+        // === 새 키 (v2.0.23) — 하드코딩된 문자열 ===
+        close_wave: 'Wave 닫기', close_wave_msg: '무엇을 하시겠습니까?',
+        minimize_to_tray: '트레이로 최소화', exit: '종료',
+        importing_music: '음악 가져오는 중...', importing_to_playlist: '재생목록으로 가져오는 중...',
+        import_complete: '가져오기 완료',
+        import_result_long: '{added}곡 신규 추가, {duplicates}곡은 라이브러리에 이미 있음.',
+        import_result_short: '{added}곡 신규 추가, {duplicates}곡 중복',
+        import_failed: '폴더를 가져올 수 없습니다.',
+        add_music_title: '음악 추가', folder: '폴더',
+        folder_desc: '폴더의 모든 오디오 파일 가져오기',
+        songs_label: '곡', songs_desc: '개별 오디오 파일 선택',
+        import_drag_drop: '드래그 앤 드롭',
+        import_drag_drop_msg: '음악을 가져오려면 「+ 음악 추가」 버튼을 사용하세요',
+        import_drag_drop_choice: '드래그한 음악을 가져오려면 「+ 음악 추가」 버튼을 사용하세요.\n\n폴더 가져오기(확인) 또는 파일(취소)?',
+        processing_default: '처리 중 0 / 0',
+        processing: '처리 중 {current} / {total} ({pct}%)',
+        new_music_found: '새 음악을 찾았습니다',
+        new_music_added: '{n}곡이 라이브러리에 추가되었습니다.',
+        import_library_confirm: 'JSON 파일에서 라이브러리를 가져오시겠습니까?\n\n현재 라이브러리가 교체됩니다.',
+        delete_library: '라이브러리 비우기',
+        delete_library_confirm: '라이브러리에서 모든 곡을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.',
+        library_deleted: '라이브러리 비움', library_deleted_msg: '모든 곡이 삭제되었습니다.',
+        playlist_created: '재생목록 생성됨',
+        playlist_created_with_song: '「{name}」 곡 1개로 생성되었습니다.',
+        playlist_created_with_songs: '「{name}」 {n}곡으로 생성되었습니다.',
+        playlist_created_short: '「{name}」 생성됨. {msg}',
+        playlist_not_found: '생성된 재생목록을 찾을 수 없습니다.',
+        playlist_empty_created: '빈 재생목록이 생성되었습니다. 우클릭으로 곡을 추가하세요.',
+        no_playlists_hint: '재생목록이 없습니다. 위에서 새로 만드세요 ↑',
+        added: '추가됨', added_songs_to_playlist: '{n}곡이 「{name}」에 추가되었습니다',
+        add_n_songs_to_playlist: '{n}곡을 재생목록에 추가',
+        delete_playlist_confirm: '이 재생목록을 삭제하시겠습니까?',
+        new_playlist_name: '새 재생목록 이름',
+        changelog_title: '변경 로그',
+        no_song_playing: '곡 없음', no_song_playing_msg: '현재 재생 중인 곡이 없습니다.',
+        plural_songs: ' ({n}곡)',
+        remove_from_playlist_confirm_multi: '「{name}」에서 {n}곡을 제거하시겠습니까?\n\n라이브러리에서는 삭제되지 않습니다.',
+        remove_from_playlist_confirm_single: '이 곡을 「{name}」에서 제거하시겠습니까?\n\n라이브러리에서는 삭제되지 않습니다.',
+        delete_songs_confirm_multi: '{n}곡을 라이브러리에서 삭제하시겠습니까?\n\n모든 재생목록에서 제거됩니다.',
+        delete_song_confirm_single: '이 곡을 라이브러리에서 삭제하시겠습니까?\n\n모든 재생목록에서 제거됩니다.',
+        delete_files_confirm: '{n}곡을 라이브러리에서 삭제하고 {files}을(를) 휴지통으로 이동하시겠습니까?',
+        files_plural: '파일들', files_singular: '파일',
+        moved: '이동됨', moved_songs_to_single: '곡을 「{path}」(으)로 이동했습니다',
+        moved_songs_to_multi: '{n}곡을 「{path}」(으)로 이동했습니다',
+        move_songs_result_multi: '{moved}곡 이동, {errors}건 오류.',
+        move_songs_result_single: '1곡 이동, {errors}건 오류.',
+        delete_label_playlist: '재생목록에서 제거{plural}',
+        delete_label_library_single: '곡을 라이브러리에서 삭제',
+        delete_label_library_multi: '{n}곡을 라이브러리에서 삭제',
+        move_to_folder_multi: '{n}곡을 폴더로 이동...', move_to_folder_single: '폴더로 이동...',
+        delete_file_multi: '{n}개 파일 삭제(휴지통)', delete_file_single: '파일 삭제(휴지통)',
+        delete_files_title: '파일 삭제',
+        edit_info_title: '정보 편집', save: '저장',
+        placeholder_title: '제목', placeholder_artist: '아티스트',
+        placeholder_album: '앨범', placeholder_genre: '장르',
+        placeholder_art: '커버 이미지(찾아보기 클릭)',
+        sleep_timer_title: '슬립 타이머', sleep_timer_minutes: '{n}분',
+        sleep_timer_cancel: '타이머 취소',
+        sleep_timer_paused_title: '타이머', sleep_timer_paused_msg: '음악이 일시정지되었습니다.',
+        sleep_timer_set_title: '타이머 설정됨', sleep_timer_set_msg: '{n}분 후 음악이 일시정지됩니다.',
+        sleep_timer_cancelled_title: '타이머 취소됨', sleep_timer_cancelled_msg: '타이머가 취소되었습니다.',
+        speed: '속도', ab_repeat: 'A-B 반복',
+        ab_repeat_msg: '지점 A(확인) 또는 지점 B(취소)를 표시하시겠습니까?\n\n현재 지점 A: {a}\n현재 지점 B: {b}',
+        ab_point_a: '지점 A: {pos}', ab_point_b: '지점 B: {pos} — 반복 중',
+        ab_disabled: '비활성화됨', ab_no_point: '없음',
+        view: '보기', view_grid: '그리드 보기', view_list: '목록 보기',
+        stats_title: '재생 통계', stats_empty: '라이브러리에 곡이 없습니다.',
+        stats_label_songs: '곡', stats_label_total_time: '총 시간',
+        stats_label_artists: '아티스트', stats_label_albums: '앨범',
+        stats_top_played: '상위 5 재생', stats_top_artists: '가장 많은 아티스트',
+        stats_unknown_artist: '알 수 없음', stats_artist_count: '{count}곡',
+        error: '오류', error_prefix: '오류: ',
+        report_bug_msg: '버그를 신고하려면:\n\n1. 설정 → 로그 내보내기(wave.log)에서 로그 내보내기\n2. https://github.com/Danielbarrantesv/Wave-escritorio/issues 방문\n3. 새 이슈를 생성하고 다음을 포함하세요:\n   - 버그 설명\n   - 재현 단계\n   - wave.log 파일 첨부',
+        add_to_playlist_title: '재생목록에 추가'
     }
 };
 
 function t(key) {
     const lang = (loadSettings().language || 'es');
     return (I18N[lang] && I18N[lang][key]) || I18N.es[key] || key;
+}
+
+// Versión con interpolación: tf('key', { n: 5, name: 'Rock' })
+// Reemplaza {n}, {name}, etc. en el string traducido.
+function tf(key, vars = {}) {
+    let s = t(key);
+    if (!vars) return s;
+    for (const [k, v] of Object.entries(vars)) {
+        s = s.replaceAll(`{${k}}`, String(v));
+    }
+    return s;
 }
 
 function applyLanguage(lang) {
@@ -2349,6 +2826,13 @@ function applyLanguage(lang) {
     setSettingLabel('set-language', t('language'));
     setSettingLabel('set-animations', t('animations'));
     setSettingLabel('set-show-sliders', t('show_sliders'));
+    // Opciones del select de tema
+    const themeSelect = document.getElementById('set-theme');
+    if (themeSelect) {
+        const opts = themeSelect.querySelectorAll('option');
+        if (opts[0]) opts[0].textContent = t('theme_dark');
+        if (opts[1]) opts[1].textContent = t('theme_light');
+    }
     // Datos (botones)
     const settingsBtns = document.querySelectorAll('#settings-content .settings-btn');
     const btnLabels = [t('export_library'), t('import_library'), t('export_logs'), t('clear_library'), t('report_bug'), t('view_changelog')];
