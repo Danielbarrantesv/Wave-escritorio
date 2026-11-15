@@ -407,6 +407,7 @@ public class WebViewBridge
     /// <summary>
     /// Mueve el archivo físico de una canción a otra carpeta.
     /// Actualiza el FilePath en la DB. Si el archivo ya existe en el destino, no lo sobrescribe.
+    /// Si la canción está reproduciéndose, pausa, mueve, actualiza el path y reanuda.
     /// </summary>
     private object? MoveSong(JsonElement p)
     {
@@ -432,6 +433,23 @@ public class WebViewBridge
             destPath = Path.Combine(destFolder, $"{nameNoExt}_{DateTime.Now.Ticks}{ext}");
         }
 
+        // Verificar si la canción está actualmente reproduciéndose
+        bool wasPlaying = false;
+        long positionMs = 0;
+        bool wasPaused = false;
+        if (_playback.CurrentSong != null && _playback.CurrentSong.Id == songId)
+        {
+            wasPlaying = _playback.IsPlaying;
+            wasPaused = !wasPlaying; // está cargada pero pausada
+            positionMs = _playback.PositionMs;
+            // Pausar y liberar el archivo
+            _playback.Pause();
+            _audioEngine.Stop();
+            WaveLogger.Info($"MoveSong: paused playback for file move (wasPlaying={wasPlaying}, pos={positionMs}ms)");
+            // Pequeño delay para que NAudio libere el archivo
+            System.Threading.Thread.Sleep(200);
+        }
+
         try
         {
             File.Move(song.FilePath, destPath);
@@ -439,12 +457,43 @@ public class WebViewBridge
             Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
                 "UPDATE songs SET file_path = @filePath WHERE id = @songId",
                 new { filePath = destPath, songId });
+            // Actualizar el objeto en la cola de reproducción si está cargado
+            if (_playback.CurrentSong != null && _playback.CurrentSong.Id == songId)
+            {
+                _playback.CurrentSong.FilePath = destPath;
+            }
             WaveLogger.Info($"MoveSong: moved '{song.FilePath}' → '{destPath}'");
+
+            // Reanudar reproducción si estaba sonando o cargada
+            if (wasPlaying || wasPaused)
+            {
+                try
+                {
+                    _audioEngine.Load(destPath);
+                    _playback.Seek(positionMs);
+                    if (wasPlaying)
+                    {
+                        _audioEngine.Play();
+                        // IsPlaying se actualiza via PropertyChanged
+                    }
+                    WaveLogger.Info($"MoveSong: resumed playback at {positionMs}ms from new path");
+                }
+                catch (Exception ex)
+                {
+                    WaveLogger.Error("MoveSong: error resuming playback", ex);
+                }
+            }
+
             return new { success = true, newPath = destPath };
         }
         catch (Exception ex)
         {
             WaveLogger.Error($"MoveSong: error moving file", ex);
+            // Intentar reanudar aunque el move falló
+            if (wasPlaying)
+            {
+                try { _audioEngine.Load(song.FilePath); _playback.Seek(positionMs); _audioEngine.Play(); } catch { }
+            }
             return new { success = false, error = ex.Message };
         }
     }
