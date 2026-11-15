@@ -370,12 +370,25 @@ public class WebViewBridge
     /// <summary>
     /// Borra una canción de la DB Y mueve el archivo físico a la papelera de reciclaje.
     /// Usa Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile con RecycleOption.
+    /// Si la canción está reproduciéndose, pausa el playback y detiene el engine para
+    /// que NAudio libere el handle del archivo antes de moverlo a la papelera.
     /// </summary>
     private object? DeleteSongAndFile(JsonElement p)
     {
         var songId = p.GetProperty("songId").GetInt64();
         var song = _library.GetAllSongs().FirstOrDefault(s => s.Id == songId);
         if (song == null) return new { success = false, error = "Canción no encontrada" };
+
+        // Verificar si la canción está actualmente reproduciéndose
+        bool wasCurrent = _playback.CurrentSong != null && _playback.CurrentSong.Id == songId;
+        if (wasCurrent)
+        {
+            _playback.Pause();
+            _audioEngine.Stop();
+            WaveLogger.Info($"DeleteSongAndFile: paused/stopped playback for file delete (songId={songId})");
+            // Pequeño delay para que NAudio libere el archivo
+            System.Threading.Thread.Sleep(200);
+        }
 
         // Borrar de la DB primero
         Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
@@ -393,11 +406,33 @@ public class WebViewBridge
                     Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
                     Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
                 WaveLogger.Info($"DeleteSongAndFile: moved to recycle bin: {song.FilePath}");
+
+                // Si era la canción actual, avanzar a la siguiente de la cola
+                // (el archivo ya no existe, no se puede reanudar la misma canción)
+                if (wasCurrent)
+                {
+                    try
+                    {
+                        _playback.SkipToNext();
+                        WaveLogger.Info("DeleteSongAndFile: skipped to next song after delete");
+                    }
+                    catch (Exception exNext)
+                    {
+                        WaveLogger.Error("DeleteSongAndFile: error skipping to next song", exNext);
+                    }
+                }
+
                 return new { success = true, recycled = true };
             }
             catch (Exception ex)
             {
                 WaveLogger.Error($"DeleteSongAndFile: error sending to recycle bin: {song.FilePath}", ex);
+                // Si falló el reciclado pero era la canción actual, intentar reanudar
+                if (wasCurrent)
+                {
+                    try { _audioEngine.Load(song.FilePath); _playback.Play(); }
+                    catch { /* archivo ya no accesible */ }
+                }
                 return new { success = true, recycled = false, error = ex.Message };
             }
         }
