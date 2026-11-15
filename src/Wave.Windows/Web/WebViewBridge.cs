@@ -93,6 +93,7 @@ public class WebViewBridge
             "library.importFiles" => await ImportFiles(p),
             "library.deleteSong" => DeleteSong(p),
             "library.deleteSongAndFile" => DeleteSongAndFile(p),
+            "library.moveSong" => MoveSong(p),
             "library.deleteAll" => Invoke(() => _library.DeleteAll()),
             "library.scanForNewFiles" => await ScanForNewFiles(),
             "library.editSong" => EditSong(p),
@@ -401,6 +402,51 @@ public class WebViewBridge
             }
         }
         return new { success = true, recycled = false, error = "Archivo no encontrado" };
+    }
+
+    /// <summary>
+    /// Mueve el archivo físico de una canción a otra carpeta.
+    /// Actualiza el FilePath en la DB. Si el archivo ya existe en el destino, no lo sobrescribe.
+    /// </summary>
+    private object? MoveSong(JsonElement p)
+    {
+        var songId = p.GetProperty("songId").GetInt64();
+        var destFolder = p.GetProperty("destFolder").GetString()!;
+
+        if (string.IsNullOrEmpty(destFolder) || !Directory.Exists(destFolder))
+            return new { success = false, error = "Carpeta de destino no existe" };
+
+        var song = _library.GetAllSongs().FirstOrDefault(s => s.Id == songId);
+        if (song == null) return new { success = false, error = "Canción no encontrada" };
+        if (string.IsNullOrEmpty(song.FilePath) || !File.Exists(song.FilePath))
+            return new { success = false, error = "Archivo no encontrado: " + song.FilePath };
+
+        var fileName = Path.GetFileName(song.FilePath);
+        var destPath = Path.Combine(destFolder, fileName);
+
+        // Si ya existe en destino, añadir sufijo
+        if (File.Exists(destPath))
+        {
+            var nameNoExt = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+            destPath = Path.Combine(destFolder, $"{nameNoExt}_{DateTime.Now.Ticks}{ext}");
+        }
+
+        try
+        {
+            File.Move(song.FilePath, destPath);
+            // Actualizar DB con el nuevo path
+            Wave.Windows.Data.SqliteDatabase.Instance.Connection.Execute(
+                "UPDATE songs SET file_path = @filePath WHERE id = @songId",
+                new { filePath = destPath, songId });
+            WaveLogger.Info($"MoveSong: moved '{song.FilePath}' → '{destPath}'");
+            return new { success = true, newPath = destPath };
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Error($"MoveSong: error moving file", ex);
+            return new { success = false, error = ex.Message };
+        }
     }
 
     private object? EditSong(JsonElement p)

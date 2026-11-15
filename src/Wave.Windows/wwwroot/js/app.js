@@ -934,6 +934,31 @@ async function deleteSelectionAndFile() {
     }
 }
 
+// Mover canciones seleccionadas a otra carpeta (archivo físico)
+async function moveSelectionToFolder() {
+    hideContextMenu();
+    const ids = Array.from(selectedSongIds);
+    if (ids.length === 0) return;
+    // Seleccionar carpeta de destino
+    const res = await WaveAPI.call('window.selectFolder', {});
+    if (!res || res.cancelled || !res.path) return;
+
+    let moved = 0, errors = 0;
+    for (const id of ids) {
+        const result = await WaveAPI.call('library.moveSong', { songId: id, destFolder: res.path });
+        if (result && result.success) moved++;
+        else errors++;
+    }
+    clearSelection();
+    await loadSongs();
+    if (errors === 0) {
+        showToast('Movido', `${moved} canción${moved>1?'es':''} movida${moved>1?'s':''} a "${res.path}"`,
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.2,14l-1.63,1.63l1.4,1.4L16,13L11.98,8.98l-1.4,1.4L12.2,12H8v2h4.2Z"/></svg>');
+    } else {
+        await modalAlert('Mover canciones', `${moved} movida${moved>1?'s':''}, ${errors} con error.`);
+    }
+}
+
 function updateCount() {
     const t = allSongs.length, v = filteredSongs.length;
     document.getElementById('song-count').textContent = v === t ? `${t} canciones` : `${v} de ${t} canciones`;
@@ -1373,7 +1398,14 @@ function showContextMenu(e, songId) {
         ? `Quitar de la playlist${plural}`
         : `Eliminar${plural} canción${n>1?'es':''} de la biblioteca`;
     const isDanger = !currentPlaylist;
-    items += `<div class="ctx-item${isDanger ? ' danger' : ''}" onclick="deleteSelection()">${iconDeleteSong}<span>${deleteLabel}</span></div>`;
+    // Eliminar: color amarillo (no rojo)
+    items += `<div class="ctx-item" style="color:#ffcc00" onclick="deleteSelection()">${iconDeleteSong}<span>${deleteLabel}</span></div>`;
+    // Mover a carpeta (solo en "Todas las canciones")
+    if (!currentPlaylist) {
+        const iconMove = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.2,14l-1.63,1.63l1.4,1.4L16,13L11.98,8.98l-1.4,1.4L12.2,12H8v2h4.2ZM4,20q-0.82,0-1.41-0.59T2,18V6Q2,5.18 2.59,4.59T4,4h6l2,2h8q0.83,0 1.41,0.59Q22,7.18 22,8V18q0,0.82-0.59,1.41T20,20H4Zm0-2H20V8H11.18l-2-2H4V18Zm0,0V6V8V18Z"/></svg>';
+        const moveLabel = n > 1 ? `Mover ${n} canciones a carpeta...` : 'Mover a carpeta...';
+        items += `<div class="ctx-item" onclick="moveSelectionToFolder()">${iconMove}<span>${moveLabel}</span></div>`;
+    }
     // Opción de borrar archivo físico (solo en "Todas las canciones", no en playlist)
     if (!currentPlaylist) {
         const iconDeleteFile = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
