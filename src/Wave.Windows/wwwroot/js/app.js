@@ -1180,10 +1180,16 @@ function updatePlayerSongInfo(state) {
     if (state.currentSong.artUri)
         cover.innerHTML = `<img src="file:///${state.currentSong.artUri.replace(/\\/g,'/')}" />`;
     else cover.innerHTML = `<div class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24px" width="24px" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
-    document.querySelectorAll('.song-row').forEach(el => el.classList.remove('playing'));
-    // Guardar el ID de la canción sonando para que el virtual scrolling lo pueda re-aplicar
-    window._playingSongId = state.currentSong.id;
-    const row = document.querySelector(`[data-id="${state.currentSong.id}"]`);
+
+    // Solo actualizar .playing si la canción cambió (no en cada tick de posición)
+    // Esto evita que el virtual scroll pierda la decoración
+    const songId = state.currentSong.id;
+    if (window._playingSongId !== songId) {
+        document.querySelectorAll('.song-row').forEach(el => el.classList.remove('playing'));
+        window._playingSongId = songId;
+    }
+    // Re-aplicar .playing a la fila visible si existe
+    const row = document.querySelector(`.song-row[data-id="${songId}"]`);
     if (row) row.classList.add('playing');
     updateRecentPlaying(state.currentSong.id);
     // Actualizar estado del botón corazón en la playerbar
