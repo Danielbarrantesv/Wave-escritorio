@@ -23,6 +23,11 @@ html[data-theme="light"] #side-panel { background: var(--bg); }
 html[data-theme="light"] #side-panel::before {
     background: linear-gradient(to bottom, rgba(245,245,245,0.4) 0%, rgba(245,245,245,0.7) 100%);
 }
+/* Portada difuminada del fondo: en tema claro no debe verse oscura */
+html[data-theme="light"] .side-panel-bg {
+    filter: blur(30px) brightness(1.05) saturate(0.9);
+    opacity: 0.45;
+}
 html[data-theme="light"] .lyric-line {
     color: rgba(0,0,0,0.65);
     text-shadow: 0 1px 4px rgba(255,255,255,0.6);
@@ -52,6 +57,14 @@ html[data-theme="light"] .settings-btn {
 html[data-theme="light"] .settings-btn:hover {
     background: rgba(0,0,0,0.08);
 }
+/* EQ slider: en tema claro el track debe ser oscuro, no blanco */
+html[data-theme="light"] .eq-slider {
+    background: rgba(0,0,0,0.15);
+}
+html[data-theme="light"] .eq-slider:hover {
+    background: rgba(0,0,0,0.25);
+}
+/* Edit form fields con fondo claro */
 html[data-theme="light"] .settings-input {
     background: #fff;
     color: var(--text);
