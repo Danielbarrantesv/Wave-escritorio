@@ -109,6 +109,13 @@ function bindEvents() {
     const songsContainer = document.getElementById('songs-container');
     if (songsContainer) songsContainer.addEventListener('scroll', onSongsScroll);
 
+    // Resize: recalcular layout del grid (número de columnas cambia con el ancho)
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => { renderSongs(); }, 150);
+    });
+
     // Esc limpia la selección
     // Barra espaciadora (cuando el foco no está en un input/select/textarea) → play/pausa
     // Atajos de teclado adicionales: Ctrl+F, Ctrl+A, flechas, Enter
@@ -707,8 +714,17 @@ function applySort() {
 // === Virtual scrolling ===
 // Solo renderiza las canciones visibles + buffer para que la lista sea rápida
 // incluso con miles de canciones.
-const ROW_HEIGHT = 60; // altura aproximada de cada song-row en px
-const BUFFER = 10; // canciones extra arriba y abajo del viewport
+const ROW_HEIGHT = 60; // altura aproximada de cada song-row en px (modo lista)
+const BUFFER = 10; // canciones extra arriba y abajo del viewport (modo lista)
+
+// Constantes para virtual scroll en modo grid (cuadrícula)
+const GRID_MIN_COL = 160; // minmax(160px, 1fr) del CSS
+const GRID_GAP = 12; // gap entre cards del CSS
+// Altura aproximada de cada card de grid:
+// 140px (cover) + 8+8 (padding vertical) + 6 (gap) + ~30 (2 líneas texto) = ~192px
+const GRID_CARD_HEIGHT = 192;
+const GRID_BUFFER_ROWS = 3; // filas extra arriba/abajo del viewport
+
 let scrollContainer = null;
 
 function renderSongs() {
@@ -717,9 +733,35 @@ function renderSongs() {
     if (filteredSongs.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); updateSelectionBar(); return; }
     empty.classList.add('hidden');
 
-    // En modo grid, no usar virtual scroll (las cards tienen altura variable)
+    // En modo grid: virtual scroll por filas (cada fila tiene N columnas)
     if (viewMode === 'grid') {
-        list.innerHTML = renderSongRange(0, filteredSongs.length);
+        const container = document.getElementById('songs-container');
+        const scrollTop = container ? container.scrollTop : 0;
+        const viewportH = container ? container.clientHeight : window.innerHeight;
+        // Ancho usable: clientWidth menos padding horizontal (10+10 = 20)
+        const usableW = container ? Math.max(160, container.clientWidth - 20) : 800;
+        // Número de columnas: repeat(auto-fill, minmax(160px, 1fr))
+        // auto-fill pone tantas columnas como quepan en el ancho usable
+        const cols = Math.max(1, Math.floor((usableW + GRID_GAP) / (GRID_MIN_COL + GRID_GAP)));
+        const totalRows = Math.ceil(filteredSongs.length / cols);
+        const rowStep = GRID_CARD_HEIGHT + GRID_GAP;
+        const totalH = totalRows * rowStep;
+
+        const startRow = Math.max(0, Math.floor(scrollTop / rowStep) - GRID_BUFFER_ROWS);
+        const endRow = Math.min(totalRows, Math.ceil((scrollTop + viewportH) / rowStep) + GRID_BUFFER_ROWS);
+        const startIdx = startRow * cols;
+        const endIdx = Math.min(filteredSongs.length, endRow * cols);
+        const offsetTop = startRow * rowStep;
+
+        // El wrapper exterior fija la altura total para que el scrollbar sea correcto.
+        // El wrapper interior tiene display:grid con position:absolute para que las
+        // cards se dispongan en columnas dentro del offset calculado.
+        list.innerHTML = `<div style="height:${totalH}px;position:relative;">
+            <div style="position:absolute;top:${offsetTop}px;left:0;right:0;display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:12px;">
+            ${renderSongRange(startIdx, endIdx)}
+            </div>
+        </div>`;
+
         bindSongRowClicks(list);
         updateSelectionBar();
         if (window._playingSongId) {
@@ -729,7 +771,7 @@ function renderSongs() {
         return;
     }
 
-    // Modo lista: virtual scroll
+    // Modo lista: virtual scroll por canción (cada canción es una fila de ROW_HEIGHT)
     const container = document.getElementById('songs-container');
     const scrollTop = container ? container.scrollTop : 0;
     const viewportH = container ? container.clientHeight : window.innerHeight;
@@ -1936,7 +1978,7 @@ async function settingsReportBug() {
 }
 
 async function settingsShowChangelog() {
-    await modalAlert(t('changelog_title'), 'v2.0.25 — Botón "Renombrar archivos por metadatos" en Configuración → Datos (formato: Artista - Título.ext)\nv2.0.24 — Fix: side-panel (config/EQ/lyrics) se veía oscuro en tema claro\nv2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
+    await modalAlert(t('changelog_title'), 'v2.0.26 — Virtual scroll para vista cuadrícula (grid): renderiza solo las cards visibles\nv2.0.25 — Botón "Renombrar archivos por metadatos" en Configuración → Datos (formato: Artista - Título.ext)\nv2.0.24 — Fix: side-panel (config/EQ/lyrics) se veía oscuro en tema claro\nv2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
 }
 
 // === Keyboard navigation helpers ===

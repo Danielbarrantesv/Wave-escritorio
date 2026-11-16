@@ -303,10 +303,10 @@ body.has-selection #songs-header { top: 48px; }
 .drop-zone-text { font-size: 18px; color: var(--accent); font-weight: 600; }
 
 /* Grid view (vista cuadrícula) */
+/* Nota: el display:grid lo aplica el wrapper interior desde JS (virtual scroll).
+   #songs-list en grid-view solo necesita padding/overflow normal. */
 body.grid-view #songs-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
+    padding: 0;
 }
 body.grid-view .song-row {
     display: flex; flex-direction: column; gap: 6px;
