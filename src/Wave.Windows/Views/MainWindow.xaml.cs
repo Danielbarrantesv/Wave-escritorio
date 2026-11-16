@@ -38,7 +38,9 @@ public partial class MainWindow : Window
         var chrome = new WindowChrome
         {
             CaptionHeight = 0,
-            ResizeBorderThickness = new Thickness(6),
+            // Aumentar el grosor del borde de resize para que sea más fácil de agarrar
+            // (antes era 6, ahora 8)
+            ResizeBorderThickness = new Thickness(8),
             GlassFrameThickness = new Thickness(0),
             CornerRadius = new CornerRadius(0),
             UseAeroCaptionButtons = false
@@ -91,10 +93,19 @@ public partial class MainWindow : Window
             GetMonitorInfo(monitor, ref monitorInfo);
 
             // Ajustar el maximizado al área de trabajo (sin barra de tareas)
+            // del monitor DONDE ESTÁ LA VENTANA (no el primario)
             mmi.ptMaxPosition.X = monitorInfo.rcWork.Left - monitorInfo.rcMonitor.Left;
             mmi.ptMaxPosition.Y = monitorInfo.rcWork.Top - monitorInfo.rcMonitor.Top;
             mmi.ptMaxSize.X = monitorInfo.rcWork.Right - monitorInfo.rcWork.Left;
             mmi.ptMaxSize.Y = monitorInfo.rcWork.Bottom - monitorInfo.rcWork.Top;
+
+            // Setear el tamaño MÍNIMO de resize manual (respeta MinWidth/MinHeight del XAML)
+            // sin esto, el usuario puede hacer la ventana diminuta arrastrando desde una esquina
+            var source = HwndSource.FromHwnd(hwnd);
+            double dpiScale = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+            // DIPs a pixels: pixels = DIPs / dpiScale
+            mmi.ptMinTrackSize.X = (int)Math.Ceiling(MinWidth / dpiScale);
+            mmi.ptMinTrackSize.Y = (int)Math.Ceiling(MinHeight / dpiScale);
 
             Marshal.StructureToPtr(mmi, lParam, true);
             handled = true;
@@ -231,34 +242,15 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Al maximizar, limita la ventana al área de trabajo del monitor DONDE ESTÁ LA VENTANA
-    /// (no el primario). Esto evita que cubra la barra de tareas.
+    /// Al maximizar, el handler WM_GETMINMAXINFO ya se encarga de todo:
+    /// posiciona y dimensiona la ventana al área de trabajo del monitor correcto
+    /// (sin barra de tareas), usando MonitorFromWindow(MONITOR_DEFAULTTONEAREST)
+    /// que devuelve el monitor donde está la ventana, no el primario.
     /// </summary>
     private void Window_StateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Maximized)
-        {
-            // Obtener el área de trabajo del monitor donde está la ventana
-            // Usando System.Windows.Forms.Screen para obtener el monitor correcto
-            var screen = System.Windows.Forms.Screen.FromHandle(
-                new System.Windows.Interop.WindowInteropHelper(this).Handle);
-            var workArea = screen.WorkingArea;
-
-            // Convertir de pixels WPF a DIPs (Device Independent Pixels)
-            var source = System.Windows.Interop.HwndSource.FromHwnd(
-                new System.Windows.Interop.WindowInteropHelper(this).Handle);
-            double dpi = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
-
-            MaxWidth = workArea.Width * dpi;
-            MaxHeight = workArea.Height * dpi;
-            Top = workArea.Top * dpi;
-            Left = workArea.Left * dpi;
-        }
-        else
-        {
-            MaxWidth = double.PositiveInfinity;
-            MaxHeight = double.PositiveInfinity;
-        }
+        // No-op: WM_GETMINMAXINFO maneja todo.
+        // (Método conservado para no romper referencias XAML si las hubiera.)
     }
 
     // === Media key handlers ===
