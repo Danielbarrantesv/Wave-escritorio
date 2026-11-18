@@ -49,6 +49,19 @@ public partial class MainWindow : Window
     }
 
     private const int WM_GETMINMAXINFO = 0x0024;
+    private const int WM_NCHITTEST = 0x0084;
+
+    // Hit-test return codes
+    private const int HTCLIENT = 1;
+    private const int HTCAPTION = 2;
+    private const int HTLEFT = 10;
+    private const int HTRIGHT = 11;
+    private const int HTTOP = 12;
+    private const int HTTOPLEFT = 13;
+    private const int HTTOPRIGHT = 14;
+    private const int HTBOTTOM = 15;
+    private const int HTBOTTOMLEFT = 16;
+    private const int HTBOTTOMRIGHT = 17;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MINMAXINFO
@@ -94,6 +107,7 @@ public partial class MainWindow : Window
 
             // Ajustar el maximizado al área de trabajo (sin barra de tareas)
             // del monitor DONDE ESTÁ LA VENTANA (no el primario)
+            // Con AllowsTransparency=True no hay border nativo que compensar.
             mmi.ptMaxPosition.X = monitorInfo.rcWork.Left - monitorInfo.rcMonitor.Left;
             mmi.ptMaxPosition.Y = monitorInfo.rcWork.Top - monitorInfo.rcMonitor.Top;
             mmi.ptMaxSize.X = monitorInfo.rcWork.Right - monitorInfo.rcWork.Left;
@@ -110,8 +124,43 @@ public partial class MainWindow : Window
             Marshal.StructureToPtr(mmi, lParam, true);
             handled = true;
         }
+        else if (msg == WM_NCHITTEST)
+        {
+            // Permite el resize desde TODOS los bordes y esquinas, no solo la superior izquierda.
+            // Con AllowsTransparency=True, WindowChrome no siempre mapea correctamente los hit-tests
+            // de los bordes, así que lo hacemos manualmente.
+            //
+            // lParam contiene las coordenadas del cursor (LOWORD=x, HIWORD=y) en coords de pantalla.
+            // Convertimos a coords de ventana y miramos en qué borde está.
+            int screenX = (short)(lParam.ToInt32() & 0xFFFF);
+            int screenY = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
+
+            // Obtener rect de la ventana en coords de pantalla
+            GetWindowRect(hwnd, out var rc);
+            const int border = 8; // ResizeBorderThickness del WindowChrome
+
+            bool onLeft = screenX >= rc.Left && screenX < rc.Left + border;
+            bool onRight = screenX <= rc.Right && screenX > rc.Right - border;
+            bool onTop = screenY >= rc.Top && screenY < rc.Top + border;
+            bool onBottom = screenY <= rc.Bottom && screenY > rc.Bottom - border;
+
+            // Esquinas tienen prioridad sobre bordes
+            if (onTop && onLeft) { handled = true; return new IntPtr(HTTOPLEFT); }
+            if (onTop && onRight) { handled = true; return new IntPtr(HTTOPRIGHT); }
+            if (onBottom && onLeft) { handled = true; return new IntPtr(HTBOTTOMLEFT); }
+            if (onBottom && onRight) { handled = true; return new IntPtr(HTBOTTOMRIGHT); }
+            if (onLeft) { handled = true; return new IntPtr(HTLEFT); }
+            if (onRight) { handled = true; return new IntPtr(HTRIGHT); }
+            if (onTop) { handled = true; return new IntPtr(HTTOP); }
+            if (onBottom) { handled = true; return new IntPtr(HTBOTTOM); }
+            // Si no está en ningún borde, dejar que WindowChrome lo maneje (HTCLIENT o HTCAPTION)
+        }
         return IntPtr.Zero;
     }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
