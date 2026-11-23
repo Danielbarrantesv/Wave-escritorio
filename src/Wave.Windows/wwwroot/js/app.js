@@ -974,6 +974,8 @@ async function deleteSelectionAndFile() {
         clearSelection();
         await loadSongs();
         await loadPlaylists();
+        // Si estábamos viendo una playlist, recargarla para reflejar los cambios
+        if (currentPlaylist) await selectPlaylist(currentPlaylist);
     }
 }
 
@@ -1453,8 +1455,9 @@ function showContextMenu(e, songId) {
         const moveLabel = n > 1 ? tf('move_to_folder_multi', { n: n }) : t('move_to_folder_single');
         items += `<div class="ctx-item" onclick="moveSelectionToFolder()">${iconMove}<span>${moveLabel}</span></div>`;
     }
-    // Opción de borrar archivo físico (solo en "Todas las canciones", no en playlist)
-    if (!currentPlaylist) {
+    // Opción de borrar archivo físico (papelera)
+    // Disponible tanto en "Todas las canciones" como dentro de playlists
+    {
         const iconDeleteFile = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
         const deleteFileLabel = n > 1 ? tf('delete_file_multi', { n: n }) : t('delete_file_single');
         items += `<div class="ctx-item danger" onclick="deleteSelectionAndFile()">${iconDeleteFile}<span>${deleteFileLabel}</span></div>`;
@@ -1622,12 +1625,14 @@ async function removeSelectedFromPlaylist() {
 
 // === Import ===
 async function onAddMusic() {
-    // Modal con 2 opciones: Canciones o Carpeta
+    // Modal con 3 opciones: Carpeta, Carpeta con subplaylists, Canciones
     const iconFolder = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M4.25,19.5q-0.73,0-1.24-0.51T2.5,17.75V6.31q0-0.73 0.54-1.27T4.31,4.5H9.8l2,2h7.89q0.67,0 1.16,0.43T21.41,8H11.18l-2-2H4.31Q4.17,6 4.09,6.09T4,6.31V17.69q0,0.11 0.05,0.17t0.14,0.12l2.33-7.79H23.18l-2.42,8.07q-0.17,0.56-0.64,0.9T19.08,19.5H4.25ZM5.76,18H19.27l1.89-6.31H7.65L5.76,18Zm0,0l1.89-6.31L5.76,18ZM4,8V6.31Q4,6.17 4,6.09T4,6V8Z"/></svg>';
+    const iconFolderPlaylists = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M4.25,19.5q-0.73,0-1.24-0.51T2.5,17.75V6.31q0-0.73 0.54-1.27T4.31,4.5H9.8l2,2h7.89q0.67,0 1.16,0.43T21.41,8H11.18l-2-2H4.31Q4.17,6 4.09,6.09T4,6.31V17.69q0,0.11 0.05,0.17t0.14,0.12l2.33-7.79H23.18l-2.42,8.07q-0.17,0.56-0.64,0.9T19.08,19.5H4.25ZM5.76,18H19.27l1.89-6.31H7.65L5.76,18Zm0,0l1.89-6.31L5.76,18ZM4,8V6.31Q4,6.17 4,6.09T4,6V8Z"/><circle cx="18" cy="18" r="5" fill="currentColor"/><path d="M16.5,15.5v5l4-2.5z" fill="#fff"/></svg>';
     const iconSong = '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M10.75,18.85q0.88,0 1.49-0.61t0.61-1.49V12.88h2.87V11.12H11.96V15.1q-0.26-0.23-0.56-0.34t-0.65-0.11q-0.88,0-1.49,0.61T8.65,16.75t0.61,1.49t1.49,0.61ZM6.31,21.5q-0.76,0-1.28-0.52T4.5,19.69V4.31q0-0.76 0.52-1.28T6.31,2.5h7.94L19.5,7.75V19.69q0,0.76-0.52,1.28T17.69,21.5H6.31Zm7.19-13V4H6.31Q6.19,4 6.1,4.1T6,4.31V19.69q0,0.12 0.1,0.21T6.31,20H17.69q0.12,0 0.21-0.1T18,19.69V8.5H13.5ZM6,4V8.5V4V8.5V19.69q0,0.12 0,0.21T6,20q0,0 0-0.1t0-0.21V4.31Q6,4.19 6,4.1T6,4Z"/></svg>';
 
     let bodyHtml = '<div class="add-music-options">';
     bodyHtml += `<button class="add-music-option" onclick="window._addChoice='folder';closeModal();">${iconFolder}<div class="add-music-label"><div class="add-music-title">${t('folder')}</div><div class="add-music-desc">${t('folder_desc')}</div></div></button>`;
+    bodyHtml += `<button class="add-music-option" onclick="window._addChoice='folderSubs';closeModal();">${iconFolderPlaylists}<div class="add-music-label"><div class="add-music-title">${t('folder_with_playlists')}</div><div class="add-music-desc">${t('folder_with_playlists_desc')}</div></div></button>`;
     bodyHtml += `<button class="add-music-option" onclick="window._addChoice='files';closeModal();">${iconSong}<div class="add-music-label"><div class="add-music-title">${t('songs_label')}</div><div class="add-music-desc">${t('songs_desc')}</div></div></button>`;
     bodyHtml += '</div>';
 
@@ -1638,6 +1643,31 @@ async function onAddMusic() {
             clearInterval(check);
             const choice = window._addChoice;
             if (choice === 'cancel' || !choice) return;
+            if (choice === 'folderSubs') {
+                // Importar carpeta con subcarpetas como playlists
+                showImportOverlay(t('importing_music'));
+                let result;
+                try {
+                    result = await WaveAPI.call('library.importFolderWithSubfolderPlaylists', '');
+                } finally {
+                    hideImportOverlay();
+                }
+                if (result && !result.cancelled && result.playlists) {
+                    await loadSongs(); await loadPlaylists();
+                    // Mostrar resumen de playlists creadas
+                    if (result.playlists.length > 0) {
+                        const lines = result.playlists.map(p =>
+                            `• ${p.name}: ${p.added} ${t('songs_label').toLowerCase()} (${p.duplicates} ${t('duplicates_label').toLowerCase()})`
+                        ).join('\n');
+                        await modalAlert(t('subfolder_playlists_created'),
+                            `${t('subfolder_playlists_summary')}:\n\n${lines}`);
+                    } else {
+                        await modalAlert(t('import_complete'), t('no_subfolders_found'));
+                    }
+                }
+                return;
+            }
+            // Importación normal (folder o files)
             let result;
             showImportOverlay(t('importing_music'));
             try {
@@ -1978,7 +2008,7 @@ async function settingsReportBug() {
 }
 
 async function settingsShowChangelog() {
-    await modalAlert(t('changelog_title'), 'v2.0.28 — Fix: maximize en monitor secundario (vuelve AllowsTransparency + WM_NCHITTEST manual para resize desde todos los bordes)\nv2.0.27 — Fix: resize muy pequeño + resize solo desde una esquina ( AllowsTransparency quitado, pero rompió maximize)\nv2.0.26 — Virtual scroll para vista cuadrícula (grid): renderiza solo las cards visibles\nv2.0.25 — Botón "Renombrar archivos por metadatos" en Configuración → Datos (formato: Artista - Título.ext)\nv2.0.24 — Fix: side-panel (config/EQ/lyrics) se veía oscuro en tema claro\nv2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
+    await modalAlert(t('changelog_title'), 'v2.0.29 — Eliminar + papelera dentro de playlists | Importar carpeta con subplaylists | Quitar auto-playlists por género | Fix color barra mini player\nv2.0.28 — Fix: maximize en monitor secundario (vuelve AllowsTransparency + WM_NCHITTEST manual para resize desde todos los bordes)\nv2.0.27 — Fix: resize muy pequeño + resize solo desde una esquina ( AllowsTransparency quitado, pero rompió maximize)\nv2.0.26 — Virtual scroll para vista cuadrícula (grid): renderiza solo las cards visibles\nv2.0.25 — Botón "Renombrar archivos por metadatos" en Configuración → Datos (formato: Artista - Título.ext)\nv2.0.24 — Fix: side-panel (config/EQ/lyrics) se veía oscuro en tema claro\nv2.0.23 — i18n completo: context menus, modales, toasts, stats, sleep timer, edit form, A-B, view, drag&drop (es/en/fr/de/ja/ko)\nv2.0.22 — Borrar canción en reproducción: pausar, reciclar, saltar siguiente\nv2.0.21 — Mover canción en reproducción: pausar, mover, reanudar\nv2.0.20 — Mover canciones a carpeta + eliminar en amarillo\nv2.0.19 — Canción sonando pierde decoración al reanudar play\nv2.0.18 — Grid view se veía como una sola línea (virtual scroll rompía grid)\nv2.0.17 — Canción sonando pierde decoración al detener scroll\nv2.0.16 — Virtual scrolling + editar imagen de portada\nv2.0.15 — ZoomFactorChanged no existe → JS wheel handler para limitar zoom\nv2.0.14 — Mini player borde accent + context menu posicion + zoom limit\nv2.0.13 — Revertir cache-buster que causaba ERR_FILE_NOT_FOUND\nv2.0.12 — Añadir using System.IO a WebViewBridge.cs\nv2.0.11 — Cache-buster CSS + sync settings C# + DeleteAll playlists + borrar archivo papelera\nv2.0.10 — WndProc return IntPtr.Zero (no void)\nv2.0.9 — Añadir using System.Windows.Interop (WindowInteropHelper + HwndSource)\nv2.0.8 — Html data-accent inicial + edit-form CSS + WM_GETMINMAXINFO maximize\nv2.0.7 — SolidColorBrush.White → new SolidColorBrush(Colors.White)\nv2.0.6 — Mini player x:Name + editSong un solo modal + canción sonando !important\nv2.0.5 — Canción sonando con !important + mini player VisualTreeHelper + versión v2.0.4\nv2.0.4 — Colores accent dinámicos + canción sonando con pulse + mini player tema\nv2.0.3 — Favoritos no sale de lista + sleep en header + icono vista + grid ellipsis + maximize multi-monitor\nv2.0.2 — Header debajo de recientes + grid ellipsis + sleep timer menu\nv2.0.1 — Header sticky + iconos en header + vista/stats en header + quitar A-B/velocidad\nv2.0.0 — Drag&drop + atajos teclado + velocidad + A-B repeat + estadísticas + sleep timer + vista cuadrícula + header sticky');
 }
 
 // === Keyboard navigation helpers ===
@@ -2241,6 +2271,13 @@ const I18N = {
         rename_files_result: 'Renombradas: {renamed}\nOmitidas (sin cambios): {skipped}\nErrores: {errors}',
         not_selected: 'No seleccionada', browse: 'Examinar', first_run_title: 'Bienvenido a Wave', first_run_msg: 'Selecciona tu idioma para empezar:',
         no_song: 'Canción', no_artist: 'Artista',
+        // Importar carpeta con subcarpetas
+        folder_with_playlists: 'Carpeta con subplaylists',
+        folder_with_playlists_desc: 'Crea una playlist por cada subcarpeta que contenga audio',
+        subfolder_playlists_created: 'Playlists creadas',
+        subfolder_playlists_summary: 'Se crearon/actualizaron las siguientes playlists',
+        no_subfolders_found: 'No se encontraron subcarpetas con archivos de audio.\n\nLas canciones de la carpeta raíz se importaron en "Todas las canciones".',
+        duplicates_label: 'duplicadas',
         // === Nuevas keys (v2.0.23) — strings hardcoded ===
         // Acciones de ventana
         close_wave: 'Cerrar Wave', close_wave_msg: '¿Qué quieres hacer?',
@@ -2359,6 +2396,12 @@ const I18N = {
         rename_files_result: 'Renamed: {renamed}\nSkipped (no change): {skipped}\nErrors: {errors}',
         not_selected: 'Not selected', browse: 'Browse', first_run_title: 'Welcome to Wave', first_run_msg: 'Select your language to start:',
         no_song: 'Song', no_artist: 'Artist',
+        folder_with_playlists: 'Folder with subplaylists',
+        folder_with_playlists_desc: 'Creates one playlist per subfolder containing audio',
+        subfolder_playlists_created: 'Playlists created',
+        subfolder_playlists_summary: 'The following playlists were created/updated',
+        no_subfolders_found: 'No subfolders with audio files found.\n\nRoot folder songs were imported into "All songs".',
+        duplicates_label: 'duplicates',
         // === New keys (v2.0.23) — hardcoded strings ===
         close_wave: 'Close Wave', close_wave_msg: 'What do you want to do?',
         minimize_to_tray: 'Minimize to tray', exit: 'Exit',
@@ -2466,6 +2509,12 @@ const I18N = {
         rename_files_result: 'Renommées : {renamed}\nIgnorées (sans changement) : {skipped}\nErreurs : {errors}',
         not_selected: 'Non sélectionné', browse: 'Parcourir', first_run_title: 'Bienvenue dans Wave', first_run_msg: 'Sélectionnez votre langue pour commencer:',
         no_song: 'Chanson', no_artist: 'Artiste',
+        folder_with_playlists: 'Dossier avec sous-playlists',
+        folder_with_playlists_desc: 'Crée une playlist par sous-dossier contenant de l\'audio',
+        subfolder_playlists_created: 'Playlists créées',
+        subfolder_playlists_summary: 'Les playlists suivantes ont été créées/mises à jour',
+        no_subfolders_found: 'Aucun sous-dossier avec fichiers audio trouvé.\n\nLes chansons du dossier racine ont été importées dans « Toutes les chansons ».',
+        duplicates_label: 'doublons',
         // === Nouvelles clés (v2.0.23) — chaînes codées en dur ===
         close_wave: 'Fermer Wave', close_wave_msg: 'Que voulez-vous faire ?',
         minimize_to_tray: 'Réduire dans la barre', exit: 'Quitter',
@@ -2573,6 +2622,12 @@ const I18N = {
         rename_files_result: 'Umbenannt: {renamed}\nÜbersprungen (keine Änderung): {skipped}\nFehler: {errors}',
         not_selected: 'Nicht ausgewählt', browse: 'Durchsuchen', first_run_title: 'Willkommen bei Wave', first_run_msg: 'Wählen Sie Ihre Sprache zum Starten:',
         no_song: 'Lied', no_artist: 'Künstler',
+        folder_with_playlists: 'Ordner mit Unterplaylists',
+        folder_with_playlists_desc: 'Erstellt eine Playlist pro Unterordner mit Audiodateien',
+        subfolder_playlists_created: 'Playlists erstellt',
+        subfolder_playlists_summary: 'Die folgenden Playlists wurden erstellt/aktualisiert',
+        no_subfolders_found: 'Keine Unterordner mit Audiodateien gefunden.\n\nDie Lieder des Stammordners wurden in „Alle Lieder" importiert.',
+        duplicates_label: 'Duplikate',
         // === Neue Schlüssel (v2.0.23) — fest codierte Strings ===
         close_wave: 'Wave schließen', close_wave_msg: 'Was möchten Sie tun?',
         minimize_to_tray: 'In Taskleiste minimieren', exit: 'Beenden',
@@ -2680,6 +2735,12 @@ const I18N = {
         rename_files_result: '変更済み: {renamed}\nスキップ（変更なし）: {skipped}\nエラー: {errors}',
         not_selected: '未選択', browse: '参照', first_run_title: 'Waveへようこそ', first_run_msg: '開始する言語を選択してください:',
         no_song: '曲', no_artist: 'アーティスト',
+        folder_with_playlists: 'サブプレイリスト付きフォルダー',
+        folder_with_playlists_desc: '音声を含む各サブフォルダーにプレイリストを作成',
+        subfolder_playlists_created: 'プレイリストが作成されました',
+        subfolder_playlists_summary: '以下のプレイリストが作成/更新されました',
+        no_subfolders_found: '音声ファイルを含むサブフォルダーが見つかりませんでした。\n\nルートフォルダーの曲は「すべての曲」にインポートされました。',
+        duplicates_label: '重複',
         // === 新規キー (v2.0.23) — ハードコード文字列 ===
         close_wave: 'Waveを閉じる', close_wave_msg: 'どうしますか？',
         minimize_to_tray: 'トレイに最小化', exit: '終了',
@@ -2787,6 +2848,12 @@ const I18N = {
         rename_files_result: '변경됨: {renamed}\n건너뜀 (변경 없음): {skipped}\n오류: {errors}',
         not_selected: '선택되지 않음', browse: '찾아보기', first_run_title: 'Wave에 오신 것을 환영합니다', first_run_msg: '시작하려면 언어를 선택하세요:',
         no_song: '곡', no_artist: '아티스트',
+        folder_with_playlists: '하위 재생목록이 있는 폴더',
+        folder_with_playlists_desc: '오디오가 포함된 각 하위 폴더마다 재생목록을 생성',
+        subfolder_playlists_created: '재생목록이 생성됨',
+        subfolder_playlists_summary: '다음 재생목록이 생성/업데이트되었습니다',
+        no_subfolders_found: '오디오 파일이 있는 하위 폴더를 찾을 수 없습니다.\n\n루트 폴더의 곡은 "모든 곡"으로 가져왔습니다.',
+        duplicates_label: '중복',
         // === 새 키 (v2.0.23) — 하드코딩된 문자열 ===
         close_wave: 'Wave 닫기', close_wave_msg: '무엇을 하시겠습니까?',
         minimize_to_tray: '트레이로 최소화', exit: '종료',

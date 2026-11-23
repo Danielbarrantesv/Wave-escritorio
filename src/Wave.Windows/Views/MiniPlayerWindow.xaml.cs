@@ -182,6 +182,45 @@ public partial class MiniPlayerWindow : Window
             // Close icon → dim
             if (CloseIcon != null) CloseIcon.Fill = dimBrush;
 
+            // ProgressBar (slider) → actualizar colores del relleno y la bolita al accent
+            // El ControlTemplate tiene los colores hardcoded en verde (#32C98B), así que
+            // hay que buscar los elementos por nombre dentro del template y cambiarlos.
+            if (ProgressBar != null)
+            {
+                try
+                {
+                    // Forzar la aplicación del template si aún no se ha aplicado
+                    ProgressBar.ApplyTemplate();
+                    var template = ProgressBar.Template;
+                    if (template != null)
+                    {
+                        // 1. Relleno del track (DecreaseRepeatButton)
+                        var decreaseBtn = template.FindName("PART_DecreaseButton", ProgressBar) as System.Windows.Controls.Primitives.RepeatButton;
+                        if (decreaseBtn != null) decreaseBtn.Background = accentBrush;
+
+                        // 2. Bolita (Thumb) — buscar dentro del Thumb's template
+                        var track = template.FindName("PART_Track", ProgressBar) as System.Windows.Controls.Primitives.Track;
+                        if (track != null && track.Thumb != null)
+                        {
+                            // Forzar template del Thumb también
+                            track.Thumb.ApplyTemplate();
+                            var thumbTemplate = track.Thumb.Template;
+                            if (thumbTemplate != null)
+                            {
+                                var glow = thumbTemplate.FindName("ThumbGlow", track.Thumb) as System.Windows.Shapes.Ellipse;
+                                if (glow != null) glow.Fill = accentBrush;
+                                var main = thumbTemplate.FindName("ThumbMain", track.Thumb) as System.Windows.Shapes.Ellipse;
+                                if (main != null) main.Fill = accentBrush;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WaveLogger.Error("MiniPlayer: error updating progress bar colors", ex);
+                }
+            }
+
             WaveLogger.Info($"MiniPlayer theme applied: theme={theme}, accent={accentColor}");
         });
     }

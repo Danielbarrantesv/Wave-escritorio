@@ -12,16 +12,17 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Plantilla de Slider custom para el mini player:
-                 track blanco semi-transparente + relleno verde + bolita circular -->
+                 track blanco semi-transparente + relleno accent + bolita circular -->
             <ControlTemplate x:Key="MiniSliderTemplate" TargetType="Slider">
                 <Grid Height="16" VerticalAlignment="Center">
                     <!-- Track completo: borde blanco semi-transparente (4px de grosor) -->
                     <Border Height="4" VerticalAlignment="Center"
                             Background="#33FFFFFF" CornerRadius="2"/>
-                    <!-- Track con relleno verde (DecreaseRepeatButton) y bolita (Thumb) -->
+                    <!-- Track con relleno accent (DecreaseRepeatButton) y bolita (Thumb) -->
                     <Track x:Name="PART_Track">
                         <Track.DecreaseRepeatButton>
                             <RepeatButton Command="{x:Static Slider.DecreaseLarge}"
+                                          x:Name="PART_DecreaseButton"
                                           Background="#32C98B"
                                           Height="4"
                                           VerticalAlignment="Center"/>
@@ -34,10 +35,10 @@
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="Thumb">
                                                     <Grid Width="14" Height="14">
-                                                        <!-- Glow verde detrás -->
-                                                        <Ellipse Fill="#32C98B" Opacity="0.3" Width="20" Height="20"/>
+                                                        <!-- Glow accent detrás -->
+                                                        <Ellipse x:Name="ThumbGlow" Fill="#32C98B" Opacity="0.3" Width="20" Height="20"/>
                                                         <!-- Bolita principal -->
-                                                        <Ellipse Fill="#32C98B" Stroke="White" StrokeThickness="1.5"/>
+                                                        <Ellipse x:Name="ThumbMain" Fill="#32C98B" Stroke="White" StrokeThickness="1.5"/>
                                                     </Grid>
                                                 </ControlTemplate>
                                             </Setter.Value>

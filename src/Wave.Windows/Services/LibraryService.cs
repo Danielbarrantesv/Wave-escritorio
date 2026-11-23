@@ -201,22 +201,8 @@ public sealed class LibraryService : ILibraryService
 
         WaveLogger.Info($"Import complete: {added} added, {duplicates} duplicates, {total} total processed");
 
-        // Si se agregaron canciones nuevas y hay PlaylistService, crear playlists automáticas por género.
-        // CRITICAL: v2.5.24 feature del spec Android — auto-generar playlists "Rock", "Pop", "Jazz", etc.
-        if (added > 0 && _playlistService != null)
-        {
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"[LibraryService] CreateGenrePlaylists: {added} new songs, calling CreateGenrePlaylists...");
-                _playlistService.CreateGenrePlaylists();
-                System.Diagnostics.Debug.WriteLine("[LibraryService] CreateGenrePlaylists completed");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[LibraryService] CreateGenrePlaylists falló: {ex.Message}");
-                // No fallar la importación si CreateGenrePlaylists falla
-            }
-        }
+        // v2.0.29: ya NO se crean playlists automáticas por género.
+        // Si el usuario quiere playlists, usa "Importar carpeta con subcarpetas" o las crea manualmente.
 
         // Si se especificó una playlist target, agregar las canciones vía el servicio
         if (targetPlaylistId.HasValue && playlistAttachIds.Count > 0 && _playlistService != null)
@@ -390,11 +376,7 @@ public sealed class LibraryService : ILibraryService
         var result = ImportFilesInternal(newFiles, null);
         WaveLogger.Info($"ScanForNewFiles: imported {result.Added} new, {result.Duplicates} duplicates");
 
-        // Recrear playlists por género si se agregaron canciones nuevas
-        if (result.Added > 0 && _playlistService != null)
-        {
-            try { _playlistService.CreateGenrePlaylists(); } catch { /* ignore */ }
-        }
+        // v2.0.29: ya NO se crean playlists automáticas por género.
 
         return result.Added;
     }
@@ -542,6 +524,104 @@ public sealed class LibraryService : ILibraryService
 
             WaveLogger.Info($"RenameSongsByMetadata: done. Renamed={renamed}, Skipped={skipped}, Errors={errors}");
             return (renamed, skipped, errors);
+        });
+    }
+
+    /// <summary>
+    /// Importa una carpeta creando una playlist por cada subcarpeta que contenga audio.
+    ///
+    /// Estrategia:
+    /// 1. Listar subcarpetas directas (depth=1) de la carpeta raíz
+    /// 2. Para cada subcarpeta, escanear recursivamente sus archivos de audio
+    /// 3. Importar los archivos (reutiliza ImportFilesInternal con dedup + tags)
+    /// 4. Crear/actualizar una playlist con el nombre de la subcarpeta y asociar
+    ///    las canciones importadas (nuevas + duplicadas que ya estaban en DB)
+    /// 5. Los archivos sueltos en la carpeta raíz se importan pero sin playlist
+    ///
+    /// Devuelve la lista de resultados por subcarpeta para que el JS pueda mostrar
+    /// al usuario qué se creó.
+    /// </summary>
+    public Task<List<SubfolderPlaylistResult>> ImportFolderWithSubfolderPlaylistsAsync(string folderPath)
+    {
+        return Task.Run(() =>
+        {
+            var results = new List<SubfolderPlaylistResult>();
+
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+                return results;
+
+            WaveLogger.Info($"ImportFolderWithSubfolderPlaylists: scanning '{folderPath}'");
+
+            // 1. Encontrar subcarpetas directas
+            List<string> subdirs;
+            try
+            {
+                subdirs = Directory.GetDirectories(folderPath, "*", SearchOption.TopDirectoryOnly).ToList();
+            }
+            catch (Exception ex)
+            {
+                WaveLogger.Error($"ImportFolderWithSubfolderPlaylists: error listing subdirs of '{folderPath}'", ex);
+                return results;
+            }
+
+            WaveLogger.Info($"ImportFolderWithSubfolderPlaylists: found {subdirs.Count} subdirectories");
+
+            // 2. Para cada subcarpeta, importar y crear playlist
+            foreach (var subdir in subdirs)
+            {
+                string playlistName;
+                try { playlistName = Path.GetFileName(subdir); }
+                catch { continue; }
+
+                if (string.IsNullOrEmpty(playlistName)) continue;
+
+                // Escanear archivos de audio recursivamente dentro de esta subcarpeta
+                var files = Scan(subdir);
+                if (files.Count == 0) continue;
+
+                // Importar los archivos (sin targetPlaylistId: ImportFilesInternal no crea
+                // playlist automáticamente, que es lo que queremos)
+                var result = ImportFilesInternal(files, null);
+
+                // Recoger IDs de canciones para asociar a la playlist.
+                // Necesitamos buscar por path porque ImportFilesInternal no devuelve los IDs.
+                var allSongs = _songRepo.ListAll();
+                var songIds = new List<long>();
+                foreach (var file in files)
+                {
+                    var s = allSongs.FirstOrDefault(x => x.FilePath == file);
+                    if (s != null) songIds.Add(s.Id);
+                }
+
+                if (songIds.Count > 0 && _playlistService != null)
+                {
+                    // Crear/actualizar playlist y asociar canciones
+                    var playlistId = _playlistService.CreatePlaylist(playlistName);
+                    _playlistService.AddSongs(playlistId, songIds.Distinct().ToList());
+                }
+
+                results.Add(new SubfolderPlaylistResult(playlistName, result.Added, result.Duplicates));
+                WaveLogger.Info($"ImportFolderWithSubfolderPlaylists: subcarpeta '{playlistName}' → {result.Added} added, {result.Duplicates} duplicates");
+            }
+
+            // 3. Importar archivos sueltos en la carpeta raíz (sin subcarpeta, sin playlist)
+            try
+            {
+                var rootFiles = Directory.GetFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(TagReader.IsAudioFile)
+                    .ToList();
+                if (rootFiles.Count > 0)
+                {
+                    ImportFilesInternal(rootFiles, null);
+                    WaveLogger.Info($"ImportFolderWithSubfolderPlaylists: {rootFiles.Count} files in root folder imported (no playlist)");
+                }
+            }
+            catch (Exception ex)
+            {
+                WaveLogger.Error($"ImportFolderWithSubfolderPlaylists: error importing root files", ex);
+            }
+
+            return results;
         });
     }
 }

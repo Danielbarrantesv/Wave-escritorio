@@ -54,4 +54,21 @@ public interface ILibraryService
     /// Devuelve el número de archivos renombrados correctamente.
     /// </summary>
     Task<(int Renamed, int Skipped, int Errors)> RenameSongsByMetadataAsync();
+
+    /// <summary>
+    /// Importa una carpeta creando una playlist por cada subcarpeta que contenga audio.
+    /// La carpeta raíz seleccionada NO se convierte en playlist, pero cada subcarpeta
+    /// directa sí (ej: /Music/Rock → playlist "Rock", /Music/Pop → playlist "Pop").
+    /// Los archivos sueltos en la carpeta raíz se importan pero no se asocian a ninguna
+    /// playlist (van a "Todas las canciones").
+    ///
+    /// Devuelve la lista de playlists creadas/actualizadas con su nombre y número de
+    /// canciones, para que el JS pueda mostrarle al usuario qué se hizo.
+    /// </summary>
+    Task<List<SubfolderPlaylistResult>> ImportFolderWithSubfolderPlaylistsAsync(string folderPath);
 }
+
+/// <summary>
+/// Resultado de importar una subcarpeta como playlist.
+/// </summary>
+public record SubfolderPlaylistResult(string PlaylistName, int Added, int Duplicates);

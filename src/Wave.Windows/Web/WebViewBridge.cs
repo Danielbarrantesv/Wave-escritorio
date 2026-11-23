@@ -99,6 +99,7 @@ public class WebViewBridge
             "library.editSong" => EditSong(p),
             "library.selectArtImage" => SelectArtImage(),
             "library.renameSongsByMetadata" => await RenameSongsByMetadata(p),
+            "library.importFolderWithSubfolderPlaylists" => await ImportFolderWithSubfolderPlaylists(p),
 
             // Playback
             "playback.play" => Invoke(() => _playback.Play()),
@@ -686,6 +687,34 @@ public class WebViewBridge
     {
         var added = await _library.ScanForNewFilesAsync();
         return new { added };
+    }
+
+    /// <summary>
+    /// Importa una carpeta creando una playlist por cada subcarpeta.
+    /// Si el params viene vacío, abre el diálogo nativo de selección de carpeta.
+    /// </summary>
+    private async Task<object?> ImportFolderWithSubfolderPlaylists(JsonElement p)
+    {
+        string folderPath = p.ValueKind == JsonValueKind.String ? p.GetString() ?? "" : "";
+        if (string.IsNullOrEmpty(folderPath))
+        {
+            string? selectedPath = null;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Selecciona la carpeta de música" };
+                if (dialog.ShowDialog() == true) selectedPath = dialog.FolderName;
+            });
+            if (string.IsNullOrEmpty(selectedPath))
+                return new { cancelled = true, playlists = new List<object>() };
+            folderPath = selectedPath;
+        }
+
+        var results = await _library.ImportFolderWithSubfolderPlaylistsAsync(folderPath);
+        return new
+        {
+            cancelled = false,
+            playlists = results.Select(r => new { name = r.PlaylistName, added = r.Added, duplicates = r.Duplicates }).ToList()
+        };
     }
 
     /// <summary>
