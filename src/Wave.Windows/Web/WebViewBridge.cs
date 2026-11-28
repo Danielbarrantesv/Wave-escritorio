@@ -20,6 +20,7 @@ public class WebViewBridge
     private readonly IBackupService _backup;
     private readonly SettingsService _settings;
     private readonly AudioEngine _audioEngine;
+    private readonly PhoneLinkService? _phoneLink;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -32,11 +33,11 @@ public class WebViewBridge
 
     public WebViewBridge(CoreWebView2 webView, ILibraryService library, IPlaylistService playlistService,
         PlaybackController playback, ILyricsService lyrics, IBackupService backup,
-        SettingsService settings, AudioEngine audioEngine)
+        SettingsService settings, AudioEngine audioEngine, PhoneLinkService? phoneLink = null)
     {
         _webView = webView; _library = library; _playlistService = playlistService;
         _playback = playback; _lyrics = lyrics; _backup = backup;
-        _settings = settings; _audioEngine = audioEngine;
+        _settings = settings; _audioEngine = audioEngine; _phoneLink = phoneLink;
         _webView.WebMessageReceived += OnMessageReceived;
         _playback.PropertyChanged += OnPlaybackChanged;
         // Suscribirse al progreso de importación para enviarlo al JS
@@ -63,11 +64,13 @@ public class WebViewBridge
 
     private async void OnMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
+        int? reqId = null;
         try
         {
             var json = e.TryGetWebMessageAsString();
             var msg = JsonSerializer.Deserialize<JsonElement>(json);
             var id = msg.GetProperty("id").GetInt32();
+            reqId = id;
             var method = msg.GetProperty("method").GetString() ?? "";
             var paramsEl = msg.TryGetProperty("params", out var p) ? p : default;
             var result = await HandleMethod(method, paramsEl);
@@ -77,7 +80,7 @@ public class WebViewBridge
         catch (Exception ex)
         {
             WaveLogger.Error("Bridge error", ex);
-            try { _webView.PostWebMessageAsString(JsonSerializer.Serialize(new { error = ex.Message })); } catch { }
+            try { _webView.PostWebMessageAsString(JsonSerializer.Serialize(new { id = reqId, error = ex.Message }, JsonOpts)); } catch { }
         }
     }
 
@@ -86,8 +89,8 @@ public class WebViewBridge
         return method switch
         {
             // Library
-            "library.getSongs" => _library.GetAllSongs(),
-            "library.getSongCount" => _library.SongCount,
+            "library.getSongs" => GetActiveSongs(),
+            "library.getSongCount" => _phoneLink?.IsPhoneViewActive == true ? _phoneLink.Songs.Count : _library.SongCount,
             "library.importFromFolder" => await ImportFromFolder(p),
             "library.importFromFolderToPlaylist" => await ImportFromFolderToPlaylist(p),
             "library.importFiles" => await ImportFiles(p),
@@ -118,10 +121,11 @@ public class WebViewBridge
             "playback.setEqEnabled" => Invoke(() => _audioEngine.EqualizerEnabled = p.GetProperty("enabled").GetBoolean()),
 
             // Playlists
-            "playlists.getAll" => _playlistService.GetAllSorted(),
-            "playlists.getSongs" => _playlistService.GetSongs(p.GetProperty("playlistId").GetInt64()),
+            "playlists.getAll" => GetActivePlaylists(),
+            "playlists.getSongs" => GetPlaylistSongs(p.GetProperty("playlistId").GetInt64()),
             "playlists.toggleFavorite" => Invoke(() => {
                 var song = p.Deserialize<Song>(JsonOpts)!;
+                if (song.Id < 0) return;
                 _playlistService.ToggleFavorite(song);
                 // Si la canción que se toggleó es la que está reproduciéndose ahora,
                 // actualizar _playback.CurrentSong.IsFavorite para que GetPlaybackState
@@ -161,6 +165,13 @@ public class WebViewBridge
             "window.openEqualizer" => OpenEqualizer(),
             "window.exportLogs" => ExportLogs(),
             "window.selectFolder" => SelectFolder(),
+
+            // Phone Link (Wave Android <-> PC)
+            "phone.status" => _phoneLink?.GetStatus() ?? new { connected = false, active = false, deviceName = "", songCount = 0, playlistCount = 0, host = "", port = 45454 },
+            "phone.connect" => await ConnectPhoneAsync(p),
+            "phone.disconnect" => DisconnectPhone(),
+            "phone.setViewActive" => SetPhoneViewActive(p),
+            "phone.refresh" => await RefreshPhoneAsync(),
 
             _ => throw new NotImplementedException($"Method '{method}' not found")
         };
@@ -226,11 +237,14 @@ public class WebViewBridge
 
         // Si el JS envía songIds, usar SOLO esos (preserva contexto de playlist/vista actual)
         // Esto es CRÍTICO para que shuffle/next/prev se mantengan dentro de la playlist actual.
+        IReadOnlyList<Song> sourceSongs = (songId < 0 || _phoneLink?.IsPhoneViewActive == true) && _phoneLink != null
+            ? _phoneLink.Songs
+            : _library.GetAllSongs();
+
         if (p.TryGetProperty("songIds", out var idsEl) && idsEl.ValueKind == JsonValueKind.Array)
         {
             var ids = idsEl.Deserialize<List<long>>() ?? new List<long>();
-            var all = _library.GetAllSongs();
-            var byId = all.ToDictionary(s => s.Id);
+            var byId = sourceSongs.ToDictionary(s => s.Id);
             queue = ids
                 .Where(id => byId.ContainsKey(id))
                 .Select(id => byId[id])
@@ -239,8 +253,7 @@ public class WebViewBridge
         }
         else
         {
-            // Sin contexto: usar toda la biblioteca (comportamiento legacy)
-            queue = _library.GetAllSongs().ToList();
+            queue = sourceSongs.ToList();
             startIndex = queue.FindIndex(s => s.Id == songId);
         }
 
@@ -281,8 +294,14 @@ public class WebViewBridge
             or nameof(PlaybackController.DurationMs) or nameof(PlaybackController.CurrentSong)
             or nameof(PlaybackController.IsShuffle) or nameof(PlaybackController.RepeatOne))
         {
-            try { _webView.PostWebMessageAsString(JsonSerializer.Serialize(new { @event = "playbackChanged", state = GetPlaybackState() }, JsonOpts)); }
-            catch { }
+            void Send()
+            {
+                try { _webView.PostWebMessageAsString(JsonSerializer.Serialize(new { @event = "playbackChanged", state = GetPlaybackState() }, JsonOpts)); }
+                catch { }
+            }
+            var disp = Application.Current?.Dispatcher;
+            if (disp != null && !disp.CheckAccess()) disp.BeginInvoke((Action)Send);
+            else Send();
         }
     }
 
@@ -775,6 +794,47 @@ public class WebViewBridge
         }
 
         return new { success = true, renamed, skipped, errors };
+    }
+
+    private IReadOnlyList<Song> GetActiveSongs() =>
+        _phoneLink?.IsPhoneViewActive == true ? _phoneLink.Songs : _library.GetAllSongs();
+
+    private IReadOnlyList<Playlist> GetActivePlaylists() =>
+        _phoneLink?.IsPhoneViewActive == true ? _phoneLink.Playlists : _playlistService.GetAllSorted();
+
+    private IReadOnlyList<Song> GetPlaylistSongs(long playlistId)
+    {
+        if (playlistId < 0 && _phoneLink != null)
+            return _phoneLink.GetPlaylistSongs(playlistId);
+        return _playlistService.GetSongs(playlistId);
+    }
+
+    private async Task<object?> ConnectPhoneAsync(JsonElement p)
+    {
+        if (_phoneLink == null) throw new InvalidOperationException("Servicio de conexión no disponible.");
+        var code = p.TryGetProperty("code", out var cEl) ? cEl.GetString() ?? "" : "";
+        var host = p.TryGetProperty("host", out var hEl) ? hEl.GetString() : null;
+        return await _phoneLink.ConnectAsync(code, host);
+    }
+
+    private object? DisconnectPhone()
+    {
+        _playback.ClearRemoteQueueIfActive();
+        _phoneLink?.Disconnect();
+        return _phoneLink?.GetStatus();
+    }
+
+    private object? SetPhoneViewActive(JsonElement p)
+    {
+        var active = p.TryGetProperty("active", out var aEl) && aEl.GetBoolean();
+        _phoneLink?.SetPhoneViewActive(active);
+        return _phoneLink?.GetStatus();
+    }
+
+    private async Task<object?> RefreshPhoneAsync()
+    {
+        if (_phoneLink == null) throw new InvalidOperationException("Servicio de conexión no disponible.");
+        return await _phoneLink.RefreshAsync();
     }
 
     private static object? Invoke(Action a) { a(); return null; }

@@ -1,4 +1,10 @@
 // Wave App v1.3.0
+let phoneLinkState = { connected: false, active: false, deviceName: '', songCount: 0, host: '', port: 45454 };
+function toImgSrc(uri) {
+    if (!uri) return '';
+    if (/^(https?:|data:|file:)/i.test(uri)) return uri;
+    return 'file:///' + uri.replace(/\\/g, '/');
+}
 let allSongs = []; let filteredSongs = []; let currentPlaylist = null;
 let currentSort = 'recentlyAdded'; let isSeeking = false;
 let isVolumeDragging = false;
@@ -59,6 +65,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function bindEvents() {
     document.getElementById('btn-add').onclick = onAddMusic;
+    const phoneBtn = document.getElementById('btn-phone');
+    if (phoneBtn) phoneBtn.onclick = openPhoneConnectModal;
     document.getElementById('btn-play').onclick = onPlayPause;
     document.getElementById('btn-next').onclick = onNext;
     document.getElementById('btn-prev').onclick = onPrev;
@@ -491,7 +499,7 @@ async function loadPlaylists() {
         } else {
             const covers = await getPlaylistCovers(pl.id);
             iconHtml = covers.length > 0
-                ? `<div class="playlist-cover-grid">${covers.map(c => `<div style="background-image:url('file:///${c.replace(/\\/g,'/')}')"></div>`).join('')}</div>`
+                ? `<div class="playlist-cover-grid">${covers.map(c => `<div style="background-image:url('${toImgSrc(c)}')"></div>`).join('')}</div>`
                 : '<div class="playlist-cover-grid"><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div></div>';
         }
         el.innerHTML = `${iconHtml}<span>${escapeHtml(pl.name)}</span>`;
@@ -502,6 +510,7 @@ async function loadPlaylists() {
 }
 
 function showPlaylistContextMenu(e, pl) {
+    if (pl && pl.id < 0) return;
     const menu = document.getElementById('playlist-context-menu');
     // Iconos SVG (path data del usuario)
     const iconImport = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.25,16.62h1.5V12.17l1.86,1.86l1.05-1.05L12,9.31L8.36,12.95l1.05,1.05l1.84-1.84v4.45ZM4.31,19.5q-0.76,0-1.28-0.52T2.5,17.69V6.31q0-0.76 0.52-1.28T4.31,4.5H9.8l2,2h7.89q0.76,0 1.28,0.52T21.5,8.31v9.38q0,0.76-0.52,1.28T19.69,19.5H4.31Zm0-1.5H19.69q0.13,0 0.22-0.09T20,17.69V8.31q0-0.13-0.09-0.22T19.69,8H11.18l-2-2H4.31Q4.17,6 4.09,6.09T4,6.31V17.69q0,0.13 0.09,0.22T4.31,18ZM4,18q0,0 0-0.09t0-0.22V6.31Q4,6.17 4,6.09T4,6V8Q4,8 4,8.09T4,8.31v9.38q0,0.13 0,0.22T4,18Z"/></svg>';
@@ -819,7 +828,7 @@ function renderSongRange(startIdx, endIdx) {
         const title = s.displayTitle || s.title || s.fileName || 'Sin título';
         const artist = s.displayArtist || s.artist || 'Artista desconocido';
         const album = s.displayAlbum || s.album || '';
-        const cover = s.artUri ? `<img src="file:///${(s.artUri||'').replace(/\\/g,'/')}" />` :
+        const cover = s.artUri ? `<img src="${toImgSrc(s.artUri)}" />` :
             `<div class="recent-placeholder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
         const isSelected = selectedSongIds.has(s.id);
         const selClass = isSelected ? ' selected' : '';
@@ -881,6 +890,14 @@ function updateSelectionBar() {
     const bar = document.getElementById('selection-bar');
     const count = document.getElementById('selection-count');
     if (!bar || !count) return;
+    if (song.id < 0) {
+        const iconPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+        menu.innerHTML = `<div class="ctx-item" onclick="hideContextMenu();playSong(${songId})">${iconPlay}<span>Reproducir</span></div>`;
+        menu.style.left = Math.min(e.clientX, window.innerWidth - 220) + 'px';
+        menu.style.top = Math.min(e.clientY, window.innerHeight - 80) + 'px';
+        menu.classList.remove('hidden');
+        return;
+    }
     const n = selectedSongIds.size;
     if (n > 0) {
         bar.classList.remove('hidden');
@@ -1100,7 +1117,7 @@ function saveRecentSongs(arr) {
 }
 
 async function pushRecentSong(song) {
-    if (!song || !song.id) return;
+    if (!song || !song.id || song.id < 0) return;
     let recents = loadRecentSongs();
     // Quitar si ya existe (para moverlo al frente)
     recents = recents.filter(r => r.id !== song.id);
@@ -1112,6 +1129,7 @@ async function pushRecentSong(song) {
 
 function renderRecentSlider() {
     const section = document.getElementById('recent-section');
+    if (phoneLinkState.active) { if (section) section.style.display = 'none'; return; }
     const slider = document.getElementById('recent-slider');
     if (!slider) return;
     const recents = loadRecentSongs();
@@ -1123,7 +1141,7 @@ function renderRecentSlider() {
     const placeholderSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg>';
     slider.innerHTML = recents.map(r => {
         const cover = r.artUri
-            ? `<img src="file:///${(r.artUri||'').replace(/\\/g,'/')}" />`
+            ? `<img src="${toImgSrc(r.artUri)}" />`
             : `<div class="recent-placeholder">${placeholderSvg}</div>`;
         const tooltip = `${r.title || 'Sin título'} — ${r.artist || 'Artista desconocido'}`;
         return `<div class="recent-card" data-id="${r.id}" title="${escapeHtml(tooltip)}">${cover}</div>`;
@@ -1182,7 +1200,7 @@ function renderArtistsSlider() {
 
     slider.innerHTML = artists.map(a => {
         const cover = a.coverUri
-            ? `<img src="file:///${(a.coverUri||'').replace(/\\/g,'/')}" />`
+            ? `<img src="${toImgSrc(a.coverUri)}" />`
             : `<div class="recent-placeholder">${placeholderSvg}</div>`;
         return `<div class="artist-card" data-artist="${escapeHtml(a.name)}" title="${escapeHtml(a.name)} — ${a.songs.length} canciones">
             <div class="artist-cover">${cover}<span class="count-badge">${a.songs.length}</span></div>
@@ -1252,7 +1270,7 @@ function updatePlayerSongInfo(state) {
     setupMarquee(artistEl, artist);
     const cover = document.getElementById('player-cover');
     if (state.currentSong.artUri)
-        cover.innerHTML = `<img src="file:///${state.currentSong.artUri.replace(/\\/g,'/')}" />`;
+        cover.innerHTML = `<img src="${toImgSrc(state.currentSong.artUri)}" />`;
     else cover.innerHTML = `<div class="placeholder-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="24px" width="24px" fill="currentColor"><path d="M3.18,19.83Q2,18.65 2,17t1.18-2.83T6,13q0.58,0 1.06,0.14T8,13.55V5L20,3V15q0,1.65-1.18,2.82T16,19t-2.82-1.18T12,15t1.18-2.83T16,11q0.57,0 1.06,0.14T18,11.55V7.43L10,9v8q0,1.65-1.17,2.82T6,21T3.18,19.83Z"/></svg></div>`;
 
     // Solo actualizar .playing si la canción cambió (no en cada tick de posición)
@@ -1761,6 +1779,7 @@ function showToast(title, message, iconSvg) {
 // Se ejecuta 3 segundos después de que la app termina de cargar,
 // en background. Si encuentra canciones nuevas, muestra un toast.
 async function autoScanForNewFiles() {
+    if (phoneLinkState.active) return;
     try {
         const result = await WaveAPI.call('library.scanForNewFiles', {});
         if (result && result.added > 0) {
@@ -2362,7 +2381,17 @@ const I18N = {
         error: 'Error', error_prefix: 'Error: ',
         report_bug_msg: 'Para reportar un bug:\n\n1. Exporta los logs desde Configuración → Exportar logs (wave.log)\n2. Ve a: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Crea un nuevo issue con:\n   - Descripción del bug\n   - Pasos para reproducirlo\n   - Archivo wave.log adjunto',
         // Add to playlist modal
-        add_to_playlist_title: 'Agregar a playlist'
+        add_to_playlist_title: 'Agregar a playlist',
+        phone_btn: 'Celular', phone_btn_connected: 'Celular',
+        phone_modal_title: 'Conectar con Wave celular',
+        phone_modal_desc: 'Abre Wave en tu celular, toca el icono de computadora y escribe el código de 6 dígitos (mismo Wi-Fi).',
+        phone_code_placeholder: '000000',
+        phone_ip_placeholder: 'IP del celular (opcional, ej: 192.168.1.50)',
+        phone_connect_btn: 'Conectar', phone_connecting: 'Buscando celular...',
+        phone_connected_toast: 'Celular conectado',
+        phone_connected_msg: '{device} ({n} canciones)',
+        phone_view_pc: 'Ver PC', phone_view_phone: 'Ver celular',
+        phone_disconnect_btn: 'Desconectar'
     },
     en: {
         app_title: 'Wave', add_music: '+ Add music', search_placeholder: 'Search songs, artists, albums...',
@@ -2475,7 +2504,17 @@ const I18N = {
         stats_unknown_artist: 'Unknown', stats_artist_count: '{count} songs',
         error: 'Error', error_prefix: 'Error: ',
         report_bug_msg: 'To report a bug:\n\n1. Export logs from Settings → Export logs (wave.log)\n2. Go to: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Create a new issue with:\n   - Bug description\n   - Steps to reproduce\n   - wave.log file attached',
-        add_to_playlist_title: 'Add to playlist'
+        add_to_playlist_title: 'Add to playlist',
+        phone_btn: 'Phone', phone_btn_connected: 'Phone',
+        phone_modal_title: 'Connect to Wave mobile',
+        phone_modal_desc: 'Open Wave on your phone, tap the computer icon and enter the 6-digit code (same Wi-Fi).',
+        phone_code_placeholder: '000000',
+        phone_ip_placeholder: 'Phone IP (optional, e.g. 192.168.1.50)',
+        phone_connect_btn: 'Connect', phone_connecting: 'Finding phone...',
+        phone_connected_toast: 'Phone connected',
+        phone_connected_msg: '{device} ({n} songs)',
+        phone_view_pc: 'Show PC', phone_view_phone: 'Show phone',
+        phone_disconnect_btn: 'Disconnect'
     },
     fr: {
         app_title: 'Wave', add_music: '+ Ajouter musique', search_placeholder: 'Rechercher chansons, artistes, albums...',
@@ -2588,7 +2627,17 @@ const I18N = {
         stats_unknown_artist: 'Inconnu', stats_artist_count: '{count} chansons',
         error: 'Erreur', error_prefix: 'Erreur : ',
         report_bug_msg: 'Pour signaler un bug :\n\n1. Exportez les logs depuis Paramètres → Exporter logs (wave.log)\n2. Allez à : https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Créez un nouveau ticket avec :\n   - Description du bug\n   - Étapes pour le reproduire\n   - Fichier wave.log joint',
-        add_to_playlist_title: 'Ajouter à playlist'
+        add_to_playlist_title: 'Ajouter à playlist',
+        phone_btn: 'Téléphone', phone_btn_connected: 'Téléphone',
+        phone_modal_title: 'Connecter à Wave mobile',
+        phone_modal_desc: 'Ouvrez Wave sur votre téléphone, touchez l’icône ordinateur et entrez le code à 6 chiffres (même Wi-Fi).',
+        phone_code_placeholder: '000000',
+        phone_ip_placeholder: 'IP du téléphone (optionnel, ex: 192.168.1.50)',
+        phone_connect_btn: 'Connecter', phone_connecting: 'Recherche...',
+        phone_connected_toast: 'Téléphone connecté',
+        phone_connected_msg: '{device} ({n} titres)',
+        phone_view_pc: 'Voir PC', phone_view_phone: 'Voir mobile',
+        phone_disconnect_btn: 'Déconnecter'
     },
     de: {
         app_title: 'Wave', add_music: '+ Musik hinzufügen', search_placeholder: 'Lieder, Künstler, Alben suchen...',
@@ -2701,7 +2750,17 @@ const I18N = {
         stats_unknown_artist: 'Unbekannt', stats_artist_count: '{count} Lieder',
         error: 'Fehler', error_prefix: 'Fehler: ',
         report_bug_msg: 'So melden Sie einen Fehler:\n\n1. Exportieren Sie die Logs unter Einstellungen → Logs exportieren (wave.log)\n2. Gehen Sie zu: https://github.com/Danielbarrantesv/Wave-escritorio/issues\n3. Erstellen Sie ein neues Issue mit:\n   - Fehlerbeschreibung\n   - Schritte zur Reproduktion\n   - wave.log-Datei angehängt',
-        add_to_playlist_title: 'Zur Playlist hinzufügen'
+        add_to_playlist_title: 'Zur Playlist hinzufügen',
+        phone_btn: 'Handy', phone_btn_connected: 'Handy',
+        phone_modal_title: 'Mit Wave Mobil verbinden',
+        phone_modal_desc: 'Öffne Wave auf dem Handy, tippe auf das PC-Symbol und gib den 6-stelligen Code ein (gleiches WLAN).',
+        phone_code_placeholder: '000000',
+        phone_ip_placeholder: 'Handy-IP (optional, z. B. 192.168.1.50)',
+        phone_connect_btn: 'Verbinden', phone_connecting: 'Suche Handy...',
+        phone_connected_toast: 'Handy verbunden',
+        phone_connected_msg: '{device} ({n} Songs)',
+        phone_view_pc: 'PC zeigen', phone_view_phone: 'Handy zeigen',
+        phone_disconnect_btn: 'Trennen'
     },
     ja: {
         app_title: 'Wave', add_music: '+ 音楽を追加', search_placeholder: '曲、アーティスト、アルバムを検索...',
@@ -2814,7 +2873,17 @@ const I18N = {
         stats_unknown_artist: '不明', stats_artist_count: '{count}曲',
         error: 'エラー', error_prefix: 'エラー: ',
         report_bug_msg: 'バグを報告するには:\n\n1. 設定 → ログをエクスポート（wave.log）からログをエクスポート\n2. https://github.com/Danielbarrantesv/Wave-escritorio/issues にアクセス\n3. 新しいissueを作成し、以下を含めてください:\n   - バグの説明\n   - 再現手順\n   - wave.logファイルを添付',
-        add_to_playlist_title: 'プレイリストに追加'
+        add_to_playlist_title: 'プレイリストに追加',
+        phone_btn: 'スマホ', phone_btn_connected: 'スマホ',
+        phone_modal_title: 'Wave モバイルと接続',
+        phone_modal_desc: 'スマホのWaveでPCアイコンをタップし、6桁のコードを入力してください（同じWi-Fi）。',
+        phone_code_placeholder: '000000',
+        phone_ip_placeholder: 'スマホのIP（任意: 例 192.168.1.50）',
+        phone_connect_btn: '接続', phone_connecting: '検索中...',
+        phone_connected_toast: 'スマホ接続完了',
+        phone_connected_msg: '{device}（{n}曲）',
+        phone_view_pc: 'PCを表示', phone_view_phone: 'スマホを表示',
+        phone_disconnect_btn: '切断'
     },
     ko: {
         app_title: 'Wave', add_music: '+ 음악 추가', search_placeholder: '곡, 아티스트, 앨범 검색...',
@@ -2927,7 +2996,17 @@ const I18N = {
         stats_unknown_artist: '알 수 없음', stats_artist_count: '{count}곡',
         error: '오류', error_prefix: '오류: ',
         report_bug_msg: '버그를 신고하려면:\n\n1. 설정 → 로그 내보내기(wave.log)에서 로그 내보내기\n2. https://github.com/Danielbarrantesv/Wave-escritorio/issues 방문\n3. 새 이슈를 생성하고 다음을 포함하세요:\n   - 버그 설명\n   - 재현 단계\n   - wave.log 파일 첨부',
-        add_to_playlist_title: '재생목록에 추가'
+        add_to_playlist_title: '재생목록에 추가',
+        phone_btn: '휴대폰', phone_btn_connected: '휴대폰',
+        phone_modal_title: 'Wave 모바일 연결',
+        phone_modal_desc: '휴대폰 Wave에서 PC 아이콘을 누르고 6자리 코드를 입력하세요 (같은 Wi-Fi).',
+        phone_code_placeholder: '000000',
+        phone_ip_placeholder: '휴대폰 IP (선택 사항, 예: 192.168.1.50)',
+        phone_connect_btn: '연결', phone_connecting: '휴대폰 찾는 중...',
+        phone_connected_toast: '휴대폰 연결됨',
+        phone_connected_msg: '{device} ({n}곡)',
+        phone_view_pc: 'PC 보기', phone_view_phone: '휴대폰 보기',
+        phone_disconnect_btn: '연결 해제'
     }
 };
 
@@ -2972,6 +3051,7 @@ function applyLanguage(lang) {
         if (input) input.placeholder = text;
     };
 
+    updatePhoneUI(phoneLinkState);
     // Header de configuración
     const settingsHeader = document.querySelector('.settings-header h2');
     if (settingsHeader) settingsHeader.textContent = t('settings');
@@ -3077,4 +3157,134 @@ async function showFirstRunLanguagePicker() {
             }
         }, 50);
     });
+}
+
+
+// === Phone Link (Wave Android <-> PC) ===
+function updatePhoneUI(status) {
+    if (status) phoneLinkState = status;
+    const btn = document.getElementById('btn-phone');
+    const lbl = document.getElementById('btn-phone-label');
+    const banner = document.getElementById('phone-banner');
+    const nameEl = document.getElementById('phone-banner-name');
+    const switchBtn = document.getElementById('phone-switch-btn');
+    const addBtn = document.getElementById('btn-add');
+
+    if (phoneLinkState.connected) {
+        if (btn) btn.classList.add('connected');
+        if (lbl) lbl.textContent = phoneLinkState.deviceName || t('phone_btn_connected');
+        if (banner) banner.classList.remove('hidden');
+        if (nameEl) nameEl.textContent = `${phoneLinkState.deviceName || 'Android'} (${phoneLinkState.songCount || 0})`;
+        if (switchBtn) switchBtn.textContent = phoneLinkState.active ? t('phone_view_pc') : t('phone_view_phone');
+    } else {
+        if (btn) btn.classList.remove('connected');
+        if (lbl) lbl.textContent = t('phone_btn');
+        if (banner) banner.classList.add('hidden');
+    }
+    if (addBtn) addBtn.style.display = phoneLinkState.active ? 'none' : '';
+}
+
+function openPhoneConnectModal() {
+    if (phoneLinkState.connected) {
+        showModal(
+            t('phone_modal_title'),
+            `<div class="modal-message">${escapeHtml(tf('phone_connected_msg', { device: phoneLinkState.deviceName || 'Android', n: phoneLinkState.songCount || 0 }))}<br><span style="color:var(--text-dim);font-size:12px;">${escapeHtml(phoneLinkState.host || '')}:${phoneLinkState.port || 45454}</span></div>`,
+            `<button class="modal-btn modal-btn-cancel" onclick="closeModal();">${t('cancel')}</button>
+             <button class="modal-btn modal-btn-cancel" onclick="closeModal();refreshPhoneLibrary();">↻</button>
+             <button class="modal-btn modal-btn-primary" onclick="closeModal();disconnectPhone();">${t('phone_disconnect_btn')}</button>`
+        );
+        return;
+    }
+
+    const codeId = 'phone-code-' + Date.now();
+    const ipId = 'phone-ip-' + Date.now();
+    const errId = 'phone-err-' + Date.now();
+    const btnId = 'phone-conn-btn-' + Date.now();
+
+    showModal(
+        t('phone_modal_title'),
+        `<p style="color:var(--text-dim);font-size:13px;margin:0 0 14px;line-height:1.4;">${escapeHtml(t('phone_modal_desc'))}</p>
+         <div id="${errId}" class="phone-error-box hidden"></div>
+         <input type="text" id="${codeId}" class="modal-input phone-code-input" maxlength="7" inputmode="numeric" placeholder="${escapeHtml(t('phone_code_placeholder'))}" onkeydown="if(event.key==='Enter')submitPhoneConnect('${codeId}','${ipId}','${errId}','${btnId}');" />
+         <input type="text" id="${ipId}" class="modal-input" style="margin-bottom:8px;font-size:12px;" placeholder="${escapeHtml(t('phone_ip_placeholder'))}" onkeydown="if(event.key==='Enter')submitPhoneConnect('${codeId}','${ipId}','${errId}','${btnId}');" />`,
+        `<button class="modal-btn modal-btn-cancel" onclick="closeModal();">${t('cancel')}</button>
+         <button id="${btnId}" class="modal-btn modal-btn-primary" onclick="submitPhoneConnect('${codeId}','${ipId}','${errId}','${btnId}');">${t('phone_connect_btn')}</button>`
+    );
+    setTimeout(() => { document.getElementById(codeId)?.focus(); }, 80);
+}
+
+async function submitPhoneConnect(codeId, ipId, errId, btnId) {
+    const codeInput = document.getElementById(codeId);
+    const ipInput = document.getElementById(ipId);
+    const errBox = document.getElementById(errId);
+    const btn = document.getElementById(btnId);
+    if (!codeInput || !btn) return;
+
+    const code = (codeInput.value || '').trim();
+    const host = (ipInput?.value || '').trim();
+    if (errBox) errBox.classList.add('hidden');
+
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = t('phone_connecting');
+
+    try {
+        const status = await WaveAPI.call('phone.connect', { code, host }, 25000);
+        closeModal();
+        updatePhoneUI(status);
+        currentPlaylist = null;
+        await loadSongs();
+        await loadPlaylists();
+        renderRecentSlider();
+        showToast(
+            t('phone_connected_toast'),
+            tf('phone_connected_msg', { device: status.deviceName || 'Android', n: status.songCount || 0 }),
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>'
+        );
+    } catch (e) {
+        if (errBox) {
+            errBox.textContent = e.message || String(e);
+            errBox.classList.remove('hidden');
+        }
+        btn.disabled = false;
+        btn.textContent = origText;
+    }
+}
+
+async function togglePhoneSource() {
+    if (!phoneLinkState.connected) return;
+    const nextActive = !phoneLinkState.active;
+    const status = await WaveAPI.call('phone.setViewActive', { active: nextActive });
+    updatePhoneUI(status);
+    currentPlaylist = null;
+    await loadSongs();
+    await loadPlaylists();
+    renderRecentSlider();
+}
+
+async function refreshPhoneLibrary() {
+    if (!phoneLinkState.connected) return;
+    try {
+        const status = await WaveAPI.call('phone.refresh', {}, 20000);
+        updatePhoneUI(status);
+        currentPlaylist = null;
+        await loadSongs();
+        await loadPlaylists();
+        showToast(
+            t('phone_connected_toast'),
+            tf('phone_connected_msg', { device: status.deviceName || 'Android', n: status.songCount || 0 }),
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>'
+        );
+    } catch (e) {
+        await modalAlert(t('error'), e.message || String(e));
+    }
+}
+
+async function disconnectPhone() {
+    const status = await WaveAPI.call('phone.disconnect');
+    updatePhoneUI(status || { connected: false, active: false });
+    currentPlaylist = null;
+    await loadSongs();
+    await loadPlaylists();
+    renderRecentSlider();
 }

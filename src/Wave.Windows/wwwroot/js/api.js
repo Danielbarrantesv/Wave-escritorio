@@ -7,29 +7,28 @@ const WaveAPI = {
         window.chrome.webview.addEventListener('message', (e) => {
             const data = JSON.parse(e.data);
             if (data.event) {
-                // Es un evento de C# → JS (ej: playbackChanged)
                 this._onEvent(data.event, data.state);
             } else if (data.id && this._pending[data.id]) {
-                // Es una respuesta a una llamada RPC
-                this._pending[data.id].resolve(data.result);
+                const p = this._pending[data.id];
                 delete this._pending[data.id];
+                if (data.error) p.reject(new Error(data.error));
+                else p.resolve(data.result);
             }
         });
     },
 
-    call(method, params = {}) {
+    call(method, params = {}, timeoutMs = 10000) {
         return new Promise((resolve, reject) => {
             const id = ++this._id;
             this._pending[id] = { resolve, reject };
             const msg = JSON.stringify({ id, method, params });
             window.chrome.webview.postMessage(msg);
-            // Timeout de 10s
             setTimeout(() => {
                 if (this._pending[id]) {
                     this._pending[id].reject(new Error('Timeout: ' + method));
                     delete this._pending[id];
                 }
-            }, 10000);
+            }, timeoutMs);
         });
     },
 

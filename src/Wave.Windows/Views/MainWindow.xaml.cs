@@ -191,7 +191,8 @@ public partial class MainWindow : Window
                 App.Services.GetRequiredService<ILyricsService>(),
                 App.Services.GetRequiredService<IBackupService>(),
                 App.Services.GetRequiredService<SettingsService>(),
-                App.Services.GetRequiredService<AudioEngine>()
+                App.Services.GetRequiredService<AudioEngine>(),
+                App.Services.GetRequiredService<PhoneLinkService>()
             );
 
             WaveLogger.Info("WebView2 + Bridge initialized OK");

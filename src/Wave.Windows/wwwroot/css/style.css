@@ -879,3 +879,61 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 ::-webkit-scrollbar-thumb:active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 ::-webkit-scrollbar-corner { background: var(--surface); }
+
+/* === Phone Link (Android <-> PC) === */
+.btn-phone {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 7px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
+}
+.btn-phone:hover { border-color: var(--accent); color: var(--accent); }
+.btn-phone.connected {
+    border-color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.14);
+    color: var(--accent);
+}
+.phone-banner {
+    margin: 8px 10px 4px; padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(var(--accent-rgb), 0.12);
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+}
+.phone-banner.hidden { display: none; }
+.phone-banner-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+}
+.phone-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+    box-shadow: 0 0 8px var(--accent);
+}
+.phone-banner-name {
+    font-size: 12px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.phone-banner-actions {
+    display: flex; gap: 6px; align-items: center;
+}
+.phone-chip-btn {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 8px; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s ease;
+}
+.phone-chip-btn:hover { border-color: var(--accent); color: var(--accent); }
+.phone-chip-btn.danger:hover { border-color: #ef4444; color: #ef4444; }
+.phone-code-input {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 26px; font-weight: 700; letter-spacing: 6px;
+    text-align: center;
+}
+.phone-error-box {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #fca5a5; border-radius: 8px;
+    padding: 9px 12px; font-size: 12px; margin-bottom: 12px;
+}
+.phone-error-box.hidden { display: none; }

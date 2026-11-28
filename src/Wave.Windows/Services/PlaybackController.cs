@@ -36,6 +36,8 @@ public partial class PlaybackController : ObservableObject, IDisposable
     // Sin esto, NAudio dispara PlaybackStopped al cargar la siguiente canción,
     // lo que pone IsPlaying=false momentáneamente y causa el bug del doble click.
     private bool _isLoadingNext;
+    private CancellationTokenSource? _remoteLoadCts;
+    private long _loadGeneration;
 
     // Estado observable (UI bindea estos)
     [ObservableProperty] private bool _isPlaying;
@@ -124,6 +126,11 @@ public partial class PlaybackController : ObservableObject, IDisposable
             }
             return;
         }
+        if (RemoteAudioCache.IsRemoteUrl(CurrentSong.FilePath) && _engine.LengthMs == 0)
+        {
+            LoadAndPlay(true);
+            return;
+        }
         _engine.Play();
         IsPlaying = true;
     }
@@ -131,8 +138,27 @@ public partial class PlaybackController : ObservableObject, IDisposable
     /// <summary>Pausa la reproducción manteniendo la posición.</summary>
     public void Pause()
     {
+        try { _remoteLoadCts?.Cancel(); } catch { }
         _engine.Pause();
         IsPlaying = false;
+    }
+
+    /// <summary>Limpia la cola si estaba reproduciendo canciones remotas del celular.</summary>
+    public void ClearRemoteQueueIfActive()
+    {
+        if (CurrentSong?.Id < 0 || _queue.Any(s => s.Id < 0))
+        {
+            try { _remoteLoadCts?.Cancel(); } catch { }
+            Interlocked.Increment(ref _loadGeneration);
+            _engine.Stop();
+            _queue.Clear();
+            Queue.Clear();
+            _currentIndex = -1;
+            CurrentSong = null;
+            IsPlaying = false;
+            PositionMs = 0;
+            DurationMs = 0;
+        }
     }
 
     /// <summary>Alterna entre Play y Pause.</summary>
@@ -268,6 +294,19 @@ public partial class PlaybackController : ObservableObject, IDisposable
         // Suprimir el evento IsPlaying=false que NAudio dispara al cargar una nueva canción.
         // Sin este flag, OnPlaybackStopped pondría IsPlaying=false momentáneamente,
         // causando que el JS cambie el icono a "play" y el usuario necesite doble click.
+        try { _remoteLoadCts?.Cancel(); } catch { }
+        var myGen = Interlocked.Increment(ref _loadGeneration);
+
+        if (RemoteAudioCache.IsRemoteUrl(CurrentSong.FilePath))
+        {
+            var cts = new CancellationTokenSource();
+            _remoteLoadCts = cts;
+            DurationMs = CurrentSong.DurationMs;
+            PositionMs = 0;
+            _ = LoadRemoteAndPlayAsync(CurrentSong, autoPlay, myGen, cts.Token);
+            return;
+        }
+
         _isLoadingNext = true;
         try
         {
@@ -296,6 +335,74 @@ public partial class PlaybackController : ObservableObject, IDisposable
         {
             _isLoadingNext = false;
         }
+    }
+
+    private async Task LoadRemoteAndPlayAsync(Song song, bool autoPlay, long generation, CancellationToken ct)
+    {
+        try
+        {
+            var localPath = await RemoteAudioCache.ResolveToLocalFileAsync(song.FilePath, ct);
+            if (ct.IsCancellationRequested || generation != Interlocked.Read(ref _loadGeneration))
+                return;
+
+            void ApplyOnThread()
+            {
+                if (ct.IsCancellationRequested || generation != Interlocked.Read(ref _loadGeneration))
+                    return;
+
+                _isLoadingNext = true;
+                try
+                {
+                    _engine.Load(localPath);
+                    DurationMs = _engine.LengthMs > 0 ? _engine.LengthMs : song.DurationMs;
+                    if (autoPlay)
+                    {
+                        _engine.Play();
+                        IsPlaying = true;
+                    }
+                    PrefetchNextRemoteSong();
+                }
+                finally
+                {
+                    _isLoadingNext = false;
+                }
+            }
+
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+                await dispatcher.InvokeAsync(ApplyOnThread);
+            else
+                ApplyOnThread();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            WaveLogger.Error($"Error streaming remote song: {song.FilePath}", ex);
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+                dispatcher.BeginInvoke(() => { IsPlaying = false; });
+            else
+                IsPlaying = false;
+        }
+    }
+
+    private void PrefetchNextRemoteSong()
+    {
+        if (_queue.Count <= 1) return;
+        int nextIdx = -1;
+        if (IsShuffle && _shuffleOrder.Count > 0)
+        {
+            if (_shuffleIndex + 1 < _shuffleOrder.Count)
+                nextIdx = _shuffleOrder[_shuffleIndex + 1];
+        }
+        else if (_currentIndex + 1 < _queue.Count)
+        {
+            nextIdx = _currentIndex + 1;
+        }
+        if (nextIdx >= 0 && nextIdx < _queue.Count)
+            RemoteAudioCache.PrefetchInBackground(_queue[nextIdx].FilePath);
     }
 
     /// <summary>Manejador del evento PlaybackStopped del engine.</summary>
@@ -347,7 +454,7 @@ public partial class PlaybackController : ObservableObject, IDisposable
 
         // Throttle: actualizar last_played_at en DB cada 3 segundos
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (now - _lastLastPlayedUpdate >= 3 && CurrentSong != null)
+        if (now - _lastLastPlayedUpdate >= 3 && CurrentSong != null && CurrentSong.Id > 0)
         {
             _songRepo.UpdateLastPlayedAt(CurrentSong.Id, now);
             _lastLastPlayedUpdate = now;
@@ -360,7 +467,7 @@ public partial class PlaybackController : ObservableObject, IDisposable
     /// </summary>
     public void SaveQueueToPrefs()
     {
-        if (_queue.Count == 0) return;
+        if (_queue.Count == 0 || _queue.Any(s => s.Id < 0)) return;
         var songIds = string.Join(",", _queue.Select(s => s.Id));
         _settings.Set("queue_song_ids", songIds);
         _settings.Set("queue_index", _currentIndex);
@@ -400,6 +507,7 @@ public partial class PlaybackController : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        try { _remoteLoadCts?.Cancel(); } catch { }
         _positionTimer.Stop();
         SaveQueueToPrefs();
         _engine.Dispose();

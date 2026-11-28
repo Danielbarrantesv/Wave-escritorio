@@ -168,6 +168,7 @@ public partial class App : Application
         services.AddSingleton<IPlaylistRepository, PlaylistRepository>();
         services.AddSingleton<IPlaylistService, PlaylistService>();
         services.AddSingleton<PlaybackController>();
+        services.AddSingleton<PhoneLinkService>();
         services.AddSingleton<ILibraryService, LibraryService>();
         services.AddSingleton<LrcLibClient>();
         services.AddSingleton<ILyricsService, LyricsService>();

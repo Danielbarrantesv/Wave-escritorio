@@ -94,7 +94,8 @@ public sealed class SmtcService : IDisposable
             props.TrackNumber = (uint)(song.TrackNo ?? 0);
 
             // Cover art (si existe ArtUri como path local)
-            if (!string.IsNullOrEmpty(song.ArtUri) && File.Exists(song.ArtUri))
+            if (!string.IsNullOrEmpty(song.ArtUri) &&
+                (File.Exists(song.ArtUri) || song.ArtUri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || song.ArtUri.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
             {
                 try
                 {
