@@ -237,7 +237,7 @@ public class WebViewBridge
 
         // Si el JS envía songIds, usar SOLO esos (preserva contexto de playlist/vista actual)
         // Esto es CRÍTICO para que shuffle/next/prev se mantengan dentro de la playlist actual.
-        IReadOnlyList<Song> sourceSongs = (songId < 0 || _phoneLink?.IsPhoneViewActive == true) && _phoneLink != null
+        IReadOnlyList<Song> sourceSongs = songId < 0 && _phoneLink != null
             ? _phoneLink.Songs
             : _library.GetAllSongs();
 

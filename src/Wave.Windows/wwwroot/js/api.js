@@ -1,4 +1,18 @@
 // Wave API Bridge - comunica JS con C# via WebView2 postMessage
+const NO_TIMEOUT_METHODS = new Set([
+    'library.importFromFolder',
+    'library.importFromFolderToPlaylist',
+    'library.importFolderWithSubfolderPlaylists',
+    'library.importFiles',
+    'library.importBackup',
+    'library.renameSongsByMetadata',
+    'library.deleteAll',
+    'library.selectArtImage',
+    'window.selectFolder',
+    'window.exportLogs',
+    'backup.export'
+]);
+
 const WaveAPI = {
     _id: 0,
     _pending: {},
@@ -17,18 +31,23 @@ const WaveAPI = {
         });
     },
 
-    call(method, params = {}, timeoutMs = 10000) {
+    call(method, params = {}, timeoutMs) {
+        const effectiveTimeout = timeoutMs !== undefined
+            ? timeoutMs
+            : (NO_TIMEOUT_METHODS.has(method) ? 0 : 10000);
         return new Promise((resolve, reject) => {
             const id = ++this._id;
             this._pending[id] = { resolve, reject };
             const msg = JSON.stringify({ id, method, params });
             window.chrome.webview.postMessage(msg);
-            setTimeout(() => {
-                if (this._pending[id]) {
-                    this._pending[id].reject(new Error('Timeout: ' + method));
-                    delete this._pending[id];
-                }
-            }, timeoutMs);
+            if (effectiveTimeout > 0) {
+                setTimeout(() => {
+                    if (this._pending[id]) {
+                        this._pending[id].reject(new Error('Timeout: ' + method));
+                        delete this._pending[id];
+                    }
+                }, effectiveTimeout);
+            }
         });
     },
 

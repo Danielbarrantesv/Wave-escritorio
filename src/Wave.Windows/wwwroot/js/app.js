@@ -837,12 +837,19 @@ function renderSongRange(startIdx, endIdx) {
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>';
         const favSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12,21.35l-1.45-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78-3.4,6.86-8.55,11.54L12,21.35z"/></svg>';
         const favClass = s.isFavorite ? 'fav-btn active' : 'fav-btn';
+        const isRemote = s.id < 0;
+        const checkHtml = isRemote
+            ? `<div class="song-check" style="visibility:hidden;pointer-events:none"></div>`
+            : `<div class="song-check" onclick="event.stopPropagation(); toggleRowSelection(${s.id}, event)">${checkIcon}</div>`;
+        const favHtml = isRemote
+            ? `<button class="fav-btn" style="visibility:hidden;pointer-events:none" tabindex="-1"></button>`
+            : `<button class="${favClass}" onclick="event.stopPropagation(); toggleFavorite(${s.id})">${favSvg}</button>`;
         html += `<div class="song-row${selClass}" data-id="${s.id}" oncontextmenu="showContextMenu(event, ${s.id})">
-            <div class="song-check" onclick="event.stopPropagation(); toggleRowSelection(${s.id}, event)">${checkIcon}</div>
+            ${checkHtml}
             <div class="song-cover">${cover}</div>
             <div class="song-info"><div class="song-title">${escapeHtml(title)}</div><div class="song-artist">${escapeHtml(artist)}</div></div>
             <div class="song-album">${escapeHtml(album)}</div>
-            <button class="${favClass}" onclick="event.stopPropagation(); toggleFavorite(${s.id})">${favSvg}</button>
+            ${favHtml}
             <div class="song-duration">${formatDuration(s.durationMs)}</div>
         </div>`;
     }
@@ -860,6 +867,7 @@ function onSongsScroll() {
 }
 
 function toggleRowSelection(id, e) {
+    if (id < 0) return;
     if (selectedSongIds.has(id)) selectedSongIds.delete(id);
     else selectedSongIds.add(id);
     lastClickedId = id;
@@ -867,12 +875,15 @@ function toggleRowSelection(id, e) {
 }
 
 function selectRange(fromId, toId) {
+    if (fromId < 0 || toId < 0) return;
     const fromIdx = filteredSongs.findIndex(s => s.id === fromId);
     const toIdx = filteredSongs.findIndex(s => s.id === toId);
     if (fromIdx < 0 || toIdx < 0) return;
     const lo = Math.min(fromIdx, toIdx);
     const hi = Math.max(fromIdx, toIdx);
-    for (let i = lo; i <= hi; i++) selectedSongIds.add(filteredSongs[i].id);
+    for (let i = lo; i <= hi; i++) {
+        if (filteredSongs[i].id > 0) selectedSongIds.add(filteredSongs[i].id);
+    }
     renderSongs();
 }
 
@@ -890,14 +901,6 @@ function updateSelectionBar() {
     const bar = document.getElementById('selection-bar');
     const count = document.getElementById('selection-count');
     if (!bar || !count) return;
-    if (song.id < 0) {
-        const iconPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-        menu.innerHTML = `<div class="ctx-item" onclick="hideContextMenu();playSong(${songId})">${iconPlay}<span>Reproducir</span></div>`;
-        menu.style.left = Math.min(e.clientX, window.innerWidth - 220) + 'px';
-        menu.style.top = Math.min(e.clientY, window.innerHeight - 80) + 'px';
-        menu.classList.remove('hidden');
-        return;
-    }
     const n = selectedSongIds.size;
     if (n > 0) {
         bar.classList.remove('hidden');
@@ -1034,8 +1037,11 @@ function updateCount() {
 // El contexto (IDs visibles actualmente) se envía para que shuffle/next/prev
 // se mantengan DENTRO de la playlist/vista activa y NO mezclen con toda la biblioteca.
 async function playSong(songId) {
-    const songIds = filteredSongs.map(s => s.id);
-    await WaveAPI.call('playback.playSong', { songId, songIds });
+    let songIds = filteredSongs.map(s => s.id);
+    if (!songIds.includes(songId)) {
+        songIds = allSongs.some(s => s.id === songId) ? allSongs.map(s => s.id) : null;
+    }
+    await WaveAPI.call('playback.playSong', songIds ? { songId, songIds } : { songId });
 }
 
 async function onPlayPause() {
@@ -1058,6 +1064,7 @@ async function onPlayPause() {
 }
 
 async function toggleFavorite(songId) {
+    if (songId < 0) return;
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
     await WaveAPI.call('playlists.toggleFavorite', song);
@@ -1083,6 +1090,7 @@ async function onToggleCurrentFavorite() {
         await modalAlert(t('no_song_playing'), t('no_song_playing_msg'));
         return;
     }
+    if (state.currentSong.id < 0) return;
     // Toggle en C# (envía una copia del song, NO actualiza _playback.CurrentSong)
     await WaveAPI.call('playlists.toggleFavorite', state.currentSong);
     // Recargar la biblioteca para actualizar el corazón en la fila
@@ -1421,6 +1429,12 @@ function showContextMenu(e, songId) {
     const menu = document.getElementById('context-menu');
     const song = allSongs.find(s => s.id === songId);
     if (!song) return;
+    if (song.id < 0) {
+        const iconPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+        menu.innerHTML = `<div class="ctx-item" onclick="hideContextMenu();playSong(${songId})">${iconPlay}<span>Reproducir</span></div>`;
+        positionMenu(menu, e.clientX, e.clientY);
+        return;
+    }
 
     // Si la canción no está seleccionada y hay otras seleccionadas, resetear selección a esta
     if (!selectedSongIds.has(songId) && selectedSongIds.size > 0) {
@@ -1666,7 +1680,11 @@ async function onAddMusic() {
                 showImportOverlay(t('importing_music'));
                 let result;
                 try {
-                    result = await WaveAPI.call('library.importFolderWithSubfolderPlaylists', '');
+                    result = await WaveAPI.call('library.importFolderWithSubfolderPlaylists', '', 0);
+                } catch (err) {
+                    hideImportOverlay();
+                    await modalAlert(t('error'), err?.message || String(err));
+                    return;
                 } finally {
                     hideImportOverlay();
                 }
@@ -1690,10 +1708,14 @@ async function onAddMusic() {
             showImportOverlay(t('importing_music'));
             try {
                 if (choice === 'folder') {
-                    result = await WaveAPI.call('library.importFromFolder', '');
+                    result = await WaveAPI.call('library.importFromFolder', '', 0);
                 } else if (choice === 'files') {
-                    result = await WaveAPI.call('library.importFiles', {});
+                    result = await WaveAPI.call('library.importFiles', {}, 0);
                 }
+            } catch (err) {
+                hideImportOverlay();
+                await modalAlert(t('error'), err?.message || String(err));
+                return;
             } finally {
                 hideImportOverlay();
             }
@@ -2032,7 +2054,8 @@ async function settingsShowChangelog() {
 
 // === Keyboard navigation helpers ===
 function selectAllVisible() {
-    filteredSongs.forEach(s => selectedSongIds.add(s.id));
+    if (phoneLinkState.active) return;
+    filteredSongs.forEach(s => { if (s.id > 0) selectedSongIds.add(s.id); });
     renderSongs();
 }
 
@@ -3231,6 +3254,7 @@ async function submitPhoneConnect(codeId, ipId, errId, btnId) {
     try {
         const status = await WaveAPI.call('phone.connect', { code, host }, 25000);
         closeModal();
+        selectedSongIds.clear();
         updatePhoneUI(status);
         currentPlaylist = null;
         await loadSongs();
@@ -3255,6 +3279,7 @@ async function togglePhoneSource() {
     if (!phoneLinkState.connected) return;
     const nextActive = !phoneLinkState.active;
     const status = await WaveAPI.call('phone.setViewActive', { active: nextActive });
+    selectedSongIds.clear();
     updatePhoneUI(status);
     currentPlaylist = null;
     await loadSongs();
@@ -3282,6 +3307,7 @@ async function refreshPhoneLibrary() {
 
 async function disconnectPhone() {
     const status = await WaveAPI.call('phone.disconnect');
+    selectedSongIds.clear();
     updatePhoneUI(status || { connected: false, active: false });
     currentPlaylist = null;
     await loadSongs();
